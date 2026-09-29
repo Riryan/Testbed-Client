@@ -282,7 +282,11 @@ namespace Player.Networking
         {
             if (!IsClientConnected)
                 return _latestStorage;
-            if (!forceRefresh && HasStorageCache)
+
+            // Normal Storage hydration is push-driven by the already-authoritative
+            // OpenStorage interaction. A non-forced call is therefore a cache read only;
+            // StorageSnapshot remains available strictly as an explicit recovery path.
+            if (!forceRefresh)
                 return _latestStorage;
             if (_storageSnapshotRequestInFlight)
                 return _latestStorage;
@@ -312,18 +316,23 @@ namespace Player.Networking
         {
             if (!HasStorageCache)
                 return LocalSocialFailure("storage is not open locally");
+            if (!HasPlayerItemsCache)
+                return LocalSocialFailure("inventory state has not hydrated locally");
             if (quantity <= 0)
                 return LocalSocialFailure("storage quantity must be positive");
-            if (HasPlayerItemsCache)
-            {
-                if (!TryGetCachedInventoryItem(inventorySlot, out PlayerItemWire item))
-                    return LocalSocialFailure("inventory slot is empty locally");
-                if (quantity > item.quantity)
-                    return LocalSocialFailure("storage quantity exceeds the locally known stack");
-            }
+            if (!TryGetCachedInventoryItem(inventorySlot, out PlayerItemWire item))
+                return LocalSocialFailure("inventory slot is empty locally");
+            if (quantity > item.quantity)
+                return LocalSocialFailure("storage quantity exceeds the locally known stack");
             if (!HasEmptyStorageSlot())
                 return LocalSocialFailure("storage is full locally");
-            return SendStorageTransferAsync(StorageTransferKind.Deposit, inventorySlot, quantity, millisecondsTimeout);
+            return SendStorageTransferAsync(
+                StorageTransferKind.Deposit,
+                inventorySlot,
+                quantity,
+                item.itemInstanceId,
+                _latestStorage.revision,
+                millisecondsTimeout);
         }
 
         public UniTask<SocialEconomyMutationResponseMessage> RequestWithdrawFromStorageAsync(
@@ -333,15 +342,23 @@ namespace Player.Networking
         {
             if (!HasStorageCache)
                 return LocalSocialFailure("storage is not open locally");
+            if (!HasPlayerItemsCache)
+                return LocalSocialFailure("inventory state has not hydrated locally");
             if (quantity <= 0)
                 return LocalSocialFailure("storage quantity must be positive");
             if (!TryGetCachedStorageItem(storageSlot, out PlayerItemWire item))
                 return LocalSocialFailure("storage slot is empty locally");
             if (quantity > item.quantity)
                 return LocalSocialFailure("withdraw quantity exceeds the locally known stack");
-            if (HasPlayerItemsCache && !HasEmptyInventorySlot())
+            if (!HasEmptyInventorySlot())
                 return LocalSocialFailure("inventory is full locally");
-            return SendStorageTransferAsync(StorageTransferKind.Withdraw, storageSlot, quantity, millisecondsTimeout);
+            return SendStorageTransferAsync(
+                StorageTransferKind.Withdraw,
+                storageSlot,
+                quantity,
+                item.itemInstanceId,
+                _latestStorage.revision,
+                millisecondsTimeout);
         }
 
         private async UniTask<SocialEconomyMutationResponseMessage> SendFriendActionAsync(
@@ -377,6 +394,8 @@ namespace Player.Networking
             StorageTransferKind action,
             int sourceSlot,
             int quantity,
+            long expectedItemInstanceId,
+            long knownStorageRevision,
             int millisecondsTimeout)
         {
             return await SendSocialMutationAsync(
@@ -386,6 +405,8 @@ namespace Player.Networking
                     action = (byte)action,
                     sourceSlot = sourceSlot,
                     quantity = quantity,
+                    expectedItemInstanceId = expectedItemInstanceId,
+                    knownStorageRevision = knownStorageRevision,
                 },
                 millisecondsTimeout);
         }
