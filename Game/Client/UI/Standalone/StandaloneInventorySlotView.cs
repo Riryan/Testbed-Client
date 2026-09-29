@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace Game.Client.UI.Standalone
 {
     /// <summary>Authored inventory slot presentation. Layout is owned by the prefab GridLayoutGroup.</summary>
-    public sealed class StandaloneInventorySlotView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
+    public sealed class StandaloneInventorySlotView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
     {
         [SerializeField] private Button button;
         [SerializeField] private Image icon;
@@ -21,18 +21,15 @@ namespace Game.Client.UI.Standalone
         private bool _selected;
         private PlayerItemWire _item;
         private Action<int> _clicked;
+        private Action<int> _doubleClicked;
         private Action<int> _dragStarted;
         private Action _dragEnded;
         private Action<int> _droppedOn;
         private StandaloneHudTooltipPanel _tooltip;
-        private CanvasGroup _canvasGroup;
 
         public int SlotIndex => _slotIndex;
         public bool HasItem => _hasItem;
         public PlayerItemWire Item => _item;
-
-        private void Awake() => button?.onClick.AddListener(OnClicked);
-        private void OnDestroy() => button?.onClick.RemoveListener(OnClicked);
 
         public void Bind(
             int slotIndex,
@@ -43,13 +40,15 @@ namespace Game.Client.UI.Standalone
             StandaloneHudTooltipPanel tooltip,
             Action<int> dragStarted = null,
             Action dragEnded = null,
-            Action<int> droppedOn = null)
+            Action<int> droppedOn = null,
+            Action<int> doubleClicked = null)
         {
             _slotIndex = slotIndex;
             _hasItem = hasItem;
             _item = item;
             _selected = selected;
             _clicked = clicked;
+            _doubleClicked = doubleClicked;
             _tooltip = tooltip;
             _dragStarted = dragStarted;
             _dragEnded = dragEnded;
@@ -57,7 +56,22 @@ namespace Game.Client.UI.Standalone
             RefreshPresentation();
         }
 
-        private void OnClicked() => _clicked?.Invoke(_slotIndex);
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (eventData == null || eventData.button != PointerEventData.InputButton.Left)
+                return;
+
+            // Use Unity's own click-count tracking rather than a parallel timer. The first
+            // click keeps the existing selection behavior; the second click in the same
+            // gesture performs the configured item action.
+            if (_hasItem && eventData.clickCount >= 2 && _doubleClicked != null)
+            {
+                _doubleClicked(_slotIndex);
+                return;
+            }
+
+            _clicked?.Invoke(_slotIndex);
+        }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
@@ -105,12 +119,6 @@ namespace Game.Client.UI.Standalone
 
             if (quantityText != null)
                 quantityText.text = _hasItem && _item.quantity > 1 ? _item.quantity.ToString() : string.Empty;
-        }
-
-        private void EnsureCanvasGroup()
-        {
-            if (_canvasGroup == null)
-                _canvasGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         }
 
 #if UNITY_EDITOR

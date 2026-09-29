@@ -289,7 +289,8 @@ namespace Game.Client.UI.Standalone
                     tooltip,
                     BeginInventoryDrag,
                     ClearDragSource,
-                    DropOnInventorySlot);
+                    DropOnInventorySlot,
+                    OnInventoryDoubleClicked);
                 view.gameObject.SetActive(true);
             }
             HideInventoryViews(capacity);
@@ -310,7 +311,8 @@ namespace Game.Client.UI.Standalone
                     tooltip,
                     BeginEquipmentDrag,
                     ClearDragSource,
-                    DropOnEquipmentSlot);
+                    DropOnEquipmentSlot,
+                    OnEquipmentDoubleClicked);
                 view.gameObject.SetActive(true);
             }
             HideEquipmentViews(equipment.Length);
@@ -372,18 +374,22 @@ namespace Game.Client.UI.Standalone
             if (!TryGetInventoryItem(slotIndex, out PlayerItemWire item))
             {
                 _selectedInventorySlot = -1;
+                SetFeedback(string.Empty);
                 RenderSnapshot();
                 return;
             }
 
-            if (_selectedInventorySlot != slotIndex)
-            {
-                _selectedInventorySlot = slotIndex;
-                SetFeedback($"Selected {item.displayName}.");
-                RenderSnapshot();
-                return;
-            }
+            _selectedInventorySlot = slotIndex;
+            SetFeedback($"Selected {item.displayName}.");
+            RenderSnapshot();
+        }
 
+        private void OnInventoryDoubleClicked(int slotIndex)
+        {
+            if (_busy || !TryGetInventoryItem(slotIndex, out PlayerItemWire item))
+                return;
+
+            _selectedInventorySlot = slotIndex;
             if (item.canUse)
             {
                 UseSelectedAsync(slotIndex, item.displayName).Forget();
@@ -396,8 +402,7 @@ namespace Game.Client.UI.Standalone
                 return;
             }
 
-            _selectedInventorySlot = -1;
-            SetFeedback(string.Empty);
+            SetFeedback($"Selected {item.displayName}. Choose an equipment slot.");
             RenderSnapshot();
         }
 
@@ -406,6 +411,8 @@ namespace Game.Client.UI.Standalone
             if (_busy || string.IsNullOrWhiteSpace(equipmentSlotId))
                 return;
 
+            // A selected inventory item may still be placed with one click on the desired
+            // compatible equipment slot. Merely clicking an equipped item no longer removes it.
             if (_selectedInventorySlot >= 0 && TryGetInventoryItem(_selectedInventorySlot, out PlayerItemWire selected))
             {
                 if (!AllowsEquipmentSlot(selected, equipmentSlotId))
@@ -414,8 +421,13 @@ namespace Game.Client.UI.Standalone
                     return;
                 }
                 EquipSelectedAsync(_selectedInventorySlot, equipmentSlotId, selected.displayName).Forget();
-                return;
             }
+        }
+
+        private void OnEquipmentDoubleClicked(string equipmentSlotId)
+        {
+            if (_busy || string.IsNullOrWhiteSpace(equipmentSlotId) || _selectedInventorySlot >= 0)
+                return;
 
             if (TryGetEquipmentSlot(equipmentSlotId, out EquipmentSlotWire slot) && slot.hasItem)
                 UnequipAsync(equipmentSlotId, slot.item.displayName, -1).Forget();
@@ -533,7 +545,6 @@ namespace Game.Client.UI.Standalone
             for (int i = 0; i < _equipmentViews.Count; ++i)
                 _equipmentViews[i]?.SetDropHighlight(false, false);
         }
-
 
         private async UniTaskVoid WithdrawStorageAsync(int storageSlot, int quantity)
         {

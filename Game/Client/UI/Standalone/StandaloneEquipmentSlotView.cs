@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace Game.Client.UI.Standalone
 {
     /// <summary>Compact authored equipment slot presentation with drag/drop support.</summary>
-    public sealed class StandaloneEquipmentSlotView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
+    public sealed class StandaloneEquipmentSlotView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
     {
         [SerializeField] private Button button;
         [SerializeField] private Image icon;
@@ -21,18 +21,15 @@ namespace Game.Client.UI.Standalone
         private bool _hasItem;
         private PlayerItemWire _item;
         private Action<string> _clicked;
+        private Action<string> _doubleClicked;
         private Action<string> _dragStarted;
         private Action _dragEnded;
         private Action<string> _droppedOn;
         private StandaloneHudTooltipPanel _tooltip;
-        private CanvasGroup _canvasGroup;
 
         public string SlotId => _slotId;
         public bool HasItem => _hasItem;
         public PlayerItemWire Item => _item;
-
-        private void Awake() => button?.onClick.AddListener(OnClicked);
-        private void OnDestroy() => button?.onClick.RemoveListener(OnClicked);
 
         public void Bind(
             string slotId,
@@ -43,13 +40,15 @@ namespace Game.Client.UI.Standalone
             StandaloneHudTooltipPanel tooltip,
             Action<string> dragStarted = null,
             Action dragEnded = null,
-            Action<string> droppedOn = null)
+            Action<string> droppedOn = null,
+            Action<string> doubleClicked = null)
         {
             _slotId = slotId ?? string.Empty;
             _displayName = string.IsNullOrWhiteSpace(displayName) ? _slotId : displayName;
             _hasItem = hasItem;
             _item = item;
             _clicked = clicked;
+            _doubleClicked = doubleClicked;
             _tooltip = tooltip;
             _dragStarted = dragStarted;
             _dragEnded = dragEnded;
@@ -58,7 +57,21 @@ namespace Game.Client.UI.Standalone
             RefreshPresentation();
         }
 
-        private void OnClicked() => _clicked?.Invoke(_slotId);
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (eventData == null || eventData.button != PointerEventData.InputButton.Left)
+                return;
+
+            // A normal click remains available for placing a selected inventory item into
+            // this slot. An equipped item is removed only by an actual Unity double-click.
+            if (_hasItem && eventData.clickCount >= 2 && _doubleClicked != null)
+            {
+                _doubleClicked(_slotId);
+                return;
+            }
+
+            _clicked?.Invoke(_slotId);
+        }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
@@ -109,12 +122,6 @@ namespace Game.Client.UI.Standalone
                 icon.enabled = _hasItem && icon.sprite != null;
                 icon.preserveAspect = true;
             }
-        }
-
-        private void EnsureCanvasGroup()
-        {
-            if (_canvasGroup == null)
-                _canvasGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         }
 
 #if UNITY_EDITOR
