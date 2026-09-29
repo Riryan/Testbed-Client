@@ -1,0 +1,79 @@
+# ============================================================
+# UNITY GENERATED
+# ============================================================
+
+/Library/
+/Temp/
+/Obj/
+/Build/
+/Builds/
+/Logs/
+/UserSettings/
+/MemoryCaptures/
+/Recordings/
+
+# ============================================================
+# STANDALONE SERVER
+# Has its own Git repository
+# ============================================================
+
+/Server/
+
+# ============================================================
+# THIRD-PARTY UNITY CONTENT
+# Ignore the entire folder AND its Unity folder meta file
+# ============================================================
+
+/Assets/ThirdParty/
+/Assets/ThirdParty.meta
+
+# ============================================================
+# IDE GENERATED
+# ============================================================
+
+.vs/
+.idea/
+.gradle/
+
+*.csproj
+*.sln
+*.slnx
+*.unityproj
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.opendb
+*.VC.db
+*.DotSettings.user
+
+# ============================================================
+# OS / TEMP
+# ============================================================
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ============================================================
+# BUILD OUTPUT / CRASH DATA
+# ============================================================
+
+ExportedObj/
+sysinfo.txt
+mono_crash.*
+
+*.apk
+*.aab
+*.app
+CharacterCustomizer.json
+CharacterCustomizer.json.meta
+*.png
+*.meta
+/ThirdParty
+Testing (3).zip
+Testing (2).zip
+Testing.zip

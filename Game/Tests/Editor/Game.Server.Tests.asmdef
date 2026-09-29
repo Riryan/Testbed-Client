@@ -1,0 +1,24 @@
+{
+    "name": "Game.Server.Tests",
+    "rootNamespace": "Game.Tests",
+    "references": [
+        "Game.Shared",
+        "Game.Server.Domain",
+        "Game.Server.Application",
+        "Game.Server.Persistence"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

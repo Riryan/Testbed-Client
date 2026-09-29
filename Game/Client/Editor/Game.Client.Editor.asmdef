@@ -1,0 +1,21 @@
+{
+    "name": "Game.Client.Editor",
+    "rootNamespace": "Game.Client.Editor",
+    "references": [
+        "Game.Client",
+        "Game.Shared",
+        "UnityEngine.UI",
+        "Player.Client"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

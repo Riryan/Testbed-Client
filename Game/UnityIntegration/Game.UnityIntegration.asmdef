@@ -1,0 +1,19 @@
+{
+    "name": "Game.UnityIntegration",
+    "rootNamespace": "Game.UnityIntegration",
+    "references": [
+        "LiteNetLibManager",
+        "Game.Shared",
+        "Game.Server.Domain",
+        "Game.Server.Application"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

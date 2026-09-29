@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "definitionId": "item.tool.recovery_salvage_kit",
+      "displayName": "Recovery Salvage Kit",
+      "kind": "Equipment",
+      "subtype": "Tool",
+      "presentationId": 0,
+      "maxStack": 1,
+      "weight": 1.0,
+      "maxDurability": 100,
+      "tags": ["tool.salvaging", "recovery.test"],
+      "harvestCapabilities": "Salvage",
+      "harvestToolTier": 1,
+      "equipment": {
+        "allowedEquipmentSlots": ["MainHand"],
+        "statModifiers": []
+      }
+    }
+  ]
+}

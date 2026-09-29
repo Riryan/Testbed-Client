@@ -1,0 +1,17 @@
+{
+    "name": "Game.Server.Application",
+    "rootNamespace": "Game.Server.Application",
+    "references": [
+        "Game.Shared",
+        "Game.Server.Domain"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

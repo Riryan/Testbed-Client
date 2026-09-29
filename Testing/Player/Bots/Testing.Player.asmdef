@@ -1,0 +1,20 @@
+{
+    "name": "Testing.Player",
+    "rootNamespace": "Testing.Player",
+    "references": [
+        "LiteNetLibManager",
+        "LiteNetLib",
+        "Player.Shared",
+        "Player.Networking",
+        "Player.Client"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

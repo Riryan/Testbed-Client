@@ -1,0 +1,52 @@
+{
+  "skills": [
+    {
+      "definitionId": "profession.salvaging",
+      "displayName": "Salvaging",
+      "kind": "Profession",
+      "maximumValue": 100,
+      "groupId": "profession",
+      "groupCap": 300,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65010
+    },
+    {
+      "definitionId": "mastery.recovery_fieldcraft",
+      "displayName": "Fieldcraft",
+      "kind": "Mastery",
+      "maximumValue": 100,
+      "groupId": "mastery",
+      "groupCap": 500,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65011
+    },
+    {
+      "definitionId": "vampire.feeding",
+      "displayName": "Feeding Mastery",
+      "kind": "Vampire",
+      "maximumValue": 100,
+      "groupId": "vampire",
+      "groupCap": 300,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65012
+    },
+    {
+      "definitionId": "hunter.investigation",
+      "displayName": "Investigation",
+      "kind": "Hunter",
+      "maximumValue": 100,
+      "groupId": "hunter",
+      "groupCap": 300,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65013
+    }
+  ]
+}

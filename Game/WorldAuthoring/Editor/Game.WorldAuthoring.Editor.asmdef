@@ -1,0 +1,21 @@
+{
+  "name": "Game.WorldAuthoring.Editor",
+  "rootNamespace": "Game.WorldAuthoring.Editor",
+  "references": [
+    "Game.Shared",
+    "Game.WorldAuthoring",
+    "Game.Client",
+    "Game.Server.Application"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

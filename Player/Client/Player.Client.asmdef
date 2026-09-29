@@ -1,0 +1,20 @@
+{
+    "name": "Player.Client",
+    "rootNamespace": "Player.Client",
+    "references": [
+        "LiteNetLibManager",
+        "LiteNetLib",
+        "Player.Shared",
+        "Player.Networking",
+        "Game.Shared"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

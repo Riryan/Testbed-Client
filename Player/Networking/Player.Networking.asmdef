@@ -1,0 +1,22 @@
+{
+    "name": "Player.Networking",
+    "rootNamespace": "Player.Networking",
+    "references": [
+        "LiteNetLibManager",
+        "LiteNetLib",
+        "Player.Shared",
+        "UniTask",
+        "Game.Shared",
+        "Game.Server.Application",
+        "Game.UnityIntegration"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
