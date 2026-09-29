@@ -590,6 +590,13 @@ namespace Player.Networking
             // Settings baseline, preserving the canonical admission ordering.
             await PrepareGameplaySettingsCacheForAdmissionAsync(millisecondsTimeout);
 
+            // Restore the existing persistent owner-local caches before Ready, then reuse
+            // their existing revision probes. Friends membership, Player Items, and
+            // Progression remain non-authoritative client caches: the standalone GameServer
+            // independently validates their revisions and sends the authoritative baseline
+            // whenever a cache is missing or stale.
+            await PrepareOwnerStateCachesForAdmissionAsync(characterId, millisecondsTimeout);
+
             // Selection/loading completed first. Only now arm the client Ready request.
             // The server independently validates the exact session generation before its
             // canonical SetPlayerReady -> SpawnPlayer path may run.
