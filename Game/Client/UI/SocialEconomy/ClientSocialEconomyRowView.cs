@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 namespace Game.Client.UI.SocialEconomy
 {
     [DisallowMultipleComponent]
+    [RequireComponent(typeof(CanvasGroup))]
     public sealed class ClientSocialEconomyRowView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
     {
         [SerializeField] private Text primaryText;
@@ -21,6 +22,12 @@ namespace Game.Client.UI.SocialEconomy
         private bool _canDrag;
         private CanvasGroup _canvasGroup;
 
+        private void Awake()
+        {
+            EnsureCanvasGroup();
+            RestoreDragVisual();
+        }
+
         public void Configure(
             string primary,
             string secondary,
@@ -32,6 +39,11 @@ namespace Game.Client.UI.SocialEconomy
             Action dragEnded = null,
             Action droppedOn = null)
         {
+            // Row templates are embedded inside the authored Standalone UI prefab and are
+            // cloned at runtime. Establish the drag dependency here as well as in Awake so
+            // inactive templates/clones are safe before they are activated by Configure().
+            EnsureCanvasGroup();
+
             if (primaryText != null)
                 primaryText.text = primary ?? string.Empty;
             if (secondaryText != null)
@@ -43,6 +55,7 @@ namespace Game.Client.UI.SocialEconomy
             _dragEnded = dragEnded;
             _droppedOn = droppedOn;
             _canDrag = dragStarted != null;
+            RestoreDragVisual();
             gameObject.SetActive(true);
         }
 
@@ -63,7 +76,10 @@ namespace Game.Client.UI.SocialEconomy
         {
             if (!_canDrag || eventData == null || eventData.button != PointerEventData.InputButton.Left)
                 return;
-            EnsureCanvasGroup();
+
+            if (!EnsureCanvasGroup())
+                return;
+
             _canvasGroup.blocksRaycasts = false;
             _canvasGroup.alpha = 0.72f;
             _dragStarted?.Invoke();
@@ -80,16 +96,27 @@ namespace Game.Client.UI.SocialEconomy
 
         public void OnDrop(PointerEventData eventData) => _droppedOn?.Invoke();
 
-        private void EnsureCanvasGroup()
+        private bool EnsureCanvasGroup()
         {
+            // Do not use null-coalescing with UnityEngine.Object here. Unity's destroyed-object
+            // "fake null" semantics can leave a stale native component reference looking null
+            // through the overloaded equality operator while still being non-null to CLR ?? logic.
+            // Resolve explicitly and verify the Unity object before any property access.
+            if (_canvasGroup != null)
+                return true;
+
+            _canvasGroup = GetComponent<CanvasGroup>();
             if (_canvasGroup == null)
-                _canvasGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+                _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+            return _canvasGroup != null;
         }
 
         private void RestoreDragVisual()
         {
-            if (_canvasGroup == null)
+            if (!EnsureCanvasGroup())
                 return;
+
             _canvasGroup.blocksRaycasts = true;
             _canvasGroup.alpha = 1f;
         }
