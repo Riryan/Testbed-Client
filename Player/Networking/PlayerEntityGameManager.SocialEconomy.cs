@@ -27,7 +27,12 @@ namespace Player.Networking
         public bool HasFriendsCache => _hasFriendsCache;
         public FriendsStateMessage LatestFriends => _latestFriends;
         public TradeStateMessage LatestTrade => _latestTrade;
-        public StorageStateMessage LatestStorage => _latestStorage;
+
+        // Storage server slots stay private packing metadata. Consumers receive
+        // the owner-local visual ordering.
+        public StorageStateMessage LatestStorage =>
+            BuildPresentedStorageState(_latestStorage);
+
         public PartyStateMessage LatestParty => _latestParty;
         public bool HasParty => _latestParty.partyId != 0;
         public bool HasActiveTrade => _latestTrade.sessionId != 0;
@@ -36,22 +41,34 @@ namespace Player.Networking
 
         private void RegisterSocialEconomyMessages()
         {
-            // Standalone GameServer owns these systems. Unity only registers the response
-            // codecs and consumes authoritative pushed state; no second server path is added.
-            Client.RegisterResponseHandler<EmptySocialRequestMessage, FriendsStateMessage>(FriendRequestTypes.Snapshot);
-            Client.RegisterResponseHandler<FriendActionRequestMessage, SocialEconomyMutationResponseMessage>(FriendRequestTypes.Action);
-            Client.RegisterResponseHandler<OwnerLiveInterestRequestMessage, SocialEconomyMutationResponseMessage>(FriendRequestTypes.OwnerLiveInterest);
-            Client.RegisterResponseHandler<TradeActionRequestMessage, SocialEconomyMutationResponseMessage>(EconomyRequestTypes.TradeAction);
-            Client.RegisterResponseHandler<EmptySocialRequestMessage, TradeStateMessage>(EconomyRequestTypes.TradeSnapshot);
-            Client.RegisterResponseHandler<EmptySocialRequestMessage, StorageStateMessage>(EconomyRequestTypes.StorageSnapshot);
-            Client.RegisterResponseHandler<StorageTransferRequestMessage, SocialEconomyMutationResponseMessage>(EconomyRequestTypes.StorageTransfer);
+            Client.RegisterResponseHandler<EmptySocialRequestMessage, FriendsStateMessage>(
+                FriendRequestTypes.Snapshot);
+            Client.RegisterResponseHandler<FriendActionRequestMessage, SocialEconomyMutationResponseMessage>(
+                FriendRequestTypes.Action);
+            Client.RegisterResponseHandler<OwnerLiveInterestRequestMessage, SocialEconomyMutationResponseMessage>(
+                FriendRequestTypes.OwnerLiveInterest);
+            Client.RegisterResponseHandler<TradeActionRequestMessage, SocialEconomyMutationResponseMessage>(
+                EconomyRequestTypes.TradeAction);
+            Client.RegisterResponseHandler<EmptySocialRequestMessage, TradeStateMessage>(
+                EconomyRequestTypes.TradeSnapshot);
+            Client.RegisterResponseHandler<EmptySocialRequestMessage, StorageStateMessage>(
+                EconomyRequestTypes.StorageSnapshot);
+            Client.RegisterResponseHandler<StorageTransferRequestMessage, SocialEconomyMutationResponseMessage>(
+                EconomyRequestTypes.StorageTransfer);
 
-            RegisterClientMessage(SocialEconomyMessageTypes.FriendsState, HandleFriendsState);
-            RegisterClientMessage(SocialEconomyMessageTypes.TradeState, HandleTradeState);
-            RegisterClientMessage(SocialEconomyMessageTypes.StorageState, HandleStorageState);
-            RegisterClientMessage(PartyMessageTypes.State, HandlePartyState);
+            RegisterClientMessage(
+                SocialEconomyMessageTypes.FriendsState,
+                HandleFriendsState);
+            RegisterClientMessage(
+                SocialEconomyMessageTypes.TradeState,
+                HandleTradeState);
+            RegisterClientMessage(
+                SocialEconomyMessageTypes.StorageState,
+                HandleStorageState);
+            RegisterClientMessage(
+                PartyMessageTypes.State,
+                HandlePartyState);
         }
-
 
         public UniTask<SocialEconomyMutationResponseMessage> SetOwnerLiveInterestAsync(
             OwnerLiveInterestKind interest,
@@ -61,7 +78,9 @@ namespace Player.Networking
             OwnerLiveInterestKind desired = enabled
                 ? _ownerLiveInterests | interest
                 : _ownerLiveInterests & ~interest;
-            return SetOwnerLiveInterestsAsync(desired, millisecondsTimeout);
+            return SetOwnerLiveInterestsAsync(
+                desired,
+                millisecondsTimeout);
         }
 
         public async UniTask<SocialEconomyMutationResponseMessage> SetOwnerLiveInterestsAsync(
@@ -69,28 +88,45 @@ namespace Player.Networking
             int millisecondsTimeout = 10000)
         {
             OwnerLiveInterestKind supported =
-                OwnerLiveInterestKind.FriendsPresence | OwnerLiveInterestKind.GuildPresence;
+                OwnerLiveInterestKind.FriendsPresence |
+                OwnerLiveInterestKind.GuildPresence;
             interests &= supported;
 
             if (interests == _ownerLiveInterests)
                 return SocialEconomyMutationResponseMessage.Ok();
+
             if (!IsClientConnected)
-                return SocialEconomyMutationResponseMessage.Failed(1, "client is not connected");
+                return SocialEconomyMutationResponseMessage.Failed(
+                    1,
+                    "client is not connected");
+
             if (_ownerLiveInterestRequestInFlight)
-                return SocialEconomyMutationResponseMessage.Failed(2, "live-interest update is already pending locally");
+                return SocialEconomyMutationResponseMessage.Failed(
+                    2,
+                    "live-interest update is already pending locally");
 
             _ownerLiveInterestRequestInFlight = true;
             try
             {
                 AsyncResponseData<SocialEconomyMutationResponseMessage> response =
-                    await ClientSendRequestAsync<OwnerLiveInterestRequestMessage, SocialEconomyMutationResponseMessage>(
+                    await ClientSendRequestAsync<
+                        OwnerLiveInterestRequestMessage,
+                        SocialEconomyMutationResponseMessage>(
                         FriendRequestTypes.OwnerLiveInterest,
-                        new OwnerLiveInterestRequestMessage { interests = (uint)interests },
+                        new OwnerLiveInterestRequestMessage
+                        {
+                            interests = (uint)interests,
+                        },
                         millisecondsTimeout);
+
                 if (!response.IsSuccess)
-                    return SocialEconomyMutationResponseMessage.Failed(2, $"request failed: {response.ResponseCode}");
+                    return SocialEconomyMutationResponseMessage.Failed(
+                        2,
+                        $"request failed: {response.ResponseCode}");
+
                 if (response.Response.success)
                     _ownerLiveInterests = interests;
+
                 return response.Response;
             }
             finally
@@ -114,13 +150,19 @@ namespace Player.Networking
             try
             {
                 AsyncResponseData<FriendsStateMessage> response =
-                    await ClientSendRequestAsync<EmptySocialRequestMessage, FriendsStateMessage>(
+                    await ClientSendRequestAsync<
+                        EmptySocialRequestMessage,
+                        FriendsStateMessage>(
                         FriendRequestTypes.Snapshot,
                         new EmptySocialRequestMessage(),
                         millisecondsTimeout);
+
                 if (response.IsSuccess)
                     ApplyFriendsState(response.Response);
-                return response.IsSuccess ? response.Response : _latestFriends;
+
+                return response.IsSuccess
+                    ? response.Response
+                    : _latestFriends;
             }
             finally
             {
@@ -132,22 +174,42 @@ namespace Player.Networking
             long inviterCharacterId = 0,
             int millisecondsTimeout = 10000)
         {
-            long target = inviterCharacterId > 0 ? inviterCharacterId : _latestFriends.pendingInviterCharacterId;
-            if (_hasFriendsCache && (_latestFriends.pendingInviterCharacterId <= 0 ||
-                (target > 0 && _latestFriends.pendingInviterCharacterId != target)))
-                return LocalSocialFailure("friend invite is not present in the local authoritative cache");
-            return SendFriendActionAsync(FriendActionKind.Accept, target, millisecondsTimeout);
+            long target = inviterCharacterId > 0
+                ? inviterCharacterId
+                : _latestFriends.pendingInviterCharacterId;
+
+            if (_hasFriendsCache &&
+                (_latestFriends.pendingInviterCharacterId <= 0 ||
+                 (target > 0 &&
+                  _latestFriends.pendingInviterCharacterId != target)))
+                return LocalSocialFailure(
+                    "friend invite is not present in the local authoritative cache");
+
+            return SendFriendActionAsync(
+                FriendActionKind.Accept,
+                target,
+                millisecondsTimeout);
         }
 
         public UniTask<SocialEconomyMutationResponseMessage> RequestDeclineFriendAsync(
             long inviterCharacterId = 0,
             int millisecondsTimeout = 10000)
         {
-            long target = inviterCharacterId > 0 ? inviterCharacterId : _latestFriends.pendingInviterCharacterId;
-            if (_hasFriendsCache && (_latestFriends.pendingInviterCharacterId <= 0 ||
-                (target > 0 && _latestFriends.pendingInviterCharacterId != target)))
-                return LocalSocialFailure("friend invite is not present in the local authoritative cache");
-            return SendFriendActionAsync(FriendActionKind.Decline, target, millisecondsTimeout);
+            long target = inviterCharacterId > 0
+                ? inviterCharacterId
+                : _latestFriends.pendingInviterCharacterId;
+
+            if (_hasFriendsCache &&
+                (_latestFriends.pendingInviterCharacterId <= 0 ||
+                 (target > 0 &&
+                  _latestFriends.pendingInviterCharacterId != target)))
+                return LocalSocialFailure(
+                    "friend invite is not present in the local authoritative cache");
+
+            return SendFriendActionAsync(
+                FriendActionKind.Decline,
+                target,
+                millisecondsTimeout);
         }
 
         public UniTask<SocialEconomyMutationResponseMessage> RequestRemoveFriendAsync(
@@ -155,10 +217,18 @@ namespace Player.Networking
             int millisecondsTimeout = 10000)
         {
             if (characterId <= 0)
-                return LocalSocialFailure("friend target is invalid");
-            if (_hasFriendsCache && !ContainsFriend(characterId))
-                return LocalSocialFailure("player is not in the local friend cache");
-            return SendFriendActionAsync(FriendActionKind.Remove, characterId, millisecondsTimeout);
+                return LocalSocialFailure(
+                    "friend target is invalid");
+
+            if (_hasFriendsCache &&
+                !ContainsFriend(characterId))
+                return LocalSocialFailure(
+                    "player is not in the local friend cache");
+
+            return SendFriendActionAsync(
+                FriendActionKind.Remove,
+                characterId,
+                millisecondsTimeout);
         }
 
         public async UniTask<TradeStateMessage> RequestTradeStateAsync(
@@ -167,7 +237,8 @@ namespace Player.Networking
         {
             if (!IsClientConnected)
                 return _latestTrade;
-            if (!forceRefresh && _latestTrade.sessionId != 0)
+            if (!forceRefresh &&
+                _latestTrade.sessionId != 0)
                 return _latestTrade;
             if (_tradeSnapshotRequestInFlight)
                 return _latestTrade;
@@ -176,13 +247,19 @@ namespace Player.Networking
             try
             {
                 AsyncResponseData<TradeStateMessage> response =
-                    await ClientSendRequestAsync<EmptySocialRequestMessage, TradeStateMessage>(
+                    await ClientSendRequestAsync<
+                        EmptySocialRequestMessage,
+                        TradeStateMessage>(
                         EconomyRequestTypes.TradeSnapshot,
                         new EmptySocialRequestMessage(),
                         millisecondsTimeout);
+
                 if (response.IsSuccess)
                     ApplyTradeState(response.Response);
-                return response.IsSuccess ? response.Response : _latestTrade;
+
+                return response.IsSuccess
+                    ? response.Response
+                    : _latestTrade;
             }
             finally
             {
@@ -190,18 +267,34 @@ namespace Player.Networking
             }
         }
 
-        public UniTask<SocialEconomyMutationResponseMessage> RequestAcceptTradeAsync(int millisecondsTimeout = 10000)
+        public UniTask<SocialEconomyMutationResponseMessage> RequestAcceptTradeAsync(
+            int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 1)
-                return LocalSocialFailure("there is no pending trade invitation");
-            return SendTradeActionAsync(TradeActionKind.Accept, -1, 0, millisecondsTimeout);
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 1)
+                return LocalSocialFailure(
+                    "there is no pending trade invitation");
+
+            return SendTradeActionAsync(
+                TradeActionKind.Accept,
+                -1,
+                0,
+                millisecondsTimeout);
         }
 
-        public UniTask<SocialEconomyMutationResponseMessage> RequestDeclineTradeAsync(int millisecondsTimeout = 10000)
+        public UniTask<SocialEconomyMutationResponseMessage> RequestDeclineTradeAsync(
+            int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 1)
-                return LocalSocialFailure("there is no pending trade invitation");
-            return SendTradeActionAsync(TradeActionKind.Decline, -1, 0, millisecondsTimeout);
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 1)
+                return LocalSocialFailure(
+                    "there is no pending trade invitation");
+
+            return SendTradeActionAsync(
+                TradeActionKind.Decline,
+                -1,
+                0,
+                millisecondsTimeout);
         }
 
         public UniTask<SocialEconomyMutationResponseMessage> RequestOfferTradeItemAsync(
@@ -209,71 +302,146 @@ namespace Player.Networking
             int quantity,
             int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 2)
-                return LocalSocialFailure("trade is not active");
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 2)
+                return LocalSocialFailure(
+                    "trade is not active");
+
             if (_latestTrade.ownLocked)
-                return LocalSocialFailure("unlock the trade before changing the offer");
+                return LocalSocialFailure(
+                    "unlock the trade before changing the offer");
+
             if (quantity <= 0)
-                return LocalSocialFailure("trade quantity must be positive");
+                return LocalSocialFailure(
+                    "trade quantity must be positive");
+
+            int authoritativePackingSlot = inventorySlot;
             if (HasPlayerItemsCache)
             {
-                if (!TryGetCachedInventoryItem(inventorySlot, out PlayerItemWire item))
-                    return LocalSocialFailure("inventory slot is empty locally");
+                if (!TryGetCachedInventoryItem(
+                        inventorySlot,
+                        out PlayerItemWire item))
+                    return LocalSocialFailure(
+                        "inventory visual slot is empty locally");
+
                 if (quantity > item.quantity)
-                    return LocalSocialFailure("trade quantity exceeds the locally known stack");
+                    return LocalSocialFailure(
+                        "trade quantity exceeds the locally known stack");
+
+                // The trade wire keeps its existing shape, but the number sent is the
+                // authoritative cached packing locator, not client presentation order.
+                authoritativePackingSlot = item.inventorySlot;
             }
-            return SendTradeActionAsync(TradeActionKind.Offer, inventorySlot, quantity, millisecondsTimeout);
+
+            return SendTradeActionAsync(
+                TradeActionKind.Offer,
+                authoritativePackingSlot,
+                quantity,
+                millisecondsTimeout);
         }
 
         public UniTask<SocialEconomyMutationResponseMessage> RequestRemoveTradeOfferAsync(
             int inventorySlot,
             int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 2)
-                return LocalSocialFailure("trade is not active");
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 2)
+                return LocalSocialFailure(
+                    "trade is not active");
+
             if (_latestTrade.ownLocked)
-                return LocalSocialFailure("unlock the trade before changing the offer");
+                return LocalSocialFailure(
+                    "unlock the trade before changing the offer");
+
             if (!ContainsOwnTradeOffer(inventorySlot))
-                return LocalSocialFailure("that inventory slot is not in the local trade offer");
-            return SendTradeActionAsync(TradeActionKind.RemoveOffer, inventorySlot, 0, millisecondsTimeout);
+                return LocalSocialFailure(
+                    "that inventory slot is not in the local trade offer");
+
+            return SendTradeActionAsync(
+                TradeActionKind.RemoveOffer,
+                inventorySlot,
+                0,
+                millisecondsTimeout);
         }
 
-        public UniTask<SocialEconomyMutationResponseMessage> RequestLockTradeAsync(int millisecondsTimeout = 10000)
+        public UniTask<SocialEconomyMutationResponseMessage> RequestLockTradeAsync(
+            int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 2)
-                return LocalSocialFailure("trade is not active");
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 2)
+                return LocalSocialFailure(
+                    "trade is not active");
+
             if (_latestTrade.ownLocked)
-                return LocalSocialFailure("trade offer is already locked locally");
-            return SendTradeActionAsync(TradeActionKind.Lock, -1, 0, millisecondsTimeout);
+                return LocalSocialFailure(
+                    "trade offer is already locked locally");
+
+            return SendTradeActionAsync(
+                TradeActionKind.Lock,
+                -1,
+                0,
+                millisecondsTimeout);
         }
 
-        public UniTask<SocialEconomyMutationResponseMessage> RequestUnlockTradeAsync(int millisecondsTimeout = 10000)
+        public UniTask<SocialEconomyMutationResponseMessage> RequestUnlockTradeAsync(
+            int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 2)
-                return LocalSocialFailure("trade is not active");
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 2)
+                return LocalSocialFailure(
+                    "trade is not active");
+
             if (!_latestTrade.ownLocked)
-                return LocalSocialFailure("trade offer is already unlocked locally");
-            return SendTradeActionAsync(TradeActionKind.Unlock, -1, 0, millisecondsTimeout);
+                return LocalSocialFailure(
+                    "trade offer is already unlocked locally");
+
+            return SendTradeActionAsync(
+                TradeActionKind.Unlock,
+                -1,
+                0,
+                millisecondsTimeout);
         }
 
-        public UniTask<SocialEconomyMutationResponseMessage> RequestConfirmTradeAsync(int millisecondsTimeout = 10000)
+        public UniTask<SocialEconomyMutationResponseMessage> RequestConfirmTradeAsync(
+            int millisecondsTimeout = 10000)
         {
-            if (_latestTrade.sessionId == 0 || _latestTrade.phase != 2)
-                return LocalSocialFailure("trade is not active");
-            if (!_latestTrade.ownLocked || !_latestTrade.partnerLocked)
-                return LocalSocialFailure("both trade offers must be locked before confirming");
+            if (_latestTrade.sessionId == 0 ||
+                _latestTrade.phase != 2)
+                return LocalSocialFailure(
+                    "trade is not active");
+
+            if (!_latestTrade.ownLocked ||
+                !_latestTrade.partnerLocked)
+                return LocalSocialFailure(
+                    "both trade offers must be locked before confirming");
+
             if (_latestTrade.ownConfirmed)
-                return LocalSocialFailure("trade is already confirmed locally");
-            return SendTradeActionAsync(TradeActionKind.Confirm, -1, 0, millisecondsTimeout);
+                return LocalSocialFailure(
+                    "trade is already confirmed locally");
+
+            return SendTradeActionAsync(
+                TradeActionKind.Confirm,
+                -1,
+                0,
+                millisecondsTimeout);
         }
 
-        public UniTask<SocialEconomyMutationResponseMessage> RequestCancelTradeAsync(int millisecondsTimeout = 10000)
+        public UniTask<SocialEconomyMutationResponseMessage> RequestCancelTradeAsync(
+            int millisecondsTimeout = 10000)
         {
             if (_latestTrade.sessionId == 0)
-                return LocalSocialFailure("there is no active trade");
+                return LocalSocialFailure(
+                    "there is no active trade");
+
             if (_latestTrade.phase == 3)
-                return LocalSocialFailure("trade is already committing");
-            return SendTradeActionAsync(TradeActionKind.Cancel, -1, 0, millisecondsTimeout);
+                return LocalSocialFailure(
+                    "trade is already committing");
+
+            return SendTradeActionAsync(
+                TradeActionKind.Cancel,
+                -1,
+                0,
+                millisecondsTimeout);
         }
 
         public async UniTask<StorageStateMessage> RequestStorageAsync(
@@ -281,27 +449,32 @@ namespace Player.Networking
             int millisecondsTimeout = 10000)
         {
             if (!IsClientConnected)
-                return _latestStorage;
+                return LatestStorage;
 
-            // Normal Storage hydration is push-driven by the already-authoritative
-            // OpenStorage interaction. A non-forced call is therefore a cache read only;
-            // StorageSnapshot remains available strictly as an explicit recovery path.
+            // OpenStorage pushes the authoritative state. Normal calls are local cache reads.
             if (!forceRefresh)
-                return _latestStorage;
+                return LatestStorage;
+
             if (_storageSnapshotRequestInFlight)
-                return _latestStorage;
+                return LatestStorage;
 
             _storageSnapshotRequestInFlight = true;
             try
             {
                 AsyncResponseData<StorageStateMessage> response =
-                    await ClientSendRequestAsync<EmptySocialRequestMessage, StorageStateMessage>(
+                    await ClientSendRequestAsync<
+                        EmptySocialRequestMessage,
+                        StorageStateMessage>(
                         EconomyRequestTypes.StorageSnapshot,
                         new EmptySocialRequestMessage(),
                         millisecondsTimeout);
+
                 if (response.IsSuccess)
                     ApplyStorageState(response.Response);
-                return response.IsSuccess ? response.Response : _latestStorage;
+
+                return response.IsSuccess
+                    ? LatestStorage
+                    : LatestStorage;
             }
             finally
             {
@@ -315,20 +488,36 @@ namespace Player.Networking
             int millisecondsTimeout = 10000)
         {
             if (!HasStorageCache)
-                return LocalSocialFailure("storage is not open locally");
+                return LocalSocialFailure(
+                    "storage is not open locally");
+
             if (!HasPlayerItemsCache)
-                return LocalSocialFailure("inventory state has not hydrated locally");
+                return LocalSocialFailure(
+                    "inventory state has not hydrated locally");
+
             if (quantity <= 0)
-                return LocalSocialFailure("storage quantity must be positive");
-            if (!TryGetCachedInventoryItem(inventorySlot, out PlayerItemWire item))
-                return LocalSocialFailure("inventory slot is empty locally");
+                return LocalSocialFailure(
+                    "storage quantity must be positive");
+
+            // inventorySlot is a CLIENT VISUAL slot here. Resolve the selected item,
+            // then send only the authoritative cached packing locator + stable identity.
+            if (!TryGetCachedInventoryItem(
+                    inventorySlot,
+                    out PlayerItemWire item))
+                return LocalSocialFailure(
+                    "inventory visual slot is empty locally");
+
             if (quantity > item.quantity)
-                return LocalSocialFailure("storage quantity exceeds the locally known stack");
+                return LocalSocialFailure(
+                    "storage quantity exceeds the locally known stack");
+
             if (!HasEmptyStorageSlot())
-                return LocalSocialFailure("storage is full locally");
+                return LocalSocialFailure(
+                    "storage is full locally");
+
             return SendStorageTransferAsync(
                 StorageTransferKind.Deposit,
-                inventorySlot,
+                item.inventorySlot,
                 quantity,
                 item.itemInstanceId,
                 _latestStorage.revision,
@@ -341,20 +530,36 @@ namespace Player.Networking
             int millisecondsTimeout = 10000)
         {
             if (!HasStorageCache)
-                return LocalSocialFailure("storage is not open locally");
+                return LocalSocialFailure(
+                    "storage is not open locally");
+
             if (!HasPlayerItemsCache)
-                return LocalSocialFailure("inventory state has not hydrated locally");
+                return LocalSocialFailure(
+                    "inventory state has not hydrated locally");
+
             if (quantity <= 0)
-                return LocalSocialFailure("storage quantity must be positive");
-            if (!TryGetCachedStorageItem(storageSlot, out PlayerItemWire item))
-                return LocalSocialFailure("storage slot is empty locally");
+                return LocalSocialFailure(
+                    "storage quantity must be positive");
+
+            // storageSlot is presentation-only. Resolve back to the raw authoritative
+            // storage item before reusing the existing transfer request.
+            if (!TryGetCachedStorageItem(
+                    storageSlot,
+                    out PlayerItemWire item))
+                return LocalSocialFailure(
+                    "storage visual slot is empty locally");
+
             if (quantity > item.quantity)
-                return LocalSocialFailure("withdraw quantity exceeds the locally known stack");
+                return LocalSocialFailure(
+                    "withdraw quantity exceeds the locally known stack");
+
             if (!HasEmptyInventorySlot())
-                return LocalSocialFailure("inventory is full locally");
+                return LocalSocialFailure(
+                    "inventory is full locally");
+
             return SendStorageTransferAsync(
                 StorageTransferKind.Withdraw,
-                storageSlot,
+                item.inventorySlot,
                 quantity,
                 item.itemInstanceId,
                 _latestStorage.revision,
@@ -368,7 +573,11 @@ namespace Player.Networking
         {
             return await SendSocialMutationAsync(
                 FriendRequestTypes.Action,
-                new FriendActionRequestMessage { action = (byte)action, targetCharacterId = targetCharacterId },
+                new FriendActionRequestMessage
+                {
+                    action = (byte)action,
+                    targetCharacterId = targetCharacterId,
+                },
                 millisecondsTimeout);
         }
 
@@ -383,7 +592,8 @@ namespace Player.Networking
                 new TradeActionRequestMessage
                 {
                     action = (byte)action,
-                    partnerCharacterId = _latestTrade.partnerCharacterId,
+                    partnerCharacterId =
+                        _latestTrade.partnerCharacterId,
                     inventorySlot = inventorySlot,
                     quantity = quantity,
                 },
@@ -405,8 +615,10 @@ namespace Player.Networking
                     action = (byte)action,
                     sourceSlot = sourceSlot,
                     quantity = quantity,
-                    expectedItemInstanceId = expectedItemInstanceId,
-                    knownStorageRevision = knownStorageRevision,
+                    expectedItemInstanceId =
+                        expectedItemInstanceId,
+                    knownStorageRevision =
+                        knownStorageRevision,
                 },
                 millisecondsTimeout);
         }
@@ -418,21 +630,31 @@ namespace Player.Networking
             where TRequest : struct, LiteNetLib.Utils.INetSerializable
         {
             if (!IsClientConnected)
-                return SocialEconomyMutationResponseMessage.Failed(1, "client is not connected");
+                return SocialEconomyMutationResponseMessage.Failed(
+                    1,
+                    "client is not connected");
+
             if (_socialEconomyMutationRequestInFlight)
-                return SocialEconomyMutationResponseMessage.Failed(2, "another social/economy request is already pending locally");
+                return SocialEconomyMutationResponseMessage.Failed(
+                    2,
+                    "another social/economy request is already pending locally");
 
             _socialEconomyMutationRequestInFlight = true;
             try
             {
                 AsyncResponseData<SocialEconomyMutationResponseMessage> response =
-                    await ClientSendRequestAsync<TRequest, SocialEconomyMutationResponseMessage>(
+                    await ClientSendRequestAsync<
+                        TRequest,
+                        SocialEconomyMutationResponseMessage>(
                         requestType,
                         request,
                         millisecondsTimeout);
+
                 return response.IsSuccess
                     ? response.Response
-                    : SocialEconomyMutationResponseMessage.Failed(2, $"request failed: {response.ResponseCode}");
+                    : SocialEconomyMutationResponseMessage.Failed(
+                        2,
+                        $"request failed: {response.ResponseCode}");
             }
             finally
             {
@@ -440,124 +662,181 @@ namespace Player.Networking
             }
         }
 
-        public bool TrySubmitPartyCommand(string arguments, out string error)
+        public bool TrySubmitPartyCommand(
+            string arguments,
+            out string error)
         {
-            string prepared = (arguments ?? string.Empty).Trim();
+            string prepared =
+                (arguments ?? string.Empty).Trim();
+
             if (prepared.Length == 0)
             {
                 error = "party command is empty";
                 return false;
             }
 
-            // Reuse the canonical chat/social command route. The server independently
-            // validates every Party operation; this adds no second Party request protocol.
-            return TrySendChatMessage(ChatChannel.Local, string.Empty, $"/party {prepared}", out error);
+            return TrySendChatMessage(
+                ChatChannel.Local,
+                string.Empty,
+                $"/party {prepared}",
+                out error);
         }
 
-        private UniTask<SocialEconomyMutationResponseMessage> LocalSocialFailure(string error) =>
-            UniTask.FromResult(SocialEconomyMutationResponseMessage.Failed(3, error));
+        private UniTask<SocialEconomyMutationResponseMessage> LocalSocialFailure(
+            string error) =>
+            UniTask.FromResult(
+                SocialEconomyMutationResponseMessage.Failed(
+                    3,
+                    error));
 
-        private void HandleFriendsState(MessageHandlerData handler) =>
-            ApplyFriendsState(handler.ReadMessage<FriendsStateMessage>());
+        private void HandleFriendsState(
+            MessageHandlerData handler) =>
+            ApplyFriendsState(
+                handler.ReadMessage<FriendsStateMessage>());
 
-        private void HandleTradeState(MessageHandlerData handler) =>
-            ApplyTradeState(handler.ReadMessage<TradeStateMessage>());
+        private void HandleTradeState(
+            MessageHandlerData handler) =>
+            ApplyTradeState(
+                handler.ReadMessage<TradeStateMessage>());
 
-        private void HandleStorageState(MessageHandlerData handler) =>
-            ApplyStorageState(handler.ReadMessage<StorageStateMessage>());
+        private void HandleStorageState(
+            MessageHandlerData handler) =>
+            ApplyStorageState(
+                handler.ReadMessage<StorageStateMessage>());
 
-        private void HandlePartyState(MessageHandlerData handler) =>
-            ApplyPartyState(handler.ReadMessage<PartyStateMessage>());
+        private void HandlePartyState(
+            MessageHandlerData handler) =>
+            ApplyPartyState(
+                handler.ReadMessage<PartyStateMessage>());
 
-        private void ApplyFriendsState(FriendsStateMessage state)
+        private void ApplyFriendsState(
+            FriendsStateMessage state)
         {
             _latestFriends = state;
             _hasFriendsCache = true;
-            _friendsCacheRevision = FriendsStateRevision.Compute(state.friends);
+            _friendsCacheRevision =
+                FriendsStateRevision.Compute(state.friends);
             FriendsStateReceived?.Invoke(state);
         }
 
-        private void ApplyTradeState(TradeStateMessage state)
+        private void ApplyTradeState(
+            TradeStateMessage state)
         {
             _latestTrade = state;
             TradeStateReceived?.Invoke(state);
         }
 
-        private void ApplyPartyState(PartyStateMessage state)
+        private void ApplyPartyState(
+            PartyStateMessage state)
         {
             _latestParty = state;
             PartyStateReceived?.Invoke(state);
         }
 
-        private void ApplyStorageState(StorageStateMessage state)
+        private void ApplyStorageState(
+            StorageStateMessage state)
         {
-            // A zero-capacity state is the existing wire signal that server-side storage
-            // authorization is no longer valid. Clear the local cache instead of leaving
-            // stale bank contents visible.
             if (state.capacity <= 0)
             {
                 _latestStorage = state;
                 StorageStateReceived?.Invoke(state);
                 return;
             }
-            if (_latestStorage.capacity > 0 && state.revision < _latestStorage.revision)
+
+            if (_latestStorage.capacity > 0 &&
+                state.revision < _latestStorage.revision)
                 return;
+
             _latestStorage = state;
-            StorageStateReceived?.Invoke(state);
+            StorageStateReceived?.Invoke(LatestStorage);
         }
 
-        private bool ContainsFriend(long characterId)
+        private bool ContainsFriend(
+            long characterId)
         {
-            FriendEntryWire[] friends = _latestFriends.friends ?? Array.Empty<FriendEntryWire>();
+            FriendEntryWire[] friends =
+                _latestFriends.friends ??
+                Array.Empty<FriendEntryWire>();
+
             for (int i = 0; i < friends.Length; ++i)
-                if (friends[i].characterId == characterId) return true;
+                if (friends[i].characterId == characterId)
+                    return true;
+
             return false;
         }
 
-        private bool ContainsOwnTradeOffer(int inventorySlot)
+        private bool ContainsOwnTradeOffer(
+            int inventorySlot)
         {
-            TradeOfferWire[] offers = _latestTrade.ownOffers ?? Array.Empty<TradeOfferWire>();
+            TradeOfferWire[] offers =
+                _latestTrade.ownOffers ??
+                Array.Empty<TradeOfferWire>();
+
             for (int i = 0; i < offers.Length; ++i)
-                if (offers[i].sourceSlot == inventorySlot) return true;
+                if (offers[i].sourceSlot == inventorySlot)
+                    return true;
+
             return false;
         }
 
-        private bool TryGetCachedStorageItem(int storageSlot, out PlayerItemWire item)
-        {
-            PlayerItemWire[] values = _latestStorage.items ?? Array.Empty<PlayerItemWire>();
-            for (int i = 0; i < values.Length; ++i)
-            {
-                if (values[i].inventorySlot != storageSlot) continue;
-                item = values[i];
-                return item.itemInstanceId > 0;
-            }
-            item = default;
-            return false;
-        }
+        private bool TryGetCachedStorageItem(
+            int storageSlot,
+            out PlayerItemWire item) =>
+            TryGetRawStorageItemByPresentationSlot(
+                storageSlot,
+                out item);
 
         private bool HasEmptyStorageSlot()
         {
-            if (_latestStorage.capacity <= 0) return false;
-            bool[] occupied = new bool[_latestStorage.capacity];
-            PlayerItemWire[] values = _latestStorage.items ?? Array.Empty<PlayerItemWire>();
+            if (_latestStorage.capacity <= 0)
+                return false;
+
+            bool[] occupied =
+                new bool[_latestStorage.capacity];
+
+            PlayerItemWire[] values =
+                _latestStorage.items ??
+                Array.Empty<PlayerItemWire>();
+
             for (int i = 0; i < values.Length; ++i)
-                if (values[i].inventorySlot >= 0 && values[i].inventorySlot < occupied.Length)
-                    occupied[values[i].inventorySlot] = true;
+                if (values[i].inventorySlot >= 0 &&
+                    values[i].inventorySlot <
+                        occupied.Length)
+                    occupied[values[i].inventorySlot] =
+                        true;
+
             for (int i = 0; i < occupied.Length; ++i)
-                if (!occupied[i]) return true;
+                if (!occupied[i])
+                    return true;
+
             return false;
         }
 
         private bool HasEmptyInventorySlot()
         {
-            if (!HasPlayerItemsCache || _latestPlayerItems.inventoryCapacity <= 0) return true;
-            bool[] occupied = new bool[_latestPlayerItems.inventoryCapacity];
-            PlayerItemWire[] values = _latestPlayerItems.inventory ?? Array.Empty<PlayerItemWire>();
+            if (!HasPlayerItemsCache ||
+                _latestPlayerItems.inventoryCapacity <= 0)
+                return true;
+
+            bool[] occupied =
+                new bool[
+                    _latestPlayerItems.inventoryCapacity];
+
+            PlayerItemWire[] values =
+                _latestPlayerItems.inventory ??
+                Array.Empty<PlayerItemWire>();
+
             for (int i = 0; i < values.Length; ++i)
-                if (values[i].inventorySlot >= 0 && values[i].inventorySlot < occupied.Length)
-                    occupied[values[i].inventorySlot] = true;
+                if (values[i].inventorySlot >= 0 &&
+                    values[i].inventorySlot <
+                        occupied.Length)
+                    occupied[values[i].inventorySlot] =
+                        true;
+
             for (int i = 0; i < occupied.Length; ++i)
-                if (!occupied[i]) return true;
+                if (!occupied[i])
+                    return true;
+
             return false;
         }
 
