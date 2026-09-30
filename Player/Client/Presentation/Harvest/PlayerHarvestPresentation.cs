@@ -13,12 +13,39 @@ namespace Player.Client.Presentation
     [DefaultExecutionOrder(9500)]
     public sealed class PlayerHarvestPresentation : MonoBehaviour
     {
+        [Serializable]
+        private struct PresentationTriggerOverride
+        {
+            [Min(0)] public int presentationId;
+            public string startedTrigger;
+            public string succeededTrigger;
+            public string failedTrigger;
+            public string cancelledTrigger;
+
+            public string GetTrigger(PlayerHarvestEventPhase phase)
+            {
+                return phase switch
+                {
+                    PlayerHarvestEventPhase.Started => startedTrigger,
+                    PlayerHarvestEventPhase.Succeeded => succeededTrigger,
+                    PlayerHarvestEventPhase.Failed => failedTrigger,
+                    PlayerHarvestEventPhase.Cancelled => cancelledTrigger,
+                    _ => string.Empty,
+                };
+            }
+        }
+
         public static event Action<PlayerHarvestEventMessage> HarvestEventPresented;
 
+        [Header("Fallback Animator Triggers")]
         [SerializeField] private string startedTrigger = "Harvest";
         [SerializeField] private string succeededTrigger = "HarvestComplete";
         [SerializeField] private string failedTrigger = "HarvestFail";
         [SerializeField] private string cancelledTrigger = "HarvestCancel";
+
+        [Header("Harvest Type Overrides")]
+        [Tooltip("Optional local presentation mapping. The existing server-supplied presentationId selects a trigger set; no extra network data is sent.")]
+        [SerializeField] private PresentationTriggerOverride[] presentationTriggerOverrides = Array.Empty<PresentationTriggerOverride>();
 
         private PlayerEntityGameManager _manager;
 
@@ -52,7 +79,9 @@ namespace Player.Client.Presentation
 
         private void OnHarvestEvent(PlayerHarvestEventMessage message)
         {
+            // UI and other local presentation consumers piggyback the same authoritative owner event.
             HarvestEventPresented?.Invoke(message);
+
             if (!PlayerEntityClient.TryGetOwner(out PlayerEntityClient owner) || owner.PresentationTransform == null)
                 return;
 
@@ -60,7 +89,28 @@ namespace Player.Client.Presentation
             if (animator == null)
                 return;
 
-            string trigger = message.Phase switch
+            string trigger = ResolveTrigger(message);
+            TrySetTrigger(animator, trigger);
+        }
+
+        private string ResolveTrigger(PlayerHarvestEventMessage message)
+        {
+            if (presentationTriggerOverrides != null)
+            {
+                for (int i = 0; i < presentationTriggerOverrides.Length; ++i)
+                {
+                    PresentationTriggerOverride entry = presentationTriggerOverrides[i];
+                    if (entry.presentationId != message.presentationId)
+                        continue;
+
+                    string mapped = entry.GetTrigger(message.Phase);
+                    if (!string.IsNullOrWhiteSpace(mapped))
+                        return mapped;
+                    break;
+                }
+            }
+
+            return message.Phase switch
             {
                 PlayerHarvestEventPhase.Started => startedTrigger,
                 PlayerHarvestEventPhase.Succeeded => succeededTrigger,
@@ -68,7 +118,6 @@ namespace Player.Client.Presentation
                 PlayerHarvestEventPhase.Cancelled => cancelledTrigger,
                 _ => string.Empty,
             };
-            TrySetTrigger(animator, trigger);
         }
 
         private static void TrySetTrigger(Animator animator, string parameterName)
