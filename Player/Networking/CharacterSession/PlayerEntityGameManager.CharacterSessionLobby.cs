@@ -81,7 +81,7 @@ namespace Player.Networking
 
             AdmissionAuthenticationResponseMessage result = response.Response;
             if (result.success)
-                ResetClientCharacterListCache();
+                RestoreCharacterRosterCache(result.accountId, result.rosterRevision);
             return result;
         }
 
@@ -308,6 +308,7 @@ namespace Player.Networking
                 {
                     _latestCharacterList = result;
                     _hasCharacterListCache = true;
+                    PersistCharacterRosterCache();
                 }
                 return result;
             }
@@ -432,6 +433,7 @@ namespace Player.Networking
                     if (index + 1 < source.Length)
                         Array.Copy(source, index + 1, next, index, source.Length - index - 1);
                     _latestCharacterList.characters = next;
+                    PersistCharacterRosterCache();
                 }
             }
             return result;

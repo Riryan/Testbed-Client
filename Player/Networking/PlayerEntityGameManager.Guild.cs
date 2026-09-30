@@ -32,12 +32,15 @@ namespace Player.Networking
             _guildSnapshotRequestInFlight = true;
             try
             {
+                long knownRevision = _hasGuildCache ? GuildStateRevision.Compute(_latestGuild) : 0L;
                 AsyncResponseData<GuildStateMessage> response =
                     await ClientSendRequestAsync<EmptySocialRequestMessage, GuildStateMessage>(
-                        GuildRequestTypes.Snapshot, new EmptySocialRequestMessage(), millisecondsTimeout);
+                        GuildRequestTypes.Snapshot,
+                        new EmptySocialRequestMessage { knownRevision = knownRevision },
+                        millisecondsTimeout);
                 if (response.IsSuccess)
                     ApplyGuildState(response.Response);
-                return response.IsSuccess ? response.Response : _latestGuild;
+                return _latestGuild;
             }
             finally { _guildSnapshotRequestInFlight = false; }
         }
@@ -104,8 +107,27 @@ namespace Player.Networking
 
         private void ApplyGuildState(GuildStateMessage state)
         {
+            if (state.updateKind == GuildStateUpdateKind.NotModified)
+            {
+                if (!_hasGuildCache)
+                {
+                    RequestGuildStateAsync(forceRefresh: true).Forget();
+                    return;
+                }
+
+                _latestGuild.pendingInviterCharacterId = state.pendingInviterCharacterId;
+                _latestGuild.pendingInviterName = state.pendingInviterName ?? string.Empty;
+                _latestGuild.pendingGuildId = state.pendingGuildId;
+                _latestGuild.pendingGuildName = state.pendingGuildName ?? string.Empty;
+                _latestGuild.pendingInviteSecondsRemaining = state.pendingInviteSecondsRemaining;
+                GuildStateReceived?.Invoke(_latestGuild);
+                return;
+            }
+
             if (_hasGuildCache && state.guildId != 0 && _latestGuild.guildId == state.guildId && state.revision < _latestGuild.revision)
                 return;
+
+            state.updateKind = GuildStateUpdateKind.Full;
             _latestGuild = state;
             _hasGuildCache = true;
             GuildStateReceived?.Invoke(state);

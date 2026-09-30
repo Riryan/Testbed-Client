@@ -10,23 +10,16 @@ using UnityEngine;
 
 namespace Player.Networking
 {
-    /// <summary>
-    /// Persistent owner-visible reconnect cache. This is a transport/UI optimization only:
-    /// the GameServer remains authoritative and every cached revision is reconciled before
-    /// the corresponding Ready baseline may be suppressed.
-    /// </summary>
     public sealed partial class PlayerEntityGameManager
     {
-        private const uint OwnerStateCacheMagic = 0x434F4D4D; // "MMOC" little-endian
+        private const uint OwnerStateCacheMagic = 0x434F4D4D;
         private const ushort OwnerStateCacheVersion = 1;
         private const int OwnerStateCacheMaxBytes = 2 * 1024 * 1024;
 
         private long _clientOwnerStateCharacterId;
         private long _friendsCacheRevision;
 
-        private async UniTask PrepareOwnerStateCachesForAdmissionAsync(
-            long characterId,
-            int millisecondsTimeout)
+        private async UniTask PrepareOwnerStateCachesForAdmissionAsync(long characterId, int millisecondsTimeout)
         {
             if (IsServer || !IsClientConnected || characterId <= 0)
                 return;
@@ -37,12 +30,11 @@ namespace Player.Networking
             _clientOwnerStateCharacterId = characterId;
             RestoreClientOwnerStateCaches(characterId);
 
-            // These probes are independent once Settings has been restored/validated.
-            // They carry only already-known revisions and never grant authority.
             await UniTask.WhenAll(
                 ProbePlayerItemsCacheBeforeReadyAsync(millisecondsTimeout),
                 ProbeProgressionCacheBeforeReadyAsync(millisecondsTimeout),
-                ProbeFriendsCacheBeforeReadyAsync(millisecondsTimeout));
+                ProbeFriendsCacheBeforeReadyAsync(millisecondsTimeout),
+                ProbeGuildCacheBeforeReadyAsync(millisecondsTimeout));
         }
 
         private void RestoreClientOwnerStateCaches(long characterId)
@@ -52,6 +44,8 @@ namespace Player.Networking
             _latestFriends = default;
             _hasFriendsCache = false;
             _friendsCacheRevision = 0;
+            _latestGuild = default;
+            _hasGuildCache = false;
 
             string scope = AuthenticationServiceBaseUrl;
 
@@ -72,26 +66,37 @@ namespace Player.Networking
                 _progressionReconciliationPending = false;
             }
 
-            if (TryLoadOwnerStateCache(scope, characterId, "friends", out FriendsStateMessage friends))
+            if (TryLoadOwnerStateCache(scope, characterId, "friends", out FriendsStateMessage friends) &&
+                friends.updateKind == FriendsStateUpdateKind.Full)
             {
                 FriendEntryWire[] entries = friends.friends ?? Array.Empty<FriendEntryWire>();
-                // Presence and pending invitations are live/session state. Persist membership only.
                 for (int i = 0; i < entries.Length; ++i)
                     entries[i].online = false;
                 friends.friends = entries;
+                friends.presence = Array.Empty<FriendPresenceWire>();
                 friends.pendingInviterCharacterId = 0;
                 friends.pendingInviterName = string.Empty;
                 _latestFriends = friends;
                 _hasFriendsCache = true;
                 _friendsCacheRevision = FriendsStateRevision.Compute(entries);
             }
+
+            if (TryLoadOwnerStateCache(scope, characterId, "guild", out GuildStateMessage guild) &&
+                guild.updateKind == GuildStateUpdateKind.Full)
+            {
+                guild.pendingInviterCharacterId = 0;
+                guild.pendingInviterName = string.Empty;
+                guild.pendingGuildId = 0;
+                guild.pendingGuildName = string.Empty;
+                guild.pendingInviteSecondsRemaining = 0;
+                _latestGuild = guild;
+                _hasGuildCache = true;
+            }
         }
 
         private async UniTask ProbePlayerItemsCacheBeforeReadyAsync(int millisecondsTimeout)
         {
-            if (!HasPlayerItemsCache || !IsClientConnected)
-                return;
-
+            if (!HasPlayerItemsCache || !IsClientConnected) return;
             try
             {
                 AsyncResponseData<PlayerItemsResponseMessage> response =
@@ -104,24 +109,14 @@ namespace Player.Networking
                             knownEquipmentRevision = _latestPlayerItems.equipmentRevision,
                         },
                         Math.Min(millisecondsTimeout, 3000));
-
-                if (response.IsSuccess && response.Response.IsNotModified)
-                    return;
-
-                // A stale/unsupported probe intentionally does nothing. The existing Ready
-                // baseline will replace the cache authoritatively.
+                if (response.IsSuccess && response.Response.IsNotModified) return;
             }
-            catch
-            {
-                // Local cache/probe failure must never block world admission.
-            }
+            catch { }
         }
 
         private async UniTask ProbeProgressionCacheBeforeReadyAsync(int millisecondsTimeout)
         {
-            if (!_latestProgression.success || !IsClientConnected)
-                return;
-
+            if (!_latestProgression.success || !IsClientConnected) return;
             try
             {
                 AsyncResponseData<ProgressionSnapshotMessage> response =
@@ -133,42 +128,46 @@ namespace Player.Networking
                             knownRevision = _latestProgression.revision,
                         },
                         Math.Min(millisecondsTimeout, 3000));
-
-                if (response.IsSuccess && response.Response.IsNotModified)
-                    return;
+                if (response.IsSuccess && response.Response.IsNotModified) return;
             }
-            catch
-            {
-                // Fail open to the normal Ready baseline.
-            }
+            catch { }
         }
 
         private async UniTask ProbeFriendsCacheBeforeReadyAsync(int millisecondsTimeout)
         {
-            if (!_hasFriendsCache || _friendsCacheRevision == 0 || !IsClientConnected)
-                return;
-
+            if (!_hasFriendsCache || _friendsCacheRevision == 0 || !IsClientConnected) return;
             try
             {
-                // Request 700 is reused as a pre-Ready membership-revision hint. The
-                // authoritative friend list is loaded after Ready and compared before any
-                // full list is retransmitted. The response is deliberately ignored here.
                 await ClientSendRequestAsync<EmptySocialRequestMessage, FriendsStateMessage>(
                     FriendRequestTypes.Snapshot,
                     new EmptySocialRequestMessage { knownRevision = _friendsCacheRevision },
                     Math.Min(millisecondsTimeout, 3000));
             }
-            catch
+            catch { }
+        }
+
+        private async UniTask ProbeGuildCacheBeforeReadyAsync(int millisecondsTimeout)
+        {
+            if (!_hasGuildCache || !IsClientConnected) return;
+            long knownRevision = GuildStateRevision.Compute(_latestGuild);
+            if (knownRevision == 0) return;
+            try
             {
-                // Fail open to the normal Ready friend hydration.
+                AsyncResponseData<GuildStateMessage> response =
+                    await ClientSendRequestAsync<EmptySocialRequestMessage, GuildStateMessage>(
+                        GuildRequestTypes.Snapshot,
+                        new EmptySocialRequestMessage { knownRevision = knownRevision },
+                        Math.Min(millisecondsTimeout, 3000));
+                if (response.IsSuccess)
+                    ApplyGuildState(response.Response);
             }
+            catch { }
         }
 
         private void PersistClientOwnerStateCaches()
         {
             long characterId = _clientOwnerStateCharacterId;
-            if (characterId <= 0)
-                return;
+            if (characterId <= 0) return;
 
             string scope = AuthenticationServiceBaseUrl;
             if (HasPlayerItemsCache)
@@ -178,6 +177,7 @@ namespace Player.Networking
             if (_hasFriendsCache)
             {
                 FriendsStateMessage durable = _latestFriends;
+                durable.updateKind = FriendsStateUpdateKind.Full;
                 FriendEntryWire[] source = durable.friends ?? Array.Empty<FriendEntryWire>();
                 var membership = new FriendEntryWire[source.Length];
                 for (int i = 0; i < source.Length; ++i)
@@ -186,9 +186,21 @@ namespace Player.Networking
                     membership[i].online = false;
                 }
                 durable.friends = membership;
+                durable.presence = Array.Empty<FriendPresenceWire>();
                 durable.pendingInviterCharacterId = 0;
                 durable.pendingInviterName = string.Empty;
                 SaveOwnerStateCache(scope, characterId, "friends", durable);
+            }
+            if (_hasGuildCache)
+            {
+                GuildStateMessage durable = _latestGuild;
+                durable.updateKind = GuildStateUpdateKind.Full;
+                durable.pendingInviterCharacterId = 0;
+                durable.pendingInviterName = string.Empty;
+                durable.pendingGuildId = 0;
+                durable.pendingGuildName = string.Empty;
+                durable.pendingInviteSecondsRemaining = 0;
+                SaveOwnerStateCache(scope, characterId, "guild", durable);
             }
         }
 
@@ -198,18 +210,12 @@ namespace Player.Networking
             _friendsCacheRevision = 0;
         }
 
-        private static bool TryLoadOwnerStateCache<T>(
-            string serverScope,
-            long characterId,
-            string kind,
-            out T value)
+        private static bool TryLoadOwnerStateCache<T>(string serverScope, long characterId, string kind, out T value)
             where T : struct, INetSerializable
         {
             value = default;
             string path = OwnerStateCachePath(serverScope, characterId, kind);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
-                return false;
-
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return false;
             try
             {
                 byte[] payload;
@@ -224,10 +230,8 @@ namespace Player.Networking
                         DeleteOwnerStateCache(path);
                         return false;
                     }
-
                     int length = reader.ReadInt32();
-                    if (length <= 0 || length > OwnerStateCacheMaxBytes ||
-                        stream.Length - stream.Position != length)
+                    if (length <= 0 || length > OwnerStateCacheMaxBytes || stream.Length - stream.Position != length)
                     {
                         DeleteOwnerStateCache(path);
                         return false;
@@ -239,7 +243,6 @@ namespace Player.Networking
                         return false;
                     }
                 }
-
                 var netReader = new NetDataReader(payload);
                 value.Deserialize(netReader);
                 if (netReader.AvailableBytes != 0)
@@ -258,23 +261,16 @@ namespace Player.Networking
             }
         }
 
-        private static void SaveOwnerStateCache<T>(
-            string serverScope,
-            long characterId,
-            string kind,
-            T value)
+        private static void SaveOwnerStateCache<T>(string serverScope, long characterId, string kind, T value)
             where T : struct, INetSerializable
         {
-            if (characterId <= 0 || string.IsNullOrWhiteSpace(serverScope) || string.IsNullOrWhiteSpace(kind))
-                return;
-
+            if (characterId <= 0 || string.IsNullOrWhiteSpace(serverScope) || string.IsNullOrWhiteSpace(kind)) return;
             try
             {
                 var netWriter = new NetDataWriter();
                 value.Serialize(netWriter);
                 byte[] payload = netWriter.CopyData();
-                if (payload.Length <= 0 || payload.Length > OwnerStateCacheMaxBytes)
-                    return;
+                if (payload.Length <= 0 || payload.Length > OwnerStateCacheMaxBytes) return;
 
                 string path = OwnerStateCachePath(serverScope, characterId, kind);
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -289,20 +285,15 @@ namespace Player.Networking
                     writer.Write(payload.Length);
                     writer.Write(payload);
                 }
-                if (File.Exists(path))
-                    File.Delete(path);
+                if (File.Exists(path)) File.Delete(path);
                 File.Move(temp, path);
             }
-            catch
-            {
-                // A local optimization must never block gameplay or logout.
-            }
+            catch { }
         }
 
         private static string OwnerStateCachePath(string serverScope, long characterId, string kind)
         {
-            if (characterId <= 0 || string.IsNullOrWhiteSpace(serverScope) || string.IsNullOrWhiteSpace(kind))
-                return string.Empty;
+            if (characterId <= 0 || string.IsNullOrWhiteSpace(serverScope) || string.IsNullOrWhiteSpace(kind)) return string.Empty;
             string normalized = serverScope.Trim().TrimEnd('/').ToLowerInvariant();
             string scopeHash;
             using (SHA256 sha = SHA256.Create())
@@ -310,20 +301,12 @@ namespace Player.Networking
                 byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(normalized));
                 scopeHash = BitConverter.ToString(hash, 0, 8).Replace("-", string.Empty);
             }
-            return Path.Combine(
-                Application.persistentDataPath,
-                "OwnerStateCache",
-                scopeHash,
-                $"{characterId}_{kind}.bin");
+            return Path.Combine(Application.persistentDataPath, "OwnerStateCache", scopeHash, $"{characterId}_{kind}.bin");
         }
 
         private static void DeleteOwnerStateCache(string path)
         {
-            try
-            {
-                if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                    File.Delete(path);
-            }
+            try { if (!string.IsNullOrEmpty(path) && File.Exists(path)) File.Delete(path); }
             catch { }
         }
     }

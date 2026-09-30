@@ -511,10 +511,6 @@ namespace Player.Networking
                 return LocalSocialFailure(
                     "storage quantity exceeds the locally known stack");
 
-            if (!HasEmptyStorageSlot())
-                return LocalSocialFailure(
-                    "storage is full locally");
-
             return SendStorageTransferAsync(
                 StorageTransferKind.Deposit,
                 item.inventorySlot,
@@ -552,10 +548,6 @@ namespace Player.Networking
             if (quantity > item.quantity)
                 return LocalSocialFailure(
                     "withdraw quantity exceeds the locally known stack");
-
-            if (!HasEmptyInventorySlot())
-                return LocalSocialFailure(
-                    "inventory is full locally");
 
             return SendStorageTransferAsync(
                 StorageTransferKind.Withdraw,
@@ -712,18 +704,76 @@ namespace Player.Networking
         private void ApplyFriendsState(
             FriendsStateMessage state)
         {
+            if (state.updateKind == FriendsStateUpdateKind.PresenceDelta)
+            {
+                if (!_hasFriendsCache)
+                {
+                    RequestFriendsAsync(forceRefresh: true).Forget();
+                    return;
+                }
+
+                FriendEntryWire[] current = _latestFriends.friends ?? Array.Empty<FriendEntryWire>();
+                FriendPresenceWire[] presence = state.presence ?? Array.Empty<FriendPresenceWire>();
+                var next = (FriendEntryWire[])current.Clone();
+                for (int i = 0; i < presence.Length; ++i)
+                {
+                    int index = Array.FindIndex(next, x => x.characterId == presence[i].characterId);
+                    if (index < 0)
+                    {
+                        RequestFriendsAsync(forceRefresh: true).Forget();
+                        return;
+                    }
+                    next[index].online = presence[i].online;
+                }
+
+                _latestFriends.friends = next;
+                // Presence is live state only. Never change the durable membership fingerprint.
+                FriendsStateReceived?.Invoke(_latestFriends);
+                return;
+            }
+
+            state.updateKind = FriendsStateUpdateKind.Full;
             _latestFriends = state;
             _hasFriendsCache = true;
-            _friendsCacheRevision =
-                FriendsStateRevision.Compute(state.friends);
+            _friendsCacheRevision = FriendsStateRevision.Compute(state.friends);
             FriendsStateReceived?.Invoke(state);
         }
 
-        private void ApplyTradeState(
-            TradeStateMessage state)
+        private void ApplyTradeState(TradeStateMessage state)
         {
-            _latestTrade = state;
-            TradeStateReceived?.Invoke(state);
+            if (state.IsFull)
+            {
+                _latestTrade = state;
+                TradeStateReceived?.Invoke(state);
+                return;
+            }
+
+            if (_latestTrade.sessionId == 0 || state.sessionId != _latestTrade.sessionId)
+            {
+                RequestTradeStateAsync(forceRefresh: true).Forget();
+                return;
+            }
+
+            TradeStateChangeMask mask = state.changeMask;
+            if ((mask & TradeStateChangeMask.Metadata) != 0)
+            {
+                _latestTrade.partnerCharacterId = state.partnerCharacterId;
+                _latestTrade.partnerName = state.partnerName;
+                _latestTrade.phase = state.phase;
+                _latestTrade.ownLocked = state.ownLocked;
+                _latestTrade.partnerLocked = state.partnerLocked;
+                _latestTrade.ownConfirmed = state.ownConfirmed;
+                _latestTrade.partnerConfirmed = state.partnerConfirmed;
+            }
+            if ((mask & TradeStateChangeMask.OwnOffers) != 0)
+                _latestTrade.ownOffers = state.ownOffers ?? Array.Empty<TradeOfferWire>();
+            if ((mask & TradeStateChangeMask.PartnerOffers) != 0)
+                _latestTrade.partnerOffers = state.partnerOffers ?? Array.Empty<TradeOfferWire>();
+            if ((mask & TradeStateChangeMask.Detail) != 0)
+                _latestTrade.detail = state.detail ?? string.Empty;
+
+            _latestTrade.changeMask = TradeStateChangeMask.Full;
+            TradeStateReceived?.Invoke(_latestTrade);
         }
 
         private void ApplyPartyState(
@@ -733,9 +783,58 @@ namespace Player.Networking
             PartyStateReceived?.Invoke(state);
         }
 
-        private void ApplyStorageState(
-            StorageStateMessage state)
+        private void ApplyStorageState(StorageStateMessage state)
         {
+            if (state.updateKind == StorageStateUpdateKind.Delta)
+            {
+                if (!HasStorageCache ||
+                    state.capacity != _latestStorage.capacity ||
+                    state.baseRevision != _latestStorage.revision ||
+                    state.revision != state.baseRevision + 1)
+                {
+                    RequestStorageAsync(forceRefresh: true).Forget();
+                    return;
+                }
+
+                var byId = new System.Collections.Generic.Dictionary<long, PlayerItemWire>();
+                PlayerItemWire[] existing = _latestStorage.items ?? Array.Empty<PlayerItemWire>();
+                for (int i = 0; i < existing.Length; ++i)
+                    if (existing[i].itemInstanceId > 0)
+                        byId[existing[i].itemInstanceId] = existing[i];
+
+                long[] removed = state.removedItemInstanceIds ?? Array.Empty<long>();
+                for (int i = 0; i < removed.Length; ++i)
+                    byId.Remove(removed[i]);
+
+                PlayerItemWire[] changed = state.items ?? Array.Empty<PlayerItemWire>();
+                for (int i = 0; i < changed.Length; ++i)
+                {
+                    if (changed[i].itemInstanceId <= 0)
+                    {
+                        RequestStorageAsync(forceRefresh: true).Forget();
+                        return;
+                    }
+                    byId[changed[i].itemInstanceId] = changed[i];
+                }
+
+                var next = new PlayerItemWire[byId.Count];
+                int n = 0;
+                foreach (PlayerItemWire item in byId.Values) next[n++] = item;
+                Array.Sort(next, (a, b) => a.inventorySlot.CompareTo(b.inventorySlot));
+
+                _latestStorage = new StorageStateMessage
+                {
+                    updateKind = StorageStateUpdateKind.Full,
+                    capacity = state.capacity,
+                    revision = state.revision,
+                    items = next,
+                    removedItemInstanceIds = Array.Empty<long>(),
+                    detail = state.detail ?? string.Empty,
+                };
+                StorageStateReceived?.Invoke(LatestStorage);
+                return;
+            }
+
             if (state.capacity <= 0)
             {
                 _latestStorage = state;
@@ -743,10 +842,10 @@ namespace Player.Networking
                 return;
             }
 
-            if (_latestStorage.capacity > 0 &&
-                state.revision < _latestStorage.revision)
+            if (_latestStorage.capacity > 0 && state.revision < _latestStorage.revision)
                 return;
 
+            state.updateKind = StorageStateUpdateKind.Full;
             _latestStorage = state;
             StorageStateReceived?.Invoke(LatestStorage);
         }

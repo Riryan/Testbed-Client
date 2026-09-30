@@ -81,13 +81,16 @@ namespace Player.Networking
             new Dictionary<long, int>();
 
         private long _itemPresentationLayoutCharacterId = long.MinValue;
+        private string _itemPresentationLayoutServerScope = string.Empty;
         private bool _itemPresentationLayoutLoaded;
 
         private void EnsureItemPresentationLayoutLoaded()
         {
             long characterId = _clientOwnerStateCharacterId;
+            string serverScope = AuthenticationServiceBaseUrl ?? string.Empty;
             if (_itemPresentationLayoutLoaded &&
-                _itemPresentationLayoutCharacterId == characterId)
+                _itemPresentationLayoutCharacterId == characterId &&
+                string.Equals(_itemPresentationLayoutServerScope, serverScope, StringComparison.Ordinal))
                 return;
 
             _inventoryPresentationSlots.Clear();
@@ -95,6 +98,7 @@ namespace Player.Networking
             _pendingInventoryPresentationSlots.Clear();
 
             _itemPresentationLayoutCharacterId = characterId;
+            _itemPresentationLayoutServerScope = serverScope;
             _itemPresentationLayoutLoaded = true;
 
             if (characterId <= 0)
