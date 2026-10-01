@@ -9,7 +9,7 @@ namespace Player.Networking
     /// </summary>
     public static class PlayerHarvestMessageTypes
     {
-        public const ushort HarvestEvent = 62;
+        public const ushort HarvestEvent = 63;
     }
 
     public enum PlayerHarvestEventPhase : byte
