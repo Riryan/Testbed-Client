@@ -1,3 +1,4 @@
+using Game.Client.Presentation.Characters;
 using Game.Shared.Interactions;
 using Game.Shared.World;
 using UnityEditor;
@@ -21,6 +22,7 @@ namespace Game.WorldAuthoring.Editor
             CombatTestDummy = 5,
             HarvestTestLootbox = 6,
             RecoveryValidationSet = 7,
+            HarvestActorDummy = 8,
         }
 
         private Preset _preset;
@@ -38,6 +40,28 @@ namespace Game.WorldAuthoring.Editor
             window.titleContent = new GUIContent("World Interactable");
             window.minSize = new Vector2(420f, 300f);
             window.Show();
+        }
+
+        // The project also exposes direct child commands beneath Add World Interactable.
+        // When Unity renders that parent as a submenu, the parent EditorWindow command is not
+        // directly clickable. Keep the canonical builder/helper, but expose this fixture through
+        // the same visible submenu rather than creating another authoring system.
+        [MenuItem("MMO Tools/World/Add World Interactable/Harvest Actor Dummy", false, 21)]
+        private static void AddHarvestActorDummyFromMenu()
+        {
+            GameObject created = CreateHarvestActorDummyObject(
+                "Harvest Actor Dummy",
+                "recovery_salvage");
+            if (created == null)
+                return;
+
+            PositionAtScenePivot(created.transform);
+            Selection.activeGameObject = created;
+            EditorGUIUtility.PingObject(created);
+
+            Debug.Log(
+                $"[World Interactable] Added Harvest Actor Dummy: '{created.name}'. " +
+                "Save the scene and run Server World Bake V2 before testing.");
         }
 
         private void OnGUI()
@@ -86,6 +110,16 @@ namespace Game.WorldAuthoring.Editor
                 _harvestProfileId = EditorGUILayout.TextField("Harvest Profile ID", _harvestProfileId);
                 EditorGUILayout.HelpBox("Creates a HarvestNode using the lootbox/cube test presentation. It does not use Searchable loot state.", MessageType.None);
             }
+            else if (_preset == Preset.HarvestActorDummy)
+            {
+                EditorGUILayout.Space();
+                _harvestProfileId = EditorGUILayout.TextField("Harvest Profile ID", _harvestProfileId);
+                EditorGUILayout.HelpBox(
+                    "Creates the same canonical HarvestNode interaction as the existing Harvest test lootbox, " +
+                    "but uses the existing default CharacterVisualProfile EditableBasePrefab as a visual-only humanoid child. " +
+                    "The visual is marked ServerBakeIgnore; no PlayerEntity/network prefab or new interaction message is created.",
+                    MessageType.Info);
+            }
             else if (_preset == Preset.RecoveryValidationSet)
             {
                 EditorGUILayout.Space();
@@ -113,6 +147,7 @@ namespace Game.WorldAuthoring.Editor
                 case Preset.CombatTestDummy: created = CreateCombatDummy(); break;
                 case Preset.HarvestTestLootbox: created = CreateHarvestTestLootbox(); break;
                 case Preset.RecoveryValidationSet: created = CreateRecoveryValidationSet(); break;
+                case Preset.HarvestActorDummy: created = CreateHarvestActorDummy(); break;
                 default: created = null; break;
             }
 
@@ -255,7 +290,108 @@ namespace Game.WorldAuthoring.Editor
             if (collider != null) collider.isTrigger = true;
             Undo.AddComponent<WorldObject>(root);
             WorldInteractable interactable = Undo.AddComponent<WorldInteractable>(root);
-            interactable.definitionId = "harvest_test_lootbox";
+            ConfigureHarvestNode(interactable, "harvest_test_lootbox", profileId, label);
+            return root;
+        }
+
+        private GameObject CreateHarvestActorDummy() =>
+            CreateHarvestActorDummyObject(
+                string.IsNullOrWhiteSpace(_label) ? "Harvest Actor Dummy" : _label.Trim(),
+                string.IsNullOrWhiteSpace(_harvestProfileId) ? "recovery_salvage" : _harvestProfileId.Trim());
+
+        private static GameObject CreateHarvestActorDummyObject(string label, string profileId)
+        {
+            CharacterVisualProfile visualProfile = CharacterVisualProfileRegistry.Default;
+            if (visualProfile == null || visualProfile.EditableBasePrefab == null)
+            {
+                EditorUtility.DisplayDialog(
+                    "World Interactable",
+                    "The default CharacterVisualProfile or its EditableBasePrefab could not be resolved. " +
+                    "Expected the existing client character profile at Resources/MMO/Characters/CharacterVisualProfile.",
+                    "OK");
+                return null;
+            }
+
+            GameObject root = new GameObject(label);
+            Undo.RegisterCreatedObjectUndo(root, "Add Harvest Actor Dummy");
+
+            CapsuleCollider collider = Undo.AddComponent<CapsuleCollider>(root);
+            collider.isTrigger = true;
+            collider.center = new Vector3(0f, 0.9f, 0f);
+            collider.height = 1.8f;
+            collider.radius = 0.4f;
+
+            Undo.AddComponent<WorldObject>(root);
+            WorldInteractable interactable = Undo.AddComponent<WorldInteractable>(root);
+            ConfigureHarvestActorDummyDefaults(interactable, label, profileId);
+
+            GameObject visual = PrefabUtility.InstantiatePrefab(visualProfile.EditableBasePrefab) as GameObject;
+            if (visual == null)
+                visual = UnityEngine.Object.Instantiate(visualProfile.EditableBasePrefab);
+
+            if (visual == null)
+            {
+                Undo.DestroyObjectImmediate(root);
+                EditorUtility.DisplayDialog(
+                    "World Interactable",
+                    "The existing default Player editable-base visual could not be instantiated.",
+                    "OK");
+                return null;
+            }
+
+            Undo.RegisterCreatedObjectUndo(visual, "Add Harvest Actor Visual");
+            visual.name = "Player Visual";
+            Undo.SetTransformParent(visual.transform, root.transform, "Parent Harvest Actor Visual");
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one;
+
+            // Presentation-only child. The authoritative world target is the WorldInteractable
+            // on the root; the humanoid visual must not become server walk/support/collision data.
+            if (visual.GetComponent<ServerBakeIgnore>() == null)
+                Undo.AddComponent<ServerBakeIgnore>(visual);
+
+            return root;
+        }
+
+        internal static void ConfigureHarvestActorDummyDefaults(
+            WorldInteractable interactable,
+            string label = "Harvest Actor Dummy",
+            string profileId = "recovery_salvage")
+        {
+            if (interactable == null)
+                return;
+
+            string resolvedLabel = string.IsNullOrWhiteSpace(label) ? "Harvest Actor Dummy" : label.Trim();
+            string resolvedProfile = string.IsNullOrWhiteSpace(profileId) ? "recovery_salvage" : profileId.Trim();
+
+            ConfigureHarvestNode(interactable, "harvest_actor_dummy", resolvedProfile, resolvedLabel);
+
+            // A Harvest Actor Dummy is a test fixture, not a generic authoring exercise.
+            // Reset unrelated WorldInteractable capabilities so the generated object is immediately
+            // usable and the simplified Inspector can safely treat these as advanced-only data.
+            interactable.lootTableId = string.Empty;
+            interactable.craftingStationId = string.Empty;
+            interactable.factionDefinitionId = string.Empty;
+            interactable.surveillanceCamera = false;
+            interactable.surveillanceRadius = 12f;
+            interactable.surveillanceEvidence = 1;
+            interactable.persistentState = false;
+            interactable.enabledByDefault = true;
+            interactable.slots = System.Array.Empty<WorldInteractable.Slot>();
+            interactable.dynamicBlocker = false;
+            interactable.blockerAnchor = null;
+            interactable.blockerSize = new Vector3(1f, 2f, 0.2f);
+            interactable.blockerEnabledByDefault = true;
+        }
+
+        private static void ConfigureHarvestNode(
+            WorldInteractable interactable,
+            string definitionId,
+            string profileId,
+            string label)
+        {
+            interactable.definitionId = definitionId;
             interactable.kind = ServerWorldInteractableKind.HarvestNode;
             interactable.gameplayProfileId = profileId;
             interactable.label = label;
@@ -271,7 +407,6 @@ namespace Game.WorldAuthoring.Editor
                     contentLevel = InteractionContentLevel.General, feature = InteractionFeature.Harvesting,
                 }
             };
-            return root;
         }
 
         private static GameObject CreateRecoveryLootObject()
@@ -499,6 +634,7 @@ namespace Game.WorldAuthoring.Editor
                 case Preset.CombatTestDummy: return "Recovery Combat Dummy";
                 case Preset.HarvestTestLootbox: return "Harvest Test Lootbox";
                 case Preset.RecoveryValidationSet: return "Recovery Validation Set";
+                case Preset.HarvestActorDummy: return "Harvest Actor Dummy";
                 default: return "World Interactable";
             }
         }
