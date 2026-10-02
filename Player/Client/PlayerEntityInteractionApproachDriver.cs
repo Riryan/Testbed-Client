@@ -43,6 +43,13 @@ namespace Player.Client
         private float _bestDistance;
         private uint _token;
 
+        // The owner presentation predictor reads normal camera locomotion intent directly,
+        // while this component overrides the actual MovementCommand sent to the server.
+        // During auto-approach those two inputs differ. Temporarily follow authoritative
+        // snapshots instead of maintaining a second, stale speculative position.
+        private bool _predictionModeCaptured;
+        private bool _previousLocalPrediction;
+
         /// <summary>
         /// Raised once when Walking reaches final spacing/facing or is cancelled.
         /// success=true leaves a FacingHold active until ReleaseFacingHold is called.
@@ -83,6 +90,8 @@ namespace Player.Client
                 return false;
 
             Cancel(0, notify: false);
+
+            CaptureAndSuppressOwnerPrediction();
 
             _token = token;
             _targetWorldPosition = targetWorldPosition;
@@ -262,6 +271,7 @@ namespace Player.Client
 
             _state = ApproachState.None;
             _token = 0;
+            RestoreOwnerPrediction();
         }
 
         public void Cancel(uint token = 0, bool notify = true)
@@ -275,9 +285,34 @@ namespace Player.Client
             uint cancelledToken = _token;
             _state = ApproachState.None;
             _token = 0;
+            RestoreOwnerPrediction();
 
             if (notify && cancelledToken != 0)
                 Finished?.Invoke(cancelledToken, false);
+        }
+
+        private void CaptureAndSuppressOwnerPrediction()
+        {
+            if (_client == null || !_client.IsOwnerClient)
+                return;
+
+            _previousLocalPrediction = _client.localPrediction;
+            _predictionModeCaptured = true;
+
+            // PlayerEntityInput continues to send the normal authoritative MovementCommand
+            // path. Only the separate render-side speculative position is disabled.
+            _client.localPrediction = false;
+        }
+
+        private void RestoreOwnerPrediction()
+        {
+            if (!_predictionModeCaptured)
+                return;
+
+            _predictionModeCaptured = false;
+
+            if (_client != null)
+                _client.localPrediction = _previousLocalPrediction;
         }
 
         private static bool HasManualMovementInput()

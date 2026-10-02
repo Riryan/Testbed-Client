@@ -10,14 +10,9 @@ using UnityEngine;
 namespace Game.Client.UI.Interactions
 {
     /// <summary>
-    /// Development-only presentation companion for the placeable Interaction Test Dummy.
-    ///
-    /// The normal ContextInteraction request/response remains authoritative. After success,
-    /// the Player approaches the stationary dummy through the EXISTING PlayerEntity movement
-    /// command path. No transform teleport is performed. Once final spacing/facing is reached,
-    /// paired presentation begins.
-    ///
-    /// No new network message, request type, polling stream, or authoritative movement path.
+    /// Local presentation companion for the placeable Interaction Test Dummy.
+    /// Server acceptance remains authoritative. Approach reuses the existing PlayerEntity
+    /// movement-command path; animation presentation reuses the canonical action driver/catalog.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class InteractionTestDummyPresentation : MonoBehaviour
@@ -29,22 +24,27 @@ namespace Game.Client.UI.Interactions
         [SerializeField] private Animator receiverAnimator;
 
         private PlayerEntityGameManager _manager;
-        private PlayerInteractionAnimationPresentation _ownerPresentation;
-        private PlayerEntityInteractionApproachDriver _approachDriver;
         private PlayerEntityClient _ownerClient;
+        private PlayerEntityInteractionApproachDriver _approachDriver;
+        private PlayerInteractionAnimationPresentation _ownerPresentation;
 
-        private uint _presentationVersion;
         private uint _approachToken;
+        private uint _presentationVersion;
         private InteractionActionId _pendingAction;
 
-        private Coroutine _dummyFaceRoutine;
+        private Coroutine _faceRoutine;
         private Coroutine _stopRoutine;
         private Coroutine _receiverLoopRoutine;
         private Coroutine _receiverClearRoutine;
 
-        private bool _receiverActionLatched;
-        private int _receiverLayerIndex = -1;
-        private float _receiverPreviousLayerWeight;
+        private bool _receiverCanonicalLatched;
+        private int _receiverCanonicalLayer = -1;
+        private float _receiverCanonicalPreviousWeight;
+
+        private byte _receiverCatalogPresentationId;
+        private InteractionAnimationCatalog.Binding _receiverCatalogBinding;
+        private int _receiverCatalogLayer = -1;
+        private float _receiverCatalogPreviousWeight;
 
         private void Awake()
         {
@@ -80,18 +80,13 @@ namespace Game.Client.UI.Interactions
                 return;
             }
 
-            Animator[] animators =
-                GetComponentsInChildren<Animator>(true);
-
             receiverAnimator = null;
+            Animator[] animators = GetComponentsInChildren<Animator>(true);
             for (int i = 0; i < animators.Length; ++i)
             {
                 Animator candidate = animators[i];
-                if (candidate == null ||
-                    candidate.runtimeAnimatorController == null)
-                {
+                if (candidate == null || candidate.runtimeAnimatorController == null)
                     continue;
-                }
 
                 receiverAnimator = candidate;
                 break;
@@ -103,30 +98,20 @@ namespace Game.Client.UI.Interactions
             if (_manager != null)
                 return;
 
-            _manager =
-                FindFirstObjectByType<PlayerEntityGameManager>(
-                    FindObjectsInactive.Include);
-
+            _manager = FindFirstObjectByType<PlayerEntityGameManager>(
+                FindObjectsInactive.Include);
             if (_manager != null)
-            {
-                _manager.ContextInteractionResultReceived +=
-                    OnContextInteractionResult;
-            }
+                _manager.ContextInteractionResultReceived += OnContextInteractionResult;
         }
 
         private void UnbindManager()
         {
             if (_manager != null)
-            {
-                _manager.ContextInteractionResultReceived -=
-                    OnContextInteractionResult;
-            }
-
+                _manager.ContextInteractionResultReceived -= OnContextInteractionResult;
             _manager = null;
         }
 
-        private void OnContextInteractionResult(
-            ContextInteractionResponseMessage message)
+        private void OnContextInteractionResult(ContextInteractionResponseMessage message)
         {
             if (!message.success ||
                 message.ResultCode != InteractionResultCode.Success ||
@@ -141,8 +126,7 @@ namespace Game.Client.UI.Interactions
             BeginAcceptedApproach(message.ActionId);
         }
 
-        private void BeginAcceptedApproach(
-            InteractionActionId actionId)
+        private void BeginAcceptedApproach(InteractionActionId actionId)
         {
             CancelApproach();
             ForceClearPresentation();
@@ -158,11 +142,8 @@ namespace Game.Client.UI.Interactions
 
             _approachDriver =
                 _ownerClient.GetComponent<PlayerEntityInteractionApproachDriver>();
-
             if (_approachDriver == null)
             {
-                // PlayerEntityInput normally installs this on owner start. Keep a narrow
-                // self-heal for scenes where the component order differs.
                 _approachDriver =
                     _ownerClient.gameObject.AddComponent<PlayerEntityInteractionApproachDriver>();
             }
@@ -177,35 +158,88 @@ namespace Game.Client.UI.Interactions
             _pendingAction = actionId;
             _approachDriver.Finished += OnApproachFinished;
 
-            Vector3 targetPosition =
-                receiverAnimator != null
-                    ? receiverAnimator.transform.position
-                    : worldObject.transform.position;
+            ResolveFixtureReferences();
+            Vector3 targetPosition = receiverAnimator != null
+                ? receiverAnimator.transform.position
+                : worldObject.transform.position;
 
             if (!_approachDriver.Begin(
                     _approachToken,
                     targetPosition,
-                    ResolveApproachDistance(actionId)))
+                    DefaultApproachDistance))
             {
                 _approachDriver.Finished -= OnApproachFinished;
                 _approachDriver = null;
                 _ownerClient = null;
-
                 Debug.LogWarning(
                     "[Interaction Test Dummy] Could not begin normal PlayerEntity auto-approach.",
                     this);
+                return;
             }
+
+            // Turn the receiver while the player is already walking in. This removes the old
+            // approach-complete -> face -> animate dead gap without adding movement traffic.
+            if (_faceRoutine != null)
+                StopCoroutine(_faceRoutine);
+            _faceRoutine = StartCoroutine(FaceDummyDuringApproach(_approachToken));
         }
 
-        private void OnApproachFinished(
-            uint token,
-            bool success)
+        private IEnumerator FaceDummyDuringApproach(uint token)
+        {
+            ResolveFixtureReferences();
+            Transform receiver = receiverAnimator != null
+                ? receiverAnimator.transform
+                : null;
+
+            if (receiver == null || _ownerClient == null)
+            {
+                _faceRoutine = null;
+                yield break;
+            }
+
+            Quaternion start = receiver.rotation;
+            float elapsed = 0f;
+
+            while (elapsed < DummyFaceSeconds)
+            {
+                if (token != _approachToken || _ownerClient == null)
+                    yield break;
+
+                Vector3 toOwner = _ownerClient.PresentationPosition - receiver.position;
+                toOwner.y = 0f;
+                elapsed += Time.unscaledDeltaTime;
+
+                if (toOwner.sqrMagnitude > 0.000001f)
+                {
+                    Quaternion target = Quaternion.Euler(
+                        0f,
+                        Mathf.Atan2(toOwner.x, toOwner.z) * Mathf.Rad2Deg,
+                        0f);
+                    float t = Mathf.Clamp01(
+                        elapsed / Mathf.Max(0.01f, DummyFaceSeconds));
+                    t = t * t * (3f - 2f * t);
+                    receiver.rotation = Quaternion.Slerp(start, target, t);
+                }
+
+                yield return null;
+            }
+
+            _faceRoutine = null;
+        }
+
+        private void OnApproachFinished(uint token, bool success)
         {
             if (_approachDriver != null)
                 _approachDriver.Finished -= OnApproachFinished;
 
             if (token != _approachToken)
                 return;
+
+            if (_faceRoutine != null)
+            {
+                StopCoroutine(_faceRoutine);
+                _faceRoutine = null;
+            }
 
             if (!success)
             {
@@ -215,74 +249,32 @@ namespace Game.Client.UI.Interactions
                 return;
             }
 
-            if (_dummyFaceRoutine != null)
-                StopCoroutine(_dummyFaceRoutine);
-
-            _dummyFaceRoutine =
-                StartCoroutine(
-                    FaceDummyThenPlay(
-                        token,
-                        _pendingAction));
+            FaceDummyImmediately();
+            PlayTestPresentation(_pendingAction);
         }
 
-        private IEnumerator FaceDummyThenPlay(
-            uint token,
-            InteractionActionId actionId)
+        private void FaceDummyImmediately()
         {
             ResolveFixtureReferences();
+            Transform receiver = receiverAnimator != null
+                ? receiverAnimator.transform
+                : null;
 
-            Transform receiver =
-                receiverAnimator != null
-                    ? receiverAnimator.transform
-                    : null;
+            if (receiver == null || _ownerClient == null)
+                return;
 
-            if (receiver != null &&
-                _ownerClient != null)
-            {
-                Vector3 toOwner =
-                    _ownerClient.PresentationPosition -
-                    receiver.position;
-                toOwner.y = 0f;
+            Vector3 toOwner = _ownerClient.PresentationPosition - receiver.position;
+            toOwner.y = 0f;
+            if (toOwner.sqrMagnitude <= 0.000001f)
+                return;
 
-                if (toOwner.sqrMagnitude > 0.000001f)
-                {
-                    Quaternion start = receiver.rotation;
-                    Quaternion target =
-                        Quaternion.Euler(
-                            0f,
-                            Mathf.Atan2(toOwner.x, toOwner.z) * Mathf.Rad2Deg,
-                            0f);
-
-                    float elapsed = 0f;
-                    while (elapsed < DummyFaceSeconds)
-                    {
-                        if (token != _approachToken)
-                            yield break;
-
-                        elapsed += Time.unscaledDeltaTime;
-                        float t =
-                            Mathf.Clamp01(
-                                elapsed / Mathf.Max(0.01f, DummyFaceSeconds));
-
-                        // Smoothstep keeps the stationary dummy from visibly snapping.
-                        t = t * t * (3f - 2f * t);
-                        receiver.rotation =
-                            Quaternion.Slerp(start, target, t);
-                        yield return null;
-                    }
-
-                    receiver.rotation = target;
-                }
-            }
-
-            _dummyFaceRoutine = null;
-
-            if (token == _approachToken)
-                PlayTestPresentation(actionId);
+            receiver.rotation = Quaternion.Euler(
+                0f,
+                Mathf.Atan2(toOwner.x, toOwner.z) * Mathf.Rad2Deg,
+                0f);
         }
 
-        private void PlayTestPresentation(
-            InteractionActionId actionId)
+        private void PlayTestPresentation(InteractionActionId actionId)
         {
             unchecked
             {
@@ -296,35 +288,24 @@ namespace Game.Client.UI.Interactions
             _ownerPresentation = ResolveOwnerPresentation();
             if (_ownerPresentation != null)
             {
-                _ownerPresentation.PresentAction(
-                    actionId,
-                    receiver: false);
+                _ownerPresentation.PresentAction(actionId, receiver: false);
             }
             else
             {
                 Debug.LogWarning(
-                    "[Interaction Test Dummy] Local PlayerInteractionAnimationPresentation " +
-                    "was not found; receiver animation will still be attempted.",
+                    "[Interaction Test Dummy] Local PlayerInteractionAnimationPresentation was not found; receiver animation will still be attempted.",
                     this);
             }
 
             PresentReceiver(actionId);
 
-            float duration =
-                (float)Math.Max(
-                    0.1d,
-                    InteractionPresentationWire
-                        .DevelopmentDurationSeconds(actionId));
-
-            _stopRoutine =
-                StartCoroutine(
-                    StopAfter(
-                        version,
-                        duration));
+            float duration = (float)Math.Max(
+                0.1d,
+                InteractionPresentationWire.DevelopmentDurationSeconds(actionId));
+            _stopRoutine = StartCoroutine(StopAfter(version, duration));
         }
 
-        private PlayerInteractionAnimationPresentation
-            ResolveOwnerPresentation()
+        private PlayerInteractionAnimationPresentation ResolveOwnerPresentation()
         {
             if (_ownerClient == null &&
                 !PlayerEntityClient.TryGetOwner(out _ownerClient))
@@ -336,23 +317,83 @@ namespace Game.Client.UI.Interactions
                 return null;
 
             PlayerInteractionAnimationPresentation presentation =
-                _ownerClient.GetComponent<
-                    PlayerInteractionAnimationPresentation>();
-
+                _ownerClient.GetComponent<PlayerInteractionAnimationPresentation>();
             if (presentation == null)
             {
-                presentation =
-                    _ownerClient.GetComponentInChildren<
-                        PlayerInteractionAnimationPresentation>(
-                        true);
+                presentation = _ownerClient.GetComponentInChildren<
+                    PlayerInteractionAnimationPresentation>(true);
             }
 
             return presentation;
         }
 
-        private IEnumerator StopAfter(
-            uint expectedVersion,
-            float seconds)
+        private void PresentReceiver(InteractionActionId actionId)
+        {
+            ResolveFixtureReferences();
+            if (receiverAnimator == null)
+            {
+                Debug.LogWarning(
+                    "[Interaction Test Dummy] No receiver Animator with a RuntimeAnimatorController was found.",
+                    this);
+                return;
+            }
+
+            string canonicalFailure = string.Empty;
+            if (CanonicalInteractionAnimatorDriver.TryResolveAction(
+                    actionId,
+                    receiver: true,
+                    out int controllerActionId) &&
+                CanonicalInteractionAnimatorDriver.Begin(
+                    receiverAnimator,
+                    controllerActionId,
+                    out _receiverCanonicalLayer,
+                    out _receiverCanonicalPreviousWeight,
+                    out canonicalFailure))
+            {
+                _receiverCanonicalLatched = true;
+                _receiverLoopRoutine = StartCoroutine(AdvanceReceiverToLoop());
+                return;
+            }
+
+            byte presentationId =
+                InteractionPresentationWire.EncodeInteraction(actionId, receiver: true);
+
+            if (PlayerInteractionAnimationPresentation.TryPlayCatalogFallback(
+                    receiverAnimator,
+                    presentationId,
+                    out InteractionAnimationCatalog.Binding binding,
+                    out int layerIndex,
+                    out float previousLayerWeight))
+            {
+                _receiverCatalogPresentationId = presentationId;
+                _receiverCatalogBinding = binding;
+                _receiverCatalogLayer = layerIndex;
+                _receiverCatalogPreviousWeight = previousLayerWeight;
+                return;
+            }
+
+            Debug.LogWarning(
+                string.IsNullOrWhiteSpace(canonicalFailure)
+                    ? $"[Interaction Test Dummy] No authored receiver animation resolved for '{actionId}'."
+                    : $"[Interaction Test Dummy] No authored receiver animation resolved for '{actionId}'. Canonical path: {canonicalFailure}.",
+                this);
+        }
+
+        private IEnumerator AdvanceReceiverToLoop()
+        {
+            yield return new WaitForSecondsRealtime(
+                CanonicalInteractionAnimatorDriver.StartPhaseHoldSeconds);
+            _receiverLoopRoutine = null;
+
+            if (_receiverCanonicalLatched && receiverAnimator != null)
+            {
+                CanonicalInteractionAnimatorDriver.SetPhase(
+                    receiverAnimator,
+                    CanonicalInteractionAnimatorDriver.LoopPhase);
+            }
+        }
+
+        private IEnumerator StopAfter(uint expectedVersion, float seconds)
         {
             yield return new WaitForSecondsRealtime(seconds);
 
@@ -362,76 +403,10 @@ namespace Game.Client.UI.Interactions
             _stopRoutine = null;
         }
 
-        private void PresentReceiver(
-            InteractionActionId actionId)
-        {
-            ResolveFixtureReferences();
-
-            if (receiverAnimator == null)
-            {
-                Debug.LogWarning(
-                    "[Interaction Test Dummy] No receiver Animator with a RuntimeAnimatorController was found.",
-                    this);
-                return;
-            }
-
-            if (!CanonicalInteractionAnimatorDriver.TryResolveAction(
-                    actionId,
-                    receiver: true,
-                    out int controllerActionId))
-            {
-                Debug.LogWarning(
-                    $"[Interaction Test Dummy] '{actionId}' has no proven PlayerHumanoid " +
-                    "CP_ActionId receiver mapping yet. The controller-backed fixture " +
-                    "currently supports Feed, Partner Dance, Hug, and Kiss.",
-                    this);
-                return;
-            }
-
-            if (!CanonicalInteractionAnimatorDriver.Begin(
-                    receiverAnimator,
-                    controllerActionId,
-                    out _receiverLayerIndex,
-                    out _receiverPreviousLayerWeight,
-                    out string failure))
-            {
-                Debug.LogWarning(
-                    $"[Interaction Test Dummy] Could not begin receiver action " +
-                    $"{controllerActionId} for '{actionId}': {failure}.",
-                    this);
-                return;
-            }
-
-            _receiverActionLatched = true;
-            _receiverLoopRoutine =
-                StartCoroutine(
-                    AdvanceReceiverToLoop());
-        }
-
-        private IEnumerator AdvanceReceiverToLoop()
-        {
-            yield return new WaitForSecondsRealtime(
-                CanonicalInteractionAnimatorDriver
-                    .StartPhaseHoldSeconds);
-
-            _receiverLoopRoutine = null;
-
-            if (!_receiverActionLatched ||
-                receiverAnimator == null)
-            {
-                yield break;
-            }
-
-            CanonicalInteractionAnimatorDriver.SetPhase(
-                receiverAnimator,
-                CanonicalInteractionAnimatorDriver.LoopPhase);
-        }
-
         private void BeginFinishPresentation()
         {
             if (_ownerPresentation != null)
                 _ownerPresentation.StopPresentation();
-
             _ownerPresentation = null;
 
             if (_receiverLoopRoutine != null)
@@ -440,8 +415,7 @@ namespace Game.Client.UI.Interactions
                 _receiverLoopRoutine = null;
             }
 
-            if (_receiverActionLatched &&
-                receiverAnimator != null)
+            if (_receiverCanonicalLatched && receiverAnimator != null)
             {
                 CanonicalInteractionAnimatorDriver.SetPhase(
                     receiverAnimator,
@@ -449,44 +423,61 @@ namespace Game.Client.UI.Interactions
 
                 if (_receiverClearRoutine != null)
                     StopCoroutine(_receiverClearRoutine);
-
-                _receiverClearRoutine =
-                    StartCoroutine(
-                        ClearReceiverAfterFinish());
+                _receiverClearRoutine = StartCoroutine(ClearReceiverAfterFinish());
+                return;
             }
 
-            // Keep facing through Finish. ClearReceiverAfterFinish releases the hold.
+            if (_receiverCatalogPresentationId != InteractionPresentationWire.Stop)
+            {
+                PlayerInteractionAnimationPresentation.StopCatalogFallback(
+                    receiverAnimator,
+                    _receiverCatalogPresentationId,
+                    _receiverCatalogBinding);
+                ClearReceiverCatalogPresentation();
+            }
+
+            ReleaseApproachFacing();
         }
 
         private IEnumerator ClearReceiverAfterFinish()
         {
             yield return new WaitForSecondsRealtime(
-                CanonicalInteractionAnimatorDriver
-                    .FinishPhaseHoldSeconds);
-
+                CanonicalInteractionAnimatorDriver.FinishPhaseHoldSeconds);
             _receiverClearRoutine = null;
 
             if (receiverAnimator != null)
             {
                 CanonicalInteractionAnimatorDriver.Clear(
                     receiverAnimator,
-                    _receiverLayerIndex,
-                    _receiverPreviousLayerWeight);
+                    _receiverCanonicalLayer,
+                    _receiverCanonicalPreviousWeight);
             }
 
-            _receiverLayerIndex = -1;
-            _receiverPreviousLayerWeight = 0f;
-            _receiverActionLatched = false;
-
+            _receiverCanonicalLayer = -1;
+            _receiverCanonicalPreviousWeight = 0f;
+            _receiverCanonicalLatched = false;
             ReleaseApproachFacing();
+        }
+
+        private void ClearReceiverCatalogPresentation()
+        {
+            PlayerInteractionAnimationPresentation.RestoreCatalogLayer(
+                receiverAnimator,
+                _receiverCatalogLayer,
+                _receiverCatalogPreviousWeight);
+
+            _receiverCatalogPresentationId = InteractionPresentationWire.Stop;
+            _receiverCatalogBinding = null;
+            _receiverCatalogLayer = -1;
+            _receiverCatalogPreviousWeight = 0f;
         }
 
         private void CancelApproach()
         {
-            if (_dummyFaceRoutine != null)
+            if (_faceRoutine != null)
             {
-                StopCoroutine(_dummyFaceRoutine);
-                _dummyFaceRoutine = null;
+                StopCoroutine(_faceRoutine);
+                _faceRoutine = null;
             }
 
             if (_approachDriver != null)
@@ -520,13 +511,11 @@ namespace Game.Client.UI.Interactions
                 StopCoroutine(_stopRoutine);
                 _stopRoutine = null;
             }
-
             if (_receiverLoopRoutine != null)
             {
                 StopCoroutine(_receiverLoopRoutine);
                 _receiverLoopRoutine = null;
             }
-
             if (_receiverClearRoutine != null)
             {
                 StopCoroutine(_receiverClearRoutine);
@@ -535,33 +524,30 @@ namespace Game.Client.UI.Interactions
 
             if (_ownerPresentation != null)
                 _ownerPresentation.StopPresentation();
-
             _ownerPresentation = null;
 
             ResolveFixtureReferences();
-
-            if (_receiverActionLatched &&
-                receiverAnimator != null)
+            if (_receiverCanonicalLatched && receiverAnimator != null)
             {
                 CanonicalInteractionAnimatorDriver.Clear(
                     receiverAnimator,
-                    _receiverLayerIndex,
-                    _receiverPreviousLayerWeight);
+                    _receiverCanonicalLayer,
+                    _receiverCanonicalPreviousWeight);
             }
 
-            _receiverLayerIndex = -1;
-            _receiverPreviousLayerWeight = 0f;
-            _receiverActionLatched = false;
+            _receiverCanonicalLayer = -1;
+            _receiverCanonicalPreviousWeight = 0f;
+            _receiverCanonicalLatched = false;
 
+            if (_receiverCatalogPresentationId != InteractionPresentationWire.Stop)
+            {
+                PlayerInteractionAnimationPresentation.StopCatalogFallback(
+                    receiverAnimator,
+                    _receiverCatalogPresentationId,
+                    _receiverCatalogBinding);
+            }
+            ClearReceiverCatalogPresentation();
             ReleaseApproachFacing();
-        }
-
-        private static float ResolveApproachDistance(
-            InteractionActionId actionId)
-        {
-            // Use the former authored dummy anchor spacing as the non-teleport destination.
-            // Per-action authored spacing can replace this later without changing movement wire.
-            return DefaultApproachDistance;
         }
     }
 }

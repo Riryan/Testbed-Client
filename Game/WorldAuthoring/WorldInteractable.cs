@@ -93,6 +93,16 @@ namespace Game.WorldAuthoring
 
         public string BakeId => bakeId;
 
+        /// <summary>
+        /// Assigns a fresh authoring identity. Unity prefab instances and ordinary Duplicate
+        /// operations can inherit the same serialized bakeId; ServerWorldBake calls this only
+        /// when it detects a duplicate scene identity.
+        /// </summary>
+        public void RegenerateBakeId()
+        {
+            bakeId = Guid.NewGuid().ToString("N");
+        }
+
         private void Reset()
         {
             EnsureBakeId();
@@ -111,6 +121,9 @@ namespace Game.WorldAuthoring
         private void OnValidate()
         {
             EnsureBakeId();
+#if UNITY_EDITOR
+            EnsureUniqueSceneBakeId();
+#endif
             definitionId = string.IsNullOrWhiteSpace(definitionId) ? "world_object" : ServerMap.NormalizeId(definitionId);
             label = string.IsNullOrWhiteSpace(label) ? gameObject.name : label.Trim();
             gameplayProfileId = string.IsNullOrWhiteSpace(gameplayProfileId) ? string.Empty : gameplayProfileId.Trim();
@@ -144,5 +157,48 @@ namespace Game.WorldAuthoring
             if (string.IsNullOrWhiteSpace(bakeId))
                 bakeId = Guid.NewGuid().ToString("N");
         }
+
+#if UNITY_EDITOR
+        private void EnsureUniqueSceneBakeId()
+        {
+            if (Application.isPlaying ||
+                string.IsNullOrWhiteSpace(bakeId) ||
+                !gameObject.scene.IsValid())
+            {
+                return;
+            }
+
+            WorldInteractable[] values =
+                FindObjectsByType<WorldInteractable>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
+
+            for (int i = 0; i < values.Length; ++i)
+            {
+                WorldInteractable other = values[i];
+                if (other == null ||
+                    ReferenceEquals(other, this) ||
+                    other.gameObject.scene != gameObject.scene)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(
+                        other.bakeId,
+                        bakeId,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // Prefab instances and Unity Duplicate copy serialized private fields.
+                // Repair the new/validated instance locally at authoring time so repeated
+                // drag-and-drop prefab placement remains bake-safe without another runtime ID system.
+                bakeId = Guid.NewGuid().ToString("N");
+                UnityEditor.EditorUtility.SetDirty(this);
+                break;
+            }
+        }
+#endif
     }
 }
