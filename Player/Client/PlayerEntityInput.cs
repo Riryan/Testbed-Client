@@ -35,6 +35,7 @@ namespace Player.Client
         private PlayerEntityNetwork _network;
         private PlayerEntityGameManager _gameManager;
         private PlayerEntityLocomotionCameraController _locomotionCamera;
+        private PlayerEntityInteractionApproachDriver _interactionApproach;
         private LogicUpdater _logicUpdater;
         private uint _sequence;
         private bool _hasLastSent;
@@ -64,6 +65,10 @@ namespace Player.Client
             _network = GetComponent<PlayerEntityNetwork>();
             _gameManager = FindFirstObjectByType<PlayerEntityGameManager>();
             _locomotionCamera = GetComponent<PlayerEntityLocomotionCameraController>();
+            _interactionApproach = GetComponent<PlayerEntityInteractionApproachDriver>();
+            if (_interactionApproach == null)
+                _interactionApproach = gameObject.AddComponent<PlayerEntityInteractionApproachDriver>();
+
             _logicUpdater = Manager?.LogicUpdater;
             sentMovementCommands = 0;
             suppressedUnchangedCommands = 0;
@@ -79,6 +84,11 @@ namespace Player.Client
         private void Update()
         {
             if (!enableKeyboardInput || _network == null || !IsOwnerClient || _gameManager == null)
+                return;
+
+            // Interaction auto-approach owns locomotion/facing temporarily. It deliberately
+            // suppresses combat clicks without introducing a separate input or network path.
+            if (_interactionApproach != null && _interactionApproach.IsActive)
                 return;
 
             if (_locomotionCamera == null)
@@ -117,10 +127,14 @@ namespace Player.Client
             if (_logicUpdater != null)
                 _logicUpdater.OnTick -= OnClientTick;
 
+            if (_interactionApproach != null)
+                _interactionApproach.Cancel(0, notify: false);
+
             _logicUpdater = null;
             _network = null;
             _gameManager = null;
             _locomotionCamera = null;
+            _interactionApproach = null;
             _hasLastSent = false;
         }
 
@@ -141,6 +155,23 @@ namespace Player.Client
             if (_locomotionCamera != null)
                 _locomotionCamera.TryReadMovementIntent(out movement, out facingYaw, out flags);
 
+            bool approachOwnsIntent = false;
+            if (_interactionApproach != null)
+            {
+                approachOwnsIntent =
+                    _interactionApproach.TryOverrideMovementIntent(
+                        out Vector2 approachMovement,
+                        out float approachFacingYaw,
+                        out byte approachFlags);
+
+                if (approachOwnsIntent)
+                {
+                    movement = approachMovement;
+                    facingYaw = approachFacingYaw;
+                    flags = approachFlags;
+                }
+            }
+
             // Precision firearm intent rides the already-scheduled movement stream so full-auto
             // needs no per-round request. Melee/unarmed deliberately carry no aim/pitch state here:
             // their authoritative swing uses server-owned player facing + reach/arc instead.
@@ -154,27 +185,30 @@ namespace Player.Client
                 knownEmpty = precisionRangedMode && ownerState.loadedRounds <= 0;
             }
 
-            // The existing AimHeld bit is also the server-recognized public CombatReady
-            // presentation intent. Send it for every Tab/action-combat stance, not only
-            // precision firearms, so remote observers can derive melee and unarmed ready
-            // poses from the same movement stream. Fire/pitch remain firearm-only.
-            bool combatReady = _locomotionCamera != null && _locomotionCamera.CombatCameraActive;
+            // Auto-approach is an interaction movement intent, not combat-ready intent.
+            bool combatReady =
+                !approachOwnsIntent &&
+                _locomotionCamera != null &&
+                _locomotionCamera.CombatCameraActive;
+
             if (combatReady)
                 combatState |= PlayerCombatInputFlags.AimHeld;
 
-            if (precisionRangedMode && combatReady && !LocalClientInputGate.IsGameplayInputBlocked)
+            if (precisionRangedMode &&
+                combatReady &&
+                !LocalClientInputGate.IsGameplayInputBlocked)
             {
                 float precisionYaw = facingYaw;
                 if (!_locomotionCamera.TryGetPrecisionAim(out precisionYaw, out aimPitchDegrees))
                     aimPitchDegrees = _locomotionCamera.CurrentAimPitchDegrees;
 
-                bool pointerBlocked = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+                bool pointerBlocked =
+                    EventSystem.current != null &&
+                    EventSystem.current.IsPointerOverGameObject();
+
                 if (!pointerBlocked && !knownEmpty && Input.GetMouseButton(0))
                 {
                     combatState |= PlayerCombatInputFlags.FireHeld;
-                    // Full-auto authority reuses the movement yaw while FireHeld. Feed it the
-                    // same crosshair-converged yaw as the initial compact combat intent, with
-                    // no extra packet field or send cadence.
                     facingYaw = precisionYaw;
                 }
             }

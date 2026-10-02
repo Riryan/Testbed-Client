@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Game.Shared.Interactions;
 using Player.Networking;
@@ -14,8 +15,9 @@ namespace Player.Client.Presentation
     /// actionState/actionId only. No network message, polling, or presentation asset name is
     /// added to the wire.
     ///
-    /// The existing PlayerHumanoid controller stays canonical. This component only asks that
-    /// controller to enter authored states/triggers selected by the local presentation catalog.
+    /// PlayerHumanoid's authored CP_ActionActive / CP_ActionId / CP_ActionPhase contract is
+    /// preferred for semantic interactions that are already present in that controller.
+    /// The existing InteractionAnimationCatalog remains the fallback for other presentation ids.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class PlayerInteractionAnimationPresentation : MonoBehaviour
@@ -25,6 +27,7 @@ namespace Player.Client.Presentation
         private static InteractionAnimationCatalog _catalog;
         private static bool _catalogLoaded;
         private static readonly HashSet<byte> MissingPresentationWarnings = new HashSet<byte>();
+        private static readonly HashSet<byte> MissingCanonicalContractWarnings = new HashSet<byte>();
 
         private PlayerEntityClient _client;
         private PlayerEntityNetwork _network;
@@ -32,6 +35,12 @@ namespace Player.Client.Presentation
         private Transform _boundVisual;
         private byte _activePresentationId;
         private InteractionAnimationCatalog.Binding _activeBinding;
+
+        private bool _canonicalParameterLatched;
+        private int _canonicalLayerIndex = -1;
+        private float _canonicalPreviousLayerWeight;
+        private Coroutine _canonicalLoopRoutine;
+        private Coroutine _canonicalClearRoutine;
 
         private void Awake()
         {
@@ -57,7 +66,8 @@ namespace Player.Client.Presentation
         {
             if (_network != null)
                 _network.SnapshotChanged -= OnSnapshotChanged;
-            StopPresentation();
+
+            ForceClearPresentation();
         }
 
         private void OnSnapshotChanged(
@@ -97,6 +107,9 @@ namespace Player.Client.Presentation
             }
         }
 
+        /// <summary>
+        /// Presentation-id entry point used by normal replicated PlayerEntity interaction state.
+        /// </summary>
         public void Present(byte presentationId)
         {
             if (presentationId == InteractionPresentationWire.Stop)
@@ -108,45 +121,79 @@ namespace Player.Client.Presentation
             if (!ResolveAnimator())
                 return;
 
-            InteractionAnimationCatalog.Binding binding =
-                ResolveBinding(presentationId);
-
-            bool played = TryPlayState(
-                _animator,
-                binding.layerName,
-                binding.startState,
-                binding.transitionSeconds);
-
-            if (!played)
-                played = TrySetTrigger(_animator, binding.startTrigger);
-
-            // Harvest variants deliberately fall back to the established generic Harvest
-            // trigger if no exact local mapping exists.
-            if (!played && InteractionPresentationWire.IsHarvest(presentationId))
-                played = TrySetTrigger(_animator, "Harvest");
-
-            if (!played)
+            if (CanonicalInteractionAnimatorDriver.TryResolvePresentation(
+                    presentationId,
+                    out int controllerActionId))
             {
-                if (MissingPresentationWarnings.Add(presentationId))
-                {
-                    Debug.LogWarning(
-                        $"[Interaction Animation] No authored Animator state/trigger resolved for " +
-                        $"{InteractionPresentationWire.DebugLabel(presentationId)} ({presentationId}). " +
-                        $"Edit Resources/MMO/Interactions/InteractionAnimationCatalog.");
-                }
+                PresentCanonicalControllerAction(
+                    presentationId,
+                    controllerActionId);
                 return;
             }
 
-            _activePresentationId = presentationId;
-            _activeBinding = binding;
+            PresentCatalogFallback(presentationId);
+        }
+
+        /// <summary>
+        /// Action-aware entry point for the local placeable Interaction Test Dummy.
+        /// This avoids throwing away the accepted ContextInteraction action id before
+        /// local test presentation is selected.
+        /// </summary>
+        public void PresentAction(
+            InteractionActionId actionId,
+            bool receiver)
+        {
+            if (!ResolveAnimator())
+                return;
+
+            byte presentationId =
+                InteractionPresentationWire.EncodeInteraction(
+                    actionId,
+                    receiver);
+
+            if (CanonicalInteractionAnimatorDriver.TryResolveAction(
+                    actionId,
+                    receiver,
+                    out int controllerActionId))
+            {
+                PresentCanonicalControllerAction(
+                    presentationId,
+                    controllerActionId);
+                return;
+            }
+
+            Present(presentationId);
         }
 
         public void StopPresentation()
         {
-            if (_activePresentationId == 0)
+            if (_activePresentationId == 0 && !_canonicalParameterLatched)
                 return;
 
             ResolveAnimator();
+
+            if (_canonicalParameterLatched)
+            {
+                CancelCanonicalLoopRoutine();
+
+                if (_animator != null)
+                {
+                    CanonicalInteractionAnimatorDriver.SetPhase(
+                        _animator,
+                        CanonicalInteractionAnimatorDriver.FinishPhase);
+                }
+
+                _activePresentationId = 0;
+                _activeBinding = null;
+
+                if (_canonicalClearRoutine != null)
+                    StopCoroutine(_canonicalClearRoutine);
+
+                _canonicalClearRoutine =
+                    StartCoroutine(ClearCanonicalAfterFinish());
+                return;
+            }
+
             if (_animator != null)
             {
                 bool stopped = false;
@@ -159,7 +206,9 @@ namespace Player.Client.Presentation
                         _activeBinding.transitionSeconds);
 
                     if (!stopped)
-                        stopped = TrySetTrigger(_animator, _activeBinding.stopTrigger);
+                        stopped = TrySetTrigger(
+                            _animator,
+                            _activeBinding.stopTrigger);
                 }
 
                 if (!stopped &&
@@ -177,9 +226,179 @@ namespace Player.Client.Presentation
             _activeBinding = null;
         }
 
+        private void PresentCanonicalControllerAction(
+            byte presentationId,
+            int controllerActionId)
+        {
+            ForceClearPresentation();
+
+            if (!ResolveAnimator())
+                return;
+
+            if (!CanonicalInteractionAnimatorDriver.Begin(
+                    _animator,
+                    controllerActionId,
+                    out _canonicalLayerIndex,
+                    out _canonicalPreviousLayerWeight,
+                    out string failure))
+            {
+                if (MissingCanonicalContractWarnings.Add(presentationId))
+                {
+                    Debug.LogWarning(
+                        $"[Interaction Animation] " +
+                        $"{InteractionPresentationWire.DebugLabel(presentationId)} " +
+                        $"resolved to PlayerHumanoid action {controllerActionId}, but {failure}.",
+                        this);
+                }
+
+                PresentCatalogFallback(presentationId);
+                return;
+            }
+
+            _canonicalParameterLatched = true;
+            _activePresentationId = presentationId;
+            _activeBinding = null;
+            _canonicalLoopRoutine =
+                StartCoroutine(AdvanceCanonicalToLoop(
+                    presentationId));
+        }
+
+        private IEnumerator AdvanceCanonicalToLoop(
+            byte expectedPresentationId)
+        {
+            yield return new WaitForSecondsRealtime(
+                CanonicalInteractionAnimatorDriver.StartPhaseHoldSeconds);
+
+            _canonicalLoopRoutine = null;
+
+            if (!_canonicalParameterLatched ||
+                _activePresentationId != expectedPresentationId ||
+                _animator == null)
+            {
+                yield break;
+            }
+
+            CanonicalInteractionAnimatorDriver.SetPhase(
+                _animator,
+                CanonicalInteractionAnimatorDriver.LoopPhase);
+        }
+
+        private IEnumerator ClearCanonicalAfterFinish()
+        {
+            yield return new WaitForSecondsRealtime(
+                CanonicalInteractionAnimatorDriver.FinishPhaseHoldSeconds);
+
+            _canonicalClearRoutine = null;
+
+            if (_animator != null)
+            {
+                CanonicalInteractionAnimatorDriver.Clear(
+                    _animator,
+                    _canonicalLayerIndex,
+                    _canonicalPreviousLayerWeight);
+            }
+
+            _canonicalLayerIndex = -1;
+            _canonicalPreviousLayerWeight = 0f;
+            _canonicalParameterLatched = false;
+        }
+
+        private void PresentCatalogFallback(byte presentationId)
+        {
+            if (!ResolveAnimator())
+                return;
+
+            ForceClearPresentation();
+
+            if (!ResolveAnimator())
+                return;
+
+            InteractionAnimationCatalog.Binding binding =
+                ResolveBinding(presentationId);
+
+            bool played = TryPlayState(
+                _animator,
+                binding.layerName,
+                binding.startState,
+                binding.transitionSeconds);
+
+            if (!played)
+                played = TrySetTrigger(
+                    _animator,
+                    binding.startTrigger);
+
+            // Harvest variants deliberately fall back to the established generic Harvest
+            // trigger if no exact local mapping exists.
+            if (!played &&
+                InteractionPresentationWire.IsHarvest(presentationId))
+            {
+                played = TrySetTrigger(
+                    _animator,
+                    "Harvest");
+            }
+
+            if (!played)
+            {
+                if (MissingPresentationWarnings.Add(presentationId))
+                {
+                    Debug.LogWarning(
+                        $"[Interaction Animation] No authored Animator state/trigger resolved for " +
+                        $"{InteractionPresentationWire.DebugLabel(presentationId)} ({presentationId}). " +
+                        $"PlayerHumanoid parameter mapping is not defined for this semantic id and " +
+                        $"the existing InteractionAnimationCatalog fallback also did not resolve.",
+                        this);
+                }
+                return;
+            }
+
+            _activePresentationId = presentationId;
+            _activeBinding = binding;
+        }
+
+        private void ForceClearPresentation()
+        {
+            CancelCanonicalLoopRoutine();
+
+            if (_canonicalClearRoutine != null)
+            {
+                StopCoroutine(_canonicalClearRoutine);
+                _canonicalClearRoutine = null;
+            }
+
+            ResolveAnimator();
+
+            if (_canonicalParameterLatched &&
+                _animator != null)
+            {
+                CanonicalInteractionAnimatorDriver.Clear(
+                    _animator,
+                    _canonicalLayerIndex,
+                    _canonicalPreviousLayerWeight);
+            }
+
+            _canonicalLayerIndex = -1;
+            _canonicalPreviousLayerWeight = 0f;
+            _canonicalParameterLatched = false;
+            _activePresentationId = 0;
+            _activeBinding = null;
+        }
+
+        private void CancelCanonicalLoopRoutine()
+        {
+            if (_canonicalLoopRoutine == null)
+                return;
+
+            StopCoroutine(_canonicalLoopRoutine);
+            _canonicalLoopRoutine = null;
+        }
+
         private bool ResolveAnimator()
         {
-            Transform visual = _client != null ? _client.PresentationTransform : null;
+            Transform visual =
+                _client != null
+                    ? _client.PresentationTransform
+                    : null;
+
             if (visual == null)
             {
                 _boundVisual = null;
@@ -187,17 +406,26 @@ namespace Player.Client.Presentation
                 return false;
             }
 
-            if (_boundVisual == visual && _animator != null)
+            if (_boundVisual == visual &&
+                _animator != null)
+            {
                 return true;
+            }
 
             _boundVisual = visual;
-            Animator[] animators = visual.GetComponentsInChildren<Animator>(true);
+            Animator[] animators =
+                visual.GetComponentsInChildren<Animator>(true);
+
             _animator = null;
             for (int i = 0; i < animators.Length; ++i)
             {
                 Animator candidate = animators[i];
-                if (candidate == null || candidate.runtimeAnimatorController == null)
+                if (candidate == null ||
+                    candidate.runtimeAnimatorController == null)
+                {
                     continue;
+                }
+
                 _animator = candidate;
                 break;
             }
@@ -205,18 +433,27 @@ namespace Player.Client.Presentation
             return _animator != null;
         }
 
-        private static InteractionAnimationCatalog.Binding ResolveBinding(byte presentationId)
+        private static InteractionAnimationCatalog.Binding ResolveBinding(
+            byte presentationId)
         {
             if (!_catalogLoaded)
             {
                 _catalogLoaded = true;
-                _catalog = Resources.Load<InteractionAnimationCatalog>(ResourcesPath);
+                _catalog =
+                    Resources.Load<InteractionAnimationCatalog>(
+                        ResourcesPath);
             }
 
-            if (_catalog != null && _catalog.TryGet(presentationId, out InteractionAnimationCatalog.Binding binding))
+            if (_catalog != null &&
+                _catalog.TryGet(
+                    presentationId,
+                    out InteractionAnimationCatalog.Binding binding))
+            {
                 return binding;
+            }
 
-            return InteractionAnimationCatalog.CreateRuntimeFallback(presentationId);
+            return InteractionAnimationCatalog.CreateRuntimeFallback(
+                presentationId);
         }
 
         private static bool TryPlayState(
@@ -225,8 +462,11 @@ namespace Player.Client.Presentation
             string stateName,
             float transitionSeconds)
         {
-            if (animator == null || string.IsNullOrWhiteSpace(stateName))
+            if (animator == null ||
+                string.IsNullOrWhiteSpace(stateName))
+            {
                 return false;
+            }
 
             int layer = ResolveLayer(animator, layerName);
             if (layer < 0)
@@ -244,7 +484,10 @@ namespace Player.Client.Presentation
             }
 
             string layerActualName = animator.GetLayerName(layer);
-            int fullHash = Animator.StringToHash(layerActualName + "." + stateName);
+            int fullHash =
+                Animator.StringToHash(
+                    layerActualName + "." + stateName);
+
             if (!animator.HasState(layer, fullHash))
                 return false;
 
@@ -256,10 +499,15 @@ namespace Player.Client.Presentation
             return true;
         }
 
-        private static int ResolveLayer(Animator animator, string layerName)
+        private static int ResolveLayer(
+            Animator animator,
+            string layerName)
         {
-            if (animator == null || animator.layerCount <= 0)
+            if (animator == null ||
+                animator.layerCount <= 0)
+            {
                 return -1;
+            }
 
             if (string.IsNullOrWhiteSpace(layerName))
                 return 0;
@@ -268,17 +516,29 @@ namespace Player.Client.Presentation
             return layer >= 0 ? layer : -1;
         }
 
-        private static bool TrySetTrigger(Animator animator, string triggerName)
+        private static bool TrySetTrigger(
+            Animator animator,
+            string triggerName)
         {
-            if (animator == null || string.IsNullOrWhiteSpace(triggerName))
+            if (animator == null ||
+                string.IsNullOrWhiteSpace(triggerName))
+            {
                 return false;
+            }
 
-            AnimatorControllerParameter[] parameters = animator.parameters;
+            AnimatorControllerParameter[] parameters =
+                animator.parameters;
+
             for (int i = 0; i < parameters.Length; ++i)
             {
-                AnimatorControllerParameter parameter = parameters[i];
+                AnimatorControllerParameter parameter =
+                    parameters[i];
+
                 if (parameter.type != AnimatorControllerParameterType.Trigger ||
-                    !string.Equals(parameter.name, triggerName, StringComparison.Ordinal))
+                    !string.Equals(
+                        parameter.name,
+                        triggerName,
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -290,12 +550,14 @@ namespace Player.Client.Presentation
             return false;
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
             _catalog = null;
             _catalogLoaded = false;
             MissingPresentationWarnings.Clear();
+            MissingCanonicalContractWarnings.Clear();
         }
     }
 
@@ -309,7 +571,9 @@ namespace Player.Client.Presentation
         {
             PlayerEntityClient.ActiveClientRegistered += Attach;
 
-            IReadOnlyList<PlayerEntityClient> active = PlayerEntityClient.ActiveClients;
+            IReadOnlyList<PlayerEntityClient> active =
+                PlayerEntityClient.ActiveClients;
+
             for (int i = 0; i < active.Count; ++i)
                 Attach(active[i]);
         }
@@ -327,24 +591,31 @@ namespace Player.Client.Presentation
                 return;
             }
 
-            client.gameObject.AddComponent<PlayerInteractionAnimationPresentation>();
+            client.gameObject.AddComponent<
+                PlayerInteractionAnimationPresentation>();
         }
     }
 
     internal static class PlayerInteractionAnimationBootstrap
     {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
         {
-            if (UnityEngine.Object.FindFirstObjectByType<PlayerInteractionAnimationInstaller>(
+            if (UnityEngine.Object.FindFirstObjectByType<
+                    PlayerInteractionAnimationInstaller>(
                     FindObjectsInactive.Include) != null)
             {
                 return;
             }
 
-            var go = new GameObject("Player Interaction Animation Presentation");
+            var go =
+                new GameObject(
+                    "Player Interaction Animation Presentation");
+
             UnityEngine.Object.DontDestroyOnLoad(go);
-            go.AddComponent<PlayerInteractionAnimationInstaller>();
+            go.AddComponent<
+                PlayerInteractionAnimationInstaller>();
         }
     }
 }

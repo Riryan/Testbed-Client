@@ -134,22 +134,9 @@ namespace Game.WorldAuthoring.Editor
             Undo.AddComponent<WorldObject>(root);
             WorldInteractable interactable = Undo.AddComponent<WorldInteractable>(root);
             ConfigureBase(interactable, DefaultLabel);
-
-            GameObject anchorObject = new GameObject("Initiator Anchor");
-            Undo.RegisterCreatedObjectUndo(anchorObject, "Add Interaction Test Anchor");
-            Undo.SetTransformParent(anchorObject.transform, root.transform, "Parent Interaction Test Anchor");
-            anchorObject.transform.localPosition = new Vector3(0f, 0f, 1.05f);
-            anchorObject.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-
-            interactable.slots = new[]
-            {
-                new WorldInteractable.Slot
-                {
-                    slotId = "Initiator",
-                    roleId = "Primary",
-                    anchor = anchorObject.transform,
-                }
-            };
+            // Test fixture intentionally has no authored alignment slot. The player must
+            // already be in valid interaction range; the GameServer validates range normally.
+            interactable.slots = Array.Empty<WorldInteractable.Slot>();
 
             GameObject visual =
                 PrefabUtility.InstantiatePrefab(visualProfile.EditableBasePrefab) as GameObject;
@@ -291,11 +278,15 @@ namespace Game.WorldAuthoring.Editor
                     ? DefaultLabel
                     : interactable.label);
 
-            float duration = (float)Math.Max(
-                0.1d,
-                InteractionPresentationWire.DevelopmentDurationSeconds(actionId));
-
+            // IMPORTANT: the Interaction Test Dummy is deliberately an INSTANT authoritative
+            // SceneObject interaction. The server validates range/action/state and returns the
+            // normal ContextInteraction result, but does not create a timed world session and
+            // therefore does not align/warp the Player to an authored slot.
+            //
+            // Presentation duration remains client-local test presentation after accepted success.
             InteractionFeature feature = FeatureFor(actionId);
+
+            interactable.slots = Array.Empty<WorldInteractable.Slot>();
 
             interactable.interactions = new[]
             {
@@ -307,13 +298,13 @@ namespace Game.WorldAuthoring.Editor
                     displayLabel = ActionLabel(actionId),
                     maximumUseDistance = InteractionRangePolicy.WorldObjectUseRange,
                     maximumFacingAngle = 180f,
-                    exclusiveOccupancy = true,
+                    exclusiveOccupancy = false,
                     looping = false,
-                    fixedDurationSeconds = duration,
-                    lockMovement = true,
-                    lockRotation = true,
-                    cancelOnDamage = true,
-                    cancelOnMovement = true,
+                    fixedDurationSeconds = 0f,
+                    lockMovement = false,
+                    lockRotation = false,
+                    cancelOnDamage = false,
+                    cancelOnMovement = false,
                     cancelOnTargetUnavailable = true,
 
                     // The dummy is the auto-accepting receiver for visual testing. Production
@@ -347,36 +338,41 @@ namespace Game.WorldAuthoring.Editor
 
             if (interactable.GetComponent<InteractionTestDummyPresentation>() == null)
                 Undo.AddComponent<InteractionTestDummyPresentation>(interactable.gameObject);
+            // Upgrade older test fixtures that used a timed session + alignment slot.
+            // Keeping slots empty is what guarantees the fixture never requests server alignment.
+            interactable.slots = Array.Empty<WorldInteractable.Slot>();
 
-            if (interactable.slots == null ||
-                interactable.slots.Length == 0 ||
-                interactable.slots[0] == null ||
-                interactable.slots[0].anchor == null)
-            {
-                Transform existing = interactable.transform.Find("Initiator Anchor");
-                if (existing == null)
-                {
-                    GameObject anchorObject = new GameObject("Initiator Anchor");
-                    Undo.RegisterCreatedObjectUndo(anchorObject, "Repair Interaction Test Anchor");
-                    Undo.SetTransformParent(anchorObject.transform, interactable.transform, "Parent Interaction Test Anchor");
-                    existing = anchorObject.transform;
-                }
-
-                existing.localPosition = new Vector3(0f, 0f, 1.05f);
-                existing.localRotation = Quaternion.Euler(0f, 180f, 0f);
-
-                interactable.slots = new[]
-                {
-                    new WorldInteractable.Slot
-                    {
-                        slotId = "Initiator",
-                        roleId = "Primary",
-                        anchor = existing,
-                    }
-                };
-            }
+            Transform legacyAnchor = interactable.transform.Find("Initiator Anchor");
+            if (legacyAnchor != null)
+                Undo.DestroyObjectImmediate(legacyAnchor.gameObject);
 
             EditorUtility.SetDirty(interactable);
+        }
+
+        internal static bool IsNoWarpConfigured(WorldInteractable interactable)
+        {
+            if (interactable == null ||
+                interactable.interactions == null ||
+                interactable.interactions.Length != 1 ||
+                interactable.interactions[0] == null)
+            {
+                return false;
+            }
+
+            WorldInteractable.Interaction action = interactable.interactions[0];
+            bool noSession =
+                !action.looping &&
+                action.fixedDurationSeconds <= 0f &&
+                action.consentMode == InteractionConsentMode.None;
+
+            bool noAlignmentSlot =
+                interactable.slots == null ||
+                interactable.slots.Length == 0;
+
+            return noSession &&
+                   noAlignmentSlot &&
+                   !action.lockMovement &&
+                   !action.lockRotation;
         }
 
         private static InteractionFeature FeatureFor(InteractionActionId actionId)

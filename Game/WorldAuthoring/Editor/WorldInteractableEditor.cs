@@ -38,8 +38,8 @@ namespace Game.WorldAuthoring.Editor
 
             EditorGUILayout.LabelField("Interaction Test Dummy", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Setup: choose a name, choose a test group, choose an interaction, then run Server World Bake V2. " +
-                "The dummy auto-accepts only for this development fixture; production consent rules are unchanged.",
+                "Setup: choose a name, test group, and interaction, then run Server World Bake V2. " +
+                "This fixture NEVER warps or snaps the Player. After server acceptance, the Player uses normal locomotion to auto-walk to final spacing; the dummy stays planted.",
                 MessageType.Info);
 
             string currentLabel =
@@ -155,6 +155,27 @@ namespace Game.WorldAuthoring.Editor
             }
 
             EditorGUILayout.Space(4f);
+
+            if (!InteractionTestDummyTool.IsNoWarpConfigured(interactable))
+            {
+                EditorGUILayout.HelpBox(
+                    "LEGACY WARP SETUP DETECTED — this fixture is still authored as a timed/slot interaction.",
+                    MessageType.Error);
+
+                if (GUILayout.Button("Remove Warp / Upgrade Test Dummy"))
+                {
+                    serializedObject.ApplyModifiedProperties();
+                    InteractionTestDummyTool.Repair(interactable);
+                    serializedObject.Update();
+                }
+            }
+            else
+            {
+                EditorGUILayout.HelpBox(
+                    "NO WARP — range is validated normally; accepted interactions auto-walk the Player to final spacing through the existing movement path. Dummy position never changes.",
+                    MessageType.None);
+            }
+
             DrawInteractionFixtureStatus(interactable);
 
             if (!IsInteractionFixtureHealthy(interactable))
@@ -218,10 +239,7 @@ namespace Game.WorldAuthoring.Editor
                 interactable.interactions.Length != 1 ||
                 interactable.interactions[0] == null ||
                 interactable.interactions[0].actionId == InteractionActionId.None ||
-                interactable.slots == null ||
-                interactable.slots.Length == 0 ||
-                interactable.slots[0] == null ||
-                interactable.slots[0].anchor == null)
+                !InteractionTestDummyTool.IsNoWarpConfigured(interactable))
             {
                 return false;
             }
