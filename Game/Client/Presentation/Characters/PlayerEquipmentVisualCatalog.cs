@@ -8,12 +8,9 @@ namespace Game.Client.Presentation.Characters
 {
     /// <summary>
     /// Client-only resolution from compact server presentation ids to concrete modular
-    /// character options. The server never knows mesh names, FBXs, materials or bones.
-    ///
-    /// V1 contains the currently-available Testbed clothing mapping. Weapon presentation ids
-    /// are already transported by the same contract, but this source archive contains no
-    /// weapon model prefabs to bind yet; those can be added here/through a later authored
-    /// catalog without changing the network contract.
+    /// character options. Authored wearables now resolve directly by their existing
+    /// CharacterWearableSetDefinition.presentationId. Legacy hardcoded mappings remain only
+    /// as a compatibility fallback for content that has not yet been migrated.
     /// </summary>
     internal static class PlayerEquipmentVisualCatalog
     {
@@ -37,11 +34,22 @@ namespace Game.Client.Presentation.Characters
             }
         }
 
-        // Current standalone content:
-        //   Chest slot presentation id = 2
-        //   Leather Chest Armor presentation id = 201
-        // Use one coherent Sidekick donor family across torso/arms/hands so the equipped
-        // top reads as one outfit instead of mixing unrelated modular pieces.
+        private readonly struct ResolvedPart
+        {
+            public readonly ushort optionId;
+            public readonly int priority;
+            public readonly int equipmentOrder;
+
+            public ResolvedPart(ushort optionId, int priority, int equipmentOrder)
+            {
+                this.optionId = optionId;
+                this.priority = priority;
+                this.equipmentOrder = equipmentOrder;
+            }
+        }
+
+        // Legacy compatibility only. Newly-authored items are resolved from the existing
+        // CharacterVisualProfile.WearableSets collection by presentation id.
         private static readonly ModularSet[] ModularSets =
         {
             new ModularSet(201, 2, "SK_APOC_OUTL_01", 10, 11, 12, 13, 14, 15, 16),
@@ -54,13 +62,32 @@ namespace Game.Client.Presentation.Characters
             if (profile == null || equipmentVisuals == null || equipmentVisuals.Length == 0)
                 return Array.Empty<CharacterMeshSelection>();
 
-            var selectedBySlot = new Dictionary<ushort, ushort>();
+            var selectedBySlot = new Dictionary<ushort, ResolvedPart>();
             for (int i = 0; i < equipmentVisuals.Length; ++i)
             {
                 PlayerEquipmentVisualSelection equipped = equipmentVisuals[i];
                 if (equipped.itemPresentationId == 0)
                     continue;
 
+                if (TryFindAuthoredWearable(profile, equipped.itemPresentationId, out CharacterWearableSetDefinition wearable))
+                {
+                    CharacterWearablePartSelection[] parts = wearable.parts ?? Array.Empty<CharacterWearablePartSelection>();
+                    for (int p = 0; p < parts.Length; ++p)
+                    {
+                        CharacterWearablePartSelection part = parts[p];
+                        if (part.slotId == 0 || part.optionId == 0 ||
+                            !profile.TryGetOption(part.slotId, part.optionId, out CharacterVisualOptionDefinition option) ||
+                            option == null || option.mesh == null || !option.AllowsPlayerUse)
+                            continue;
+
+                        int priority = ResolveBodySlotPriority(wearable.region, part.slotId);
+                        AssignPart(selectedBySlot, part.slotId, part.optionId, priority, i);
+                    }
+                    continue;
+                }
+
+                // Preserve the pre-authoring fallback for current content that has not yet
+                // received a wearable record in CharacterVisualProfile.
                 ModularSet definition = FindModularSet(
                     equipped.equipmentSlotPresentationId,
                     equipped.itemPresentationId);
@@ -71,18 +98,130 @@ namespace Game.Client.Presentation.Characters
                 {
                     ushort slotId = definition.SlotIds[slotIndex];
                     if (TryResolveSetOption(profile, slotId, definition.SetKey, out ushort optionId))
-                        selectedBySlot[slotId] = optionId;
+                    {
+                        int priority = ResolveBodySlotPriority(CharacterWearableRegion.Upper, slotId);
+                        AssignPart(selectedBySlot, slotId, optionId, priority, i);
+                    }
                 }
             }
 
             if (selectedBySlot.Count == 0)
                 return Array.Empty<CharacterMeshSelection>();
 
-            var result = new CharacterMeshSelection[selectedBySlot.Count];
-            int output = 0;
-            foreach (KeyValuePair<ushort, ushort> pair in selectedBySlot)
-                result[output++] = new CharacterMeshSelection(pair.Key, pair.Value);
+            var keys = new List<ushort>(selectedBySlot.Keys);
+            keys.Sort();
+            var result = new CharacterMeshSelection[keys.Count];
+            for (int i = 0; i < keys.Count; ++i)
+            {
+                ushort slotId = keys[i];
+                result[i] = new CharacterMeshSelection(slotId, selectedBySlot[slotId].optionId);
+            }
             return result;
+        }
+
+        /// <summary>
+        /// Per-body-slot ownership makes overlapping equipment compose predictably:
+        /// pants own lower legs over boots, while boots own feet over pants. Gloves own hands
+        /// over upper-body clothing. A lower-priority item's supporting mesh still appears when
+        /// no higher-priority item occupies that body slot.
+        /// </summary>
+        private static int ResolveBodySlotPriority(CharacterWearableRegion sourceRegion, ushort bodySlotId)
+        {
+            // Torso + arms.
+            if (bodySlotId >= 10 && bodySlotId <= 14)
+            {
+                switch (sourceRegion)
+                {
+                    case CharacterWearableRegion.Upper: return 400;
+                    case CharacterWearableRegion.Accessory: return 300;
+                    case CharacterWearableRegion.Lower: return 200;
+                    case CharacterWearableRegion.Feet: return 100;
+                }
+            }
+
+            // Hands: dedicated glove/accessory content wins over sleeves.
+            if (bodySlotId == 15 || bodySlotId == 16)
+            {
+                switch (sourceRegion)
+                {
+                    case CharacterWearableRegion.Accessory: return 500;
+                    case CharacterWearableRegion.Upper: return 400;
+                    case CharacterWearableRegion.Lower: return 200;
+                    case CharacterWearableRegion.Feet: return 100;
+                }
+            }
+
+            // Hips + legs: pants/lower-body content wins, then footwear support geometry.
+            if (bodySlotId >= 17 && bodySlotId <= 19)
+            {
+                switch (sourceRegion)
+                {
+                    case CharacterWearableRegion.Lower: return 500;
+                    case CharacterWearableRegion.Feet: return 400;
+                    case CharacterWearableRegion.Upper: return 200;
+                    case CharacterWearableRegion.Accessory: return 100;
+                }
+            }
+
+            // Feet: footwear wins, with lower-body meshes as fallback only.
+            if (bodySlotId == 20 || bodySlotId == 21)
+            {
+                switch (sourceRegion)
+                {
+                    case CharacterWearableRegion.Feet: return 500;
+                    case CharacterWearableRegion.Lower: return 400;
+                    case CharacterWearableRegion.Accessory: return 200;
+                    case CharacterWearableRegion.Upper: return 100;
+                }
+            }
+
+            // Attachment slots are primarily accessory-owned.
+            switch (sourceRegion)
+            {
+                case CharacterWearableRegion.Accessory: return 500;
+                case CharacterWearableRegion.Upper: return 300;
+                case CharacterWearableRegion.Lower: return 200;
+                case CharacterWearableRegion.Feet: return 100;
+                default: return 0;
+            }
+        }
+
+        private static void AssignPart(
+            Dictionary<ushort, ResolvedPart> selectedBySlot,
+            ushort slotId,
+            ushort optionId,
+            int priority,
+            int equipmentOrder)
+        {
+            if (!selectedBySlot.TryGetValue(slotId, out ResolvedPart existing) ||
+                priority > existing.priority ||
+                (priority == existing.priority && equipmentOrder >= existing.equipmentOrder))
+            {
+                selectedBySlot[slotId] = new ResolvedPart(optionId, priority, equipmentOrder);
+            }
+        }
+
+        private static bool TryFindAuthoredWearable(
+            CharacterVisualProfile profile,
+            ushort itemPresentationId,
+            out CharacterWearableSetDefinition wearable)
+        {
+            wearable = null;
+            if (profile == null || itemPresentationId == 0)
+                return false;
+
+            IReadOnlyList<CharacterWearableSetDefinition> values = profile.WearableSets;
+            for (int i = 0; i < values.Count; ++i)
+            {
+                CharacterWearableSetDefinition candidate = values[i];
+                if (candidate != null && candidate.playerEligible &&
+                    candidate.presentationId == itemPresentationId)
+                {
+                    wearable = candidate;
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static HumanoidCombatStance ResolveCombatStance(

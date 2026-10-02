@@ -83491,3 +83491,75 @@ MonoBehaviour:
     - slotId: 12
       optionId: 50992
     icon: {fileID: 0}
+  - definitionId: armor.multi_color_shirt
+    displayName: Multi Color Shirt
+    presentationId: 202
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 16870
+    - slotId: 11
+      optionId: 64185
+    - slotId: 12
+      optionId: 50992
+    icon: {fileID: 0}
+  - definitionId: armor.v_nesh_mid_sleeves
+    displayName: V Nesh Mid Sleeves
+    presentationId: 203
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 29145
+    - slotId: 11
+      optionId: 64185
+    - slotId: 12
+      optionId: 50992
+    icon: {fileID: 0}
+  - definitionId: armor.button_top_mid_sleeves
+    displayName: Button Top Mid Sleeves
+    presentationId: 204
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 53882
+    - slotId: 11
+      optionId: 64185
+    - slotId: 12
+      optionId: 50992
+    icon: {fileID: 0}
+  - definitionId: armor.tube_top
+    displayName: Tube Top
+    presentationId: 205
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 48965
+    icon: {fileID: 0}
