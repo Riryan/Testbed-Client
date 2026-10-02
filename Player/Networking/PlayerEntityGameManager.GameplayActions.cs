@@ -24,7 +24,6 @@ namespace Player.Networking
         public event Action<ushort, byte, FirearmFireMode, float> LocalFireTriggerPredicted;
         public event Action<BasicAttackMode, BasicAttackInputKind, ushort> LocalBasicAttackPredicted;
         public event Action LocalReloadAccepted;
-        public event Action<PlayerInteractionResponseMessage> PlayerInteractionResultReceived;
         public event Action<PlayerCombatOwnerStateMessage> PlayerCombatOwnerStateReceived;
 
         private PlayerCombatOwnerStateMessage _latestCombatOwnerState;
@@ -39,8 +38,6 @@ namespace Player.Networking
         private bool _cancelAbilityRequestInFlight;
         private double _nextAbilityRequestAt;
         private uint _activeClientAbilityCastSequence;
-        private bool _playerInteractionRequestInFlight;
-        private double _nextPlayerInteractionRequestAt;
         private bool _respawnRequestInFlight;
         private double _nextRespawnRequestAt;
         private bool _combatOwnerStateRequestInFlight;
@@ -58,9 +55,6 @@ namespace Player.Networking
             RegisterRequestToServer<PlayerCancelAbilityRequestMessage, PlayerAbilityRequestAckMessage>(
                 PlayerGameplayActionRequestTypes.CancelAbility,
                 HandleCancelAbilityRequest);
-            RegisterRequestToServer<PlayerInteractionRequestMessage, PlayerInteractionResponseMessage>(
-                PlayerGameplayActionRequestTypes.Interaction,
-                HandleInteractionRequest);
             RegisterRequestToServer<PlayerRespawnRequestMessage, PlayerRespawnResponseMessage>(
                 PlayerGameplayActionRequestTypes.Respawn,
                 HandleRespawnRequest);
@@ -510,64 +504,6 @@ namespace Player.Networking
             }
         }
 
-        public async UniTask<PlayerInteractionResponseMessage> RequestPlayerInteractionAsync(
-            uint targetObjectId,
-            ushort targetGeneration,
-            InteractionCategoryId categoryId,
-            InteractionActionId actionId,
-            uint sequence,
-            int millisecondsTimeout = 5000)
-        {
-            if (!IsClientConnected)
-                return PlayerInteractionResponseMessage.Failed(sequence, categoryId, actionId, InteractionResultCode.InvalidState, "client is not connected");
-            if (targetObjectId == 0 || targetGeneration == 0)
-                return PlayerInteractionResponseMessage.Failed(sequence, categoryId, actionId, InteractionResultCode.InvalidTarget, "target is not selected");
-
-            double now = UnityEngine.Time.realtimeSinceStartupAsDouble;
-            if (_playerInteractionRequestInFlight || now < _nextPlayerInteractionRequestAt)
-                return PlayerInteractionResponseMessage.Failed(sequence, categoryId, actionId, InteractionResultCode.Rejected, "interaction is locally pending or rate-limited");
-
-            _playerInteractionRequestInFlight = true;
-            _nextPlayerInteractionRequestAt = now + 0.10d;
-            try
-            {
-                AsyncResponseData<PlayerInteractionResponseMessage> response =
-                    await ClientSendRequestAsync<PlayerInteractionRequestMessage, PlayerInteractionResponseMessage>(
-                        PlayerGameplayActionRequestTypes.Interaction,
-                        new PlayerInteractionRequestMessage
-                        {
-                            target = new PlayerTargetReferenceWire
-                            {
-                                objectId = targetObjectId,
-                                generation = targetGeneration,
-                            },
-                            categoryId = (ushort)categoryId,
-                            actionId = (ushort)actionId,
-                            sequence = sequence,
-                        },
-                        millisecondsTimeout);
-
-                PlayerInteractionResponseMessage result = response.IsSuccess
-                    ? response.Response
-                    : PlayerInteractionResponseMessage.Failed(
-                        sequence,
-                        categoryId,
-                        actionId,
-                        InteractionResultCode.InvalidState,
-                        $"interaction request failed: {response.ResponseCode}");
-                // sequence + action are request-known and intentionally omitted from the wire.
-                result.sequence = sequence;
-                result.categoryId = (ushort)categoryId;
-                result.actionId = (ushort)actionId;
-                PlayerInteractionResultReceived?.Invoke(result);
-                return result;
-            }
-            finally
-            {
-                _playerInteractionRequestInFlight = false;
-            }
-        }
-
         public async UniTask<PlayerRespawnResponseMessage> RequestRespawnAsync(int millisecondsTimeout = 5000)
         {
             if (!IsClientConnected)
@@ -727,53 +663,6 @@ namespace Player.Networking
             return default;
         }
 
-        private UniTaskVoid HandleInteractionRequest(
-            RequestHandlerData handler,
-            PlayerInteractionRequestMessage request,
-            RequestProceedResultDelegate<PlayerInteractionResponseMessage> result)
-        {
-            if (!TryGetInWorldPlayerSession(handler.ConnectionId, out PlayerSessionHandle sourceHandle))
-            {
-                result(AckResponseCode.Success, PlayerInteractionResponseMessage.Failed(
-                    request.sequence,
-                    request.CategoryId,
-                    request.ActionId,
-                    InteractionResultCode.InvalidState,
-                    "source character is not in world"));
-                return default;
-            }
-
-            if (!InteractionCategoryCatalog.IsCompatible(InteractionTargetKind.PlayerEntity, request.CategoryId, request.ActionId))
-            {
-                result(AckResponseCode.Success, PlayerInteractionResponseMessage.Failed(
-                    request.sequence,
-                    request.CategoryId,
-                    request.ActionId,
-                    InteractionResultCode.Unsupported,
-                    "interaction category/action pair is not supported for player targets"));
-                return default;
-            }
-
-            if (!TryResolveUnityPlayerTarget(request.target, out PlayerSessionHandle targetHandle))
-            {
-                result(AckResponseCode.Success, PlayerInteractionResponseMessage.Failed(
-                    request.sequence,
-                    request.CategoryId,
-                    request.ActionId,
-                    InteractionResultCode.InvalidTarget,
-                    "target is unavailable"));
-                return default;
-            }
-
-            InteractionResult interaction = _characterSessionRuntimeHost.ExecutePlayerInteraction(
-                sourceHandle,
-                targetHandle,
-                request.ActionId,
-                request.sequence);
-            result(AckResponseCode.Success, ToWireGameplay(interaction));
-            return default;
-        }
-
         private bool TryResolveUnityPlayerTarget(
             PlayerTargetReferenceWire target,
             out PlayerSessionHandle targetHandle)
@@ -893,8 +782,6 @@ namespace Player.Networking
             _cancelAbilityRequestInFlight = false;
             _nextAbilityRequestAt = 0d;
             _activeClientAbilityCastSequence = 0;
-            _playerInteractionRequestInFlight = false;
-            _nextPlayerInteractionRequestAt = 0d;
             _respawnRequestInFlight = false;
             _nextRespawnRequestAt = 0d;
             _combatOwnerStateRequestInFlight = false;
@@ -931,17 +818,6 @@ namespace Player.Networking
                 totalAffected = (ushort)Math.Max(0, Math.Min(ushort.MaxValue, result.TotalAffected)),
             };
         }
-
-        private static PlayerInteractionResponseMessage ToWireGameplay(InteractionResult result) =>
-            new PlayerInteractionResponseMessage
-            {
-                success = result.Success,
-                sequence = result.Sequence,
-                actionId = (ushort)result.ActionId,
-                resultCode = (byte)result.ResultCode,
-                targetCharacterId = result.Target.PrimaryId,
-                detail = result.Detail,
-            };
 
         private CombatDamageWire ToWireGameplay(CombatDamageResult result) =>
             new CombatDamageWire
