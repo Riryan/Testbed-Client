@@ -19053,7 +19053,7 @@ GameObject:
   - component: {fileID: 2269663634472500675}
   - component: {fileID: 776465426052111671}
   m_Layer: 5
-  m_Name: IntegrityOverlayPanel
+  m_Name: EquipmentWorkbenchPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -20978,6 +20978,7 @@ GameObject:
   - component: {fileID: 2559425307577512298}
   - component: {fileID: 7962155893987624216}
   - component: {fileID: 3410356710442199034}
+  - component: {fileID: 9190000000000000001}
   m_Layer: 5
   m_Name: Outfit Authoring UI
   m_TagString: Untagged
@@ -30413,3 +30414,16 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: MESH PARTS
+
+--- !u!114 &9190000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6603346678108469132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b6bde4c40e54f6bbbe289d50f621b7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
