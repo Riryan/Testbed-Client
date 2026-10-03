@@ -83491,17 +83491,17 @@ MonoBehaviour:
     - slotId: 12
       optionId: 50992
     icon: {fileID: 0}
-  - definitionId: armor.multi_color_shirt
+  - definitionId: item.armor.multi_color_shirt
     displayName: Multi Color Shirt
     presentationId: 202
     region: 0
     playerEligible: 1
     populationEligible: 1
     defaultPrimaryColorId: 1
-    defaultSecondaryColorId: 8
+    defaultSecondaryColorId: 1
     colorUsageReviewed: 1
-    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
-    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
     parts:
     - slotId: 10
       optionId: 16870
@@ -83548,34 +83548,32 @@ MonoBehaviour:
     - slotId: 12
       optionId: 50992
     icon: {fileID: 0}
-  - definitionId: armor.tube_top
-    displayName: Work Boots
+  - definitionId: item.armor.tube_top
+    displayName: Tube Top
     presentationId: 205
-    region: 2
+    region: 0
     playerEligible: 1
     populationEligible: 1
     defaultPrimaryColorId: 1
-    defaultSecondaryColorId: 8
+    defaultSecondaryColorId: 1
     colorUsageReviewed: 1
-    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
-    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
     parts:
-    - slotId: 20
-      optionId: 63411
-    - slotId: 21
-      optionId: 49652
+    - slotId: 10
+      optionId: 48965
     icon: {fileID: 0}
-  - definitionId: armor.sleeveless_with_pendent
+  - definitionId: item.armor.sleeveless_with_pendent
     displayName: Sleeveless With Pendent
     presentationId: 206
     region: 0
     playerEligible: 1
     populationEligible: 1
     defaultPrimaryColorId: 1
-    defaultSecondaryColorId: 8
+    defaultSecondaryColorId: 1
     colorUsageReviewed: 1
-    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
-    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
     parts:
     - slotId: 10
       optionId: 29345
@@ -83684,4 +83682,55 @@ MonoBehaviour:
       optionId: 63411
     - slotId: 21
       optionId: 49652
+    icon: {fileID: 0}
+  - definitionId: item.armor.sneakers
+    displayName: Sneakers
+    presentationId: 212
+    region: 2
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 1
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
+    parts:
+    - slotId: 20
+      optionId: 43474
+    - slotId: 21
+      optionId: 30059
+    icon: {fileID: 0}
+  - definitionId: item.armor.sandals
+    displayName: Sandals
+    presentationId: 213
+    region: 2
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 1
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
+    parts:
+    - slotId: 20
+      optionId: 26200
+    - slotId: 21
+      optionId: 30959
+    icon: {fileID: 0}
+  - definitionId: item.armor.running_shoes
+    displayName: Running Shoes
+    presentationId: 214
+    region: 2
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 1
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
+    parts:
+    - slotId: 20
+      optionId: 63459
+    - slotId: 21
+      optionId: 39709
     icon: {fileID: 0}

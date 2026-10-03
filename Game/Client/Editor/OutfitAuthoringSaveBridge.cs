@@ -507,7 +507,7 @@ namespace Game.Client.Editor
             }
 
             string slug = Slug(itemName);
-            string baseId = "armor." + (slug.Length > 0 ? slug : "authored");
+            string baseId = "item.armor." + (slug.Length > 0 ? slug : "authored");
             if (!used.Contains(baseId))
                 return baseId;
             for (int i = 2; i < 100000; ++i)
