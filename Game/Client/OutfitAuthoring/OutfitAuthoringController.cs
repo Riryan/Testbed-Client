@@ -68,6 +68,10 @@ namespace Game.Client.OutfitAuthoring
         [Header("Preview")]
         [SerializeField] private Transform previewAnchor;
         [SerializeField] private Camera previewCamera;
+        [Tooltip("When disabled, the Outfit Builder never moves the authored preview camera or changes its FOV.")]
+        [SerializeField] private bool autoFramePreviewCamera = false;
+        [Tooltip("The spawned Outfit Authoring Player Animator defaults off. Enable only when animation preview is wanted.")]
+        [SerializeField] private bool previewAnimatorEnabled = false;
 
         [Header("Item")]
         [SerializeField] private InputField itemNameInput;
@@ -119,7 +123,7 @@ namespace Game.Client.OutfitAuthoring
         private string _editingDefinitionId = string.Empty;
         private ushort _editingPresentationId;
 
-        public bool IsEditingExisting => !string.IsNullOrWhiteSpace(_editingDefinitionId) && _editingPresentationId != 0;
+        public bool IsEditingExisting => !string.IsNullOrWhiteSpace(_editingDefinitionId);
         public string EditingDefinitionId => _editingDefinitionId;
         public ushort EditingPresentationId => _editingPresentationId;
         public event Action AuthoringModeChanged;
@@ -165,7 +169,7 @@ namespace Game.Client.OutfitAuthoring
             for (int i = 0; i < values.Length; ++i)
             {
                 OutfitAuthoringEquipmentSlotOption option = values[i];
-                if (option != null && !string.IsNullOrWhiteSpace(option.slotId) && option.presentationSlotId != 0)
+                if (option != null && !string.IsNullOrWhiteSpace(option.slotId))
                     _equipmentSlots.Add(option);
             }
 
@@ -195,22 +199,31 @@ namespace Game.Client.OutfitAuthoring
 
             Animator animator = _mannequin.GetComponentInChildren<Animator>(true);
             if (animator != null)
-                animator.enabled = false;
+                animator.enabled = previewAnimatorEnabled;
 
-            if (previewCamera != null)
+            // Preserve the authored camera by default. This lets the scene camera be moved,
+            // rotated and have its FOV adjusted normally without Play Mode overwriting it.
+            if (autoFramePreviewCamera && previewCamera != null)
                 FramePreviewCamera();
         }
 
         private void FramePreviewCamera()
         {
+            if (previewCamera == null || _mannequin == null)
+                return;
+
             Bounds bounds = CalculateBounds(_mannequin);
             Vector3 center = bounds.center;
             float height = Mathf.Max(1.6f, bounds.size.y);
-            float distance = Mathf.Max(3.0f, height * 1.65f);
-            previewCamera.transform.position = center + new Vector3(0f, height * 0.03f, distance);
-            previewCamera.transform.LookAt(center + Vector3.up * height * 0.02f);
+
+            // Optional convenience framing only. Includes extra vertical room so feet/head
+            // are not tight to the viewport edges. The normal/default mode does not call this.
+            float distance = Mathf.Max(3.8f, height * 2.0f);
+            previewCamera.transform.position =
+                center + new Vector3(0f, 0f, distance);
+            previewCamera.transform.LookAt(center);
             previewCamera.nearClipPlane = 0.05f;
-            previewCamera.fieldOfView = 35f;
+            previewCamera.fieldOfView = 40f;
         }
 
         private void BindMeshRows()
@@ -304,10 +317,27 @@ namespace Game.Client.OutfitAuthoring
 
         private void BindSave()
         {
-            if (saveButton == null)
-                return;
-            saveButton.onClick.RemoveListener(SaveOutfit);
-            saveButton.onClick.AddListener(SaveOutfit);
+            if (saveButton != null)
+            {
+                saveButton.onClick.RemoveListener(SaveOutfit);
+                saveButton.onClick.AddListener(SaveOutfit);
+            }
+
+            Transform clearTransform = FindChildRecursive(
+                transform.root,
+                "ClearMeshSelectionsButton");
+
+            if (clearTransform != null)
+            {
+                Button clearButton = clearTransform.GetComponent<Button>();
+                if (clearButton != null)
+                {
+                    clearButton.onClick.RemoveListener(
+                        ClearMeshSelectionsToDefaultBase);
+                    clearButton.onClick.AddListener(
+                        ClearMeshSelectionsToDefaultBase);
+                }
+            }
         }
 
         private void CycleSlot(SlotState state, int delta)
@@ -494,6 +524,38 @@ namespace Game.Client.OutfitAuthoring
 
         // Integrity overlay load hook. This is merged into the existing controller so the
         // overlay can rehydrate an already-authored item without inventing another path.
+        /// <summary>
+        /// Clears all explicit wearable mesh selections back to the profile's canonical
+        /// Default Base state. The next save payload contains no stale prior-item mesh parts.
+        /// </summary>
+        public void ClearMeshSelectionsToDefaultBase()
+        {
+            if (_profile == null || _presenter == null)
+            {
+                SetStatus("Cannot clear meshes: preview is not initialized.", false);
+                return;
+            }
+
+            for (int i = 0; i < _slotStates.Count; ++i)
+            {
+                SlotState state = _slotStates[i];
+                if (state == null)
+                    continue;
+
+                state.optionIndex = -1;
+                RefreshSlotLabel(state);
+            }
+
+            // Rebuild from the canonical default recipe directly so the mannequin and
+            // authoring state cannot retain a previously loaded wearable.
+            _recipe = _profile.CreateDefaultRecipe();
+            _presenter.ApplyAppearance(_recipe);
+
+            SetStatus(
+                "Mesh selections cleared to Default Base. Previous item mesh parts will not be saved.",
+                true);
+        }
+
         public void BeginNewItem()
         {
             _editingDefinitionId = string.Empty;
@@ -535,23 +597,25 @@ namespace Game.Client.OutfitAuthoring
             AuthoringModeChanged?.Invoke();
         }
 
-        public bool LoadExistingWearable(
-            CharacterWearableSetDefinition wearable,
+        public bool LoadExistingServerItem(
+            string definitionId,
+            string savedItemDisplayName,
+            ushort existingPresentationId,
             string equipmentSlotId,
-            ushort equipmentSlotPresentationId)
+            ushort equipmentSlotPresentationId,
+            CharacterWearableSetDefinition wearable)
         {
-            if (wearable == null || _profile == null || _presenter == null ||
-                string.IsNullOrWhiteSpace(wearable.definitionId) || wearable.presentationId == 0)
+            if (_profile == null || _presenter == null ||
+                string.IsNullOrWhiteSpace(definitionId))
                 return false;
 
-            _editingDefinitionId = wearable.definitionId;
-            _editingPresentationId = wearable.presentationId;
+            _editingDefinitionId = definitionId.Trim();
+            _editingPresentationId = existingPresentationId;
 
             if (itemNameInput != null)
-                itemNameInput.text = wearable.displayName ?? wearable.definitionId ?? string.Empty;
-
-            if (visualLayerDropdown != null)
-                visualLayerDropdown.Select(Mathf.Clamp((int)wearable.region, 0, 3));
+                itemNameInput.text = !string.IsNullOrWhiteSpace(savedItemDisplayName)
+                    ? savedItemDisplayName
+                    : _editingDefinitionId;
 
             if (equipmentSlotDropdown != null)
             {
@@ -571,11 +635,20 @@ namespace Game.Client.OutfitAuthoring
                         break;
                     }
                 }
+
                 equipmentSlotDropdown.Select(selected);
             }
 
+            CharacterWearableRegion region =
+                wearable != null
+                    ? wearable.region
+                    : GuessRegionForEquipmentSlot(equipmentSlotId);
+
+            if (visualLayerDropdown != null)
+                visualLayerDropdown.Select(Mathf.Clamp((int)region, 0, 3));
+
             CharacterWearablePartSelection[] parts =
-                wearable.parts ?? Array.Empty<CharacterWearablePartSelection>();
+                wearable?.parts ?? Array.Empty<CharacterWearablePartSelection>();
 
             for (int i = 0; i < _slotStates.Count; ++i)
             {
@@ -596,7 +669,8 @@ namespace Game.Client.OutfitAuthoring
                 {
                     for (int o = 0; o < state.options.Count; ++o)
                     {
-                        if (state.options[o] != null && state.options[o].optionId == wanted)
+                        CharacterVisualOptionDefinition option = state.options[o];
+                        if (option != null && option.optionId == wanted)
                         {
                             state.optionIndex = o;
                             break;
@@ -608,38 +682,56 @@ namespace Game.Client.OutfitAuthoring
             }
 
             _allowedColorIds.Clear();
-            ushort[] allowed = wearable.playerAllowedColorIds ?? Array.Empty<ushort>();
-            for (int i = 0; i < allowed.Length; ++i)
-                if (allowed[i] != 0)
-                    _allowedColorIds.Add(allowed[i]);
-
-            OutfitAuthoringColorCell[] cells = colorCells ?? Array.Empty<OutfitAuthoringColorCell>();
-            for (int i = 0; i < cells.Length; ++i)
-            {
-                OutfitAuthoringColorCell cell = cells[i];
-                if (cell != null)
-                    cell.SetAllowed(_allowedColorIds.Contains(cell.ColorId));
-            }
-
-            _previewColorId = wearable.defaultPrimaryColorId;
-            if (_previewColorId != 0)
-            {
-                if (previewColorText != null)
-                    previewColorText.text =
-                        $"Preview: {_previewColorId:00}  {SidekickCharacterPaletteUtility.GetClothingPaletteName(_previewColorId)}";
-
-                for (int i = 0; i < cells.Length; ++i)
-                    if (cells[i] != null)
-                        cells[i].SetPreviewSelected(cells[i].ColorId == _previewColorId);
-            }
+            _previewColorId = wearable != null
+                ? wearable.defaultPrimaryColorId
+                : (ushort)0;
 
             ApplyPreview();
             RefreshSaveLabel();
+
             SetStatus(
-                $"Editing existing {wearable.definitionId} | presentation {wearable.presentationId}.",
+                wearable != null
+                    ? $"Editing existing server item {_editingDefinitionId} | presentation {wearable.presentationId}."
+                    : $"Editing existing server item {_editingDefinitionId} | no presentation yet. UPDATE EXISTING will attach one.",
                 true);
+
             AuthoringModeChanged?.Invoke();
             return true;
+        }
+
+        public bool LoadExistingWearable(
+            CharacterWearableSetDefinition wearable,
+            string equipmentSlotId,
+            ushort equipmentSlotPresentationId,
+            string savedItemDisplayName = null)
+        {
+            if (wearable == null)
+                return false;
+
+            return LoadExistingServerItem(
+                wearable.definitionId,
+                savedItemDisplayName,
+                wearable.presentationId,
+                equipmentSlotId,
+                equipmentSlotPresentationId,
+                wearable);
+        }
+
+        private static CharacterWearableRegion GuessRegionForEquipmentSlot(
+            string equipmentSlotId)
+        {
+            if (string.Equals(equipmentSlotId, "Legs", StringComparison.OrdinalIgnoreCase))
+                return CharacterWearableRegion.Lower;
+
+            if (string.Equals(equipmentSlotId, "Feet", StringComparison.OrdinalIgnoreCase))
+                return CharacterWearableRegion.Feet;
+
+            if (string.Equals(equipmentSlotId, "Hands", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(equipmentSlotId, "Back", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(equipmentSlotId, "Accessory", StringComparison.OrdinalIgnoreCase))
+                return CharacterWearableRegion.Accessory;
+
+            return CharacterWearableRegion.Upper;
         }
 
         private void RefreshSaveLabel()
@@ -723,6 +815,28 @@ namespace Game.Client.OutfitAuthoring
                 }
             }
             return result;
+        }
+
+        private static Transform FindChildRecursive(
+            Transform root,
+            string childName)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(childName))
+                return null;
+
+            if (string.Equals(root.name, childName, StringComparison.Ordinal))
+                return root;
+
+            for (int i = 0; i < root.childCount; ++i)
+            {
+                Transform found =
+                    FindChildRecursive(root.GetChild(i), childName);
+
+                if (found != null)
+                    return found;
+            }
+
+            return null;
         }
 
         private void SetStatus(string message, bool success)

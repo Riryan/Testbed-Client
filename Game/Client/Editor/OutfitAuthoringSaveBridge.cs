@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,18 @@ namespace Game.Client.Editor
     [InitializeOnLoad]
     public static class OutfitAuthoringSaveBridge
     {
+        [Serializable]
+        private sealed class ArmorValidationDocument
+        {
+            public ArmorValidationItem[] items = Array.Empty<ArmorValidationItem>();
+        }
+
+        [Serializable]
+        private sealed class ArmorValidationItem
+        {
+            public string definitionId;
+        }
+
         private const string ScenePath = "Assets/Game/Client/Editor/OutfitAuthoring/OutfitAuthoring.unity";
         private const string ServerContentRootPreference = "MMO.OutfitAuthoring.ServerContentRoot";
         private const string ManifestFileName = "GameplayContent.json";
@@ -153,7 +166,7 @@ namespace Game.Client.Editor
                 ManifestDocument manifest = JsonUtility.FromJson<ManifestDocument>(json);
                 EquipmentSlotRecord[] slots = manifest?.equipmentSlots ?? Array.Empty<EquipmentSlotRecord>();
                 return slots
-                    .Where(s => s != null && !string.IsNullOrWhiteSpace(s.slotId) && s.presentationSlotId != 0)
+                    .Where(s => s != null && !string.IsNullOrWhiteSpace(s.slotId))
                     .OrderBy(s => s.order)
                     .ThenBy(s => s.displayName ?? s.slotId, StringComparer.OrdinalIgnoreCase)
                     .Select(s => new OutfitAuthoringEquipmentSlotOption
@@ -181,7 +194,7 @@ namespace Game.Client.Editor
             string slotId = (request.equipmentSlotId ?? string.Empty).Trim();
             if (itemName.Length == 0)
                 return Fail("Item name is required.");
-            if (slotId.Length == 0 || request.equipmentSlotPresentationId == 0)
+            if (slotId.Length == 0)
                 return Fail("A valid server Equipment Slot is required.");
 
             if (!TryGetReviewPaths(out ReviewPaths paths))
@@ -189,8 +202,8 @@ namespace Game.Client.Editor
 
             OutfitAuthoringEquipmentSlotOption serverSlot = LoadEquipmentSlots()
                 .FirstOrDefault(s => string.Equals(s.slotId, slotId, StringComparison.Ordinal));
-            if (serverSlot == null || serverSlot.presentationSlotId != request.equipmentSlotPresentationId)
-                return Fail("Selected Equipment Slot no longer matches the server manifest. Reopen/reselect it.");
+            if (serverSlot == null)
+                return Fail("Selected Equipment Slot no longer exists in the server manifest. Reopen/reselect it.");
 
             CharacterVisualProfile profile = AssetDatabase.LoadAssetAtPath<CharacterVisualProfile>(
                 CharacterVisualCatalogBuilder.OutputAssetPath);
@@ -215,38 +228,106 @@ namespace Game.Client.Editor
             string definitionId;
             ushort presentationId;
             int wearableIndex = -1;
+            string existingServerObject = null;
 
             if (request.updateExisting)
             {
-                definitionId = (request.existingDefinitionId ?? string.Empty).Trim();
-                presentationId = request.existingPresentationId;
-                if (definitionId.Length == 0 || presentationId == 0)
-                    return Fail("Existing-item edit mode has no stable definition/presentation identity.");
+                definitionId =
+                    (request.existingDefinitionId ?? string.Empty).Trim();
+
+                if (definitionId.Length == 0)
+                    return Fail(
+                        "Existing-item edit mode has no server definition identity.");
 
                 for (int i = 0; i < originalWearables.Length; ++i)
                 {
                     CharacterWearableSetDefinition w = originalWearables[i];
-                    if (w != null && string.Equals(w.definitionId, definitionId, StringComparison.OrdinalIgnoreCase))
+                    if (w != null &&
+                        string.Equals(
+                            w.definitionId,
+                            definitionId,
+                            StringComparison.OrdinalIgnoreCase))
                     {
                         wearableIndex = i;
                         break;
                     }
                 }
 
-                if (wearableIndex < 0)
-                    return Fail($"Client wearable '{definitionId}' no longer exists. Refresh the existing-item list.");
-                if (originalWearables[wearableIndex].presentationId != presentationId)
-                    return Fail($"Client wearable '{definitionId}' presentationId changed. Refresh before updating.");
-
-                if (!TryFindItemObject(originalArmor, definitionId, out _, out _, out string serverObject))
-                    return Fail($"Server Armor item '{definitionId}' no longer exists. Update aborted.");
-
-                Match serverPresentation = PresentationIdRegex.Match(serverObject);
-                if (!serverPresentation.Success ||
-                    !ushort.TryParse(serverPresentation.Groups[1].Value, out ushort currentServerPresentation) ||
-                    currentServerPresentation != presentationId)
+                if (wearableIndex < 0 &&
+                    request.existingPresentationId != 0)
                 {
-                    return Fail($"Server Armor item '{definitionId}' presentationId no longer matches {presentationId}. Update aborted.");
+                    for (int i = 0; i < originalWearables.Length; ++i)
+                    {
+                        CharacterWearableSetDefinition w = originalWearables[i];
+                        if (w != null &&
+                            w.presentationId ==
+                            request.existingPresentationId)
+                        {
+                            wearableIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (!TryFindItemObject(
+                        originalArmor,
+                        definitionId,
+                        out _,
+                        out _,
+                        out string serverObject))
+                {
+                    return Fail(
+                        $"Server Armor item '{definitionId}' no longer exists. Update aborted.");
+                }
+
+                existingServerObject = serverObject;
+
+                ushort currentServerPresentation = 0;
+                Match serverPresentation = PresentationIdRegex.Match(serverObject);
+                if (serverPresentation.Success)
+                {
+                    ushort.TryParse(
+                        serverPresentation.Groups[1].Value,
+                        out currentServerPresentation);
+                }
+
+                if (currentServerPresentation != 0)
+                {
+                    presentationId = currentServerPresentation;
+
+                    if (request.existingPresentationId != 0 &&
+                        request.existingPresentationId != presentationId)
+                    {
+                        return Fail(
+                            $"Server Armor item '{definitionId}' presentationId changed. Refresh before updating.");
+                    }
+
+                    if (wearableIndex >= 0 &&
+                        originalWearables[wearableIndex].presentationId != presentationId)
+                    {
+                        return Fail(
+                            $"Client wearable '{definitionId}' presentationId does not match server presentation {presentationId}.");
+                    }
+                }
+                else if (wearableIndex >= 0 &&
+                         originalWearables[wearableIndex].presentationId != 0)
+                {
+                    presentationId =
+                        originalWearables[wearableIndex].presentationId;
+                }
+                else
+                {
+                    try
+                    {
+                        presentationId =
+                            NextPresentationId(
+                                paths.contentRoot,
+                                originalWearables);
+                    }
+                    catch (Exception ex)
+                    {
+                        return Fail(ex.Message);
+                    }
                 }
             }
             else
@@ -299,7 +380,18 @@ namespace Game.Client.Editor
                 icon = wearableIndex >= 0 ? originalWearables[wearableIndex].icon : null,
             };
 
-            string serverItemJson = BuildArmorItemJson(definitionId, itemName, presentationId, slotId);
+            string serverItemJson = request.updateExisting
+                ? UpdateArmorItemJsonPreservingDetails(
+                    existingServerObject,
+                    itemName,
+                    presentationId,
+                    slotId)
+                : BuildArmorItemJson(
+                    definitionId,
+                    itemName,
+                    presentationId,
+                    slotId);
+
             string updatedArmor;
             try
             {
@@ -320,8 +412,10 @@ namespace Game.Client.Editor
             bool manifestWritten = false;
             try
             {
-                var values = new List<CharacterWearableSetDefinition>(originalWearables);
-                if (request.updateExisting)
+                var values =
+                    new List<CharacterWearableSetDefinition>(originalWearables);
+
+                if (request.updateExisting && wearableIndex >= 0)
                     values[wearableIndex] = saved;
                 else
                     values.Add(saved);
@@ -332,6 +426,7 @@ namespace Game.Client.Editor
                 AssetDatabase.SaveAssets();
                 CharacterVisualProfileRegistry.ResetForTestsOrReload();
 
+                ValidateArmorJsonBeforeWrite(updatedArmor);
                 WriteFileSafely(paths.armorPath, updatedArmor);
                 armorWritten = true;
                 WriteFileSafely(paths.manifestPath, updatedManifest);
@@ -444,6 +539,61 @@ namespace Game.Client.Editor
                 }
             }
             return builder.ToString().Trim('_');
+        }
+
+        private static string UpdateArmorItemJsonPreservingDetails(
+            string existingJson,
+            string displayName,
+            ushort presentationId,
+            string equipmentSlotId)
+        {
+            if (string.IsNullOrWhiteSpace(existingJson))
+                throw new InvalidOperationException(
+                    "Existing server Armor item JSON is unavailable.");
+
+            string updated = existingJson;
+
+            updated = Regex.Replace(
+                updated,
+                "(\\\"displayName\\\"\\s*:\\s*)\\\"[^\\\"]*\\\"",
+                match =>
+                    match.Groups[1].Value +
+                    "\"" +
+                    JsonEscape(displayName) +
+                    "\"",
+                RegexOptions.CultureInvariant);
+
+            updated = Regex.Replace(
+                updated,
+                "(\\\"presentationId\\\"\\s*:\\s*)\\d+",
+                match =>
+                    match.Groups[1].Value +
+                    presentationId.ToString(CultureInfo.InvariantCulture),
+                RegexOptions.CultureInvariant);
+
+            string slotArray =
+                "\"allowedEquipmentSlots\": [\"" +
+                JsonEscape(equipmentSlotId) +
+                "\"]";
+
+            Regex slotRegex = new Regex(
+                "\\\"allowedEquipmentSlots\\\"\\s*:\\s*\\[[^\\]]*\\]",
+                RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+            if (slotRegex.IsMatch(updated))
+            {
+                updated = slotRegex.Replace(
+                    updated,
+                    slotArray,
+                    1);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "Existing Armor item has no allowedEquipmentSlots array.");
+            }
+
+            return updated;
         }
 
         private static string BuildArmorItemJson(string definitionId, string displayName, ushort presentationId, string equipmentSlotId)
@@ -613,6 +763,42 @@ namespace Game.Client.Editor
         {
             string[] lines = (value ?? string.Empty).Replace("\r\n", "\n").Split('\n');
             return string.Join(Environment.NewLine, lines.Select(line => indent + line));
+        }
+
+        private static void ValidateArmorJsonBeforeWrite(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                throw new InvalidOperationException(
+                    "Generated Armor.json is empty.");
+
+            ArmorValidationDocument document;
+            try
+            {
+                document = JsonUtility.FromJson<ArmorValidationDocument>(json);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    "Generated Armor.json is invalid JSON. Save was blocked before writing: " +
+                    ex.Message);
+            }
+
+            ArmorValidationItem[] items =
+                document?.items ?? Array.Empty<ArmorValidationItem>();
+
+            if (items.Length == 0)
+                throw new InvalidOperationException(
+                    "Generated Armor.json contains no readable items. Save was blocked.");
+
+            for (int i = 0; i < items.Length; ++i)
+            {
+                if (items[i] == null ||
+                    string.IsNullOrWhiteSpace(items[i].definitionId))
+                {
+                    throw new InvalidOperationException(
+                        $"Generated Armor.json item {i + 1} has no definitionId. Save was blocked.");
+                }
+            }
         }
 
         private static void WriteFileSafely(string path, string contents)

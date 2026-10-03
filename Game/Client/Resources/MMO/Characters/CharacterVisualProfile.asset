@@ -83517,10 +83517,10 @@ MonoBehaviour:
     playerEligible: 1
     populationEligible: 1
     defaultPrimaryColorId: 1
-    defaultSecondaryColorId: 8
+    defaultSecondaryColorId: 1
     colorUsageReviewed: 1
-    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
-    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
     parts:
     - slotId: 10
       optionId: 29145
@@ -83549,9 +83549,9 @@ MonoBehaviour:
       optionId: 50992
     icon: {fileID: 0}
   - definitionId: armor.tube_top
-    displayName: Tube Top
+    displayName: Work Boots
     presentationId: 205
-    region: 0
+    region: 2
     playerEligible: 1
     populationEligible: 1
     defaultPrimaryColorId: 1
@@ -83560,8 +83560,10 @@ MonoBehaviour:
     playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
     populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
     parts:
-    - slotId: 10
-      optionId: 48965
+    - slotId: 20
+      optionId: 63411
+    - slotId: 21
+      optionId: 49652
     icon: {fileID: 0}
   - definitionId: armor.sleeveless_with_pendent
     displayName: Sleeveless With Pendent
@@ -83624,7 +83626,62 @@ MonoBehaviour:
     - slotId: 12
       optionId: 57370
     - slotId: 13
-      optionId: 17204
+      optionId: 60266
     - slotId: 14
-      optionId: 3090
+      optionId: 38008
+    icon: {fileID: 0}
+  - definitionId: armor.jeans
+    displayName: Jeans
+    presentationId: 209
+    region: 1
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 17
+      optionId: 53612
+    - slotId: 18
+      optionId: 37301
+    - slotId: 19
+      optionId: 38699
+    icon: {fileID: 0}
+  - definitionId: armor.work_pants
+    displayName: Work Pants
+    presentationId: 210
+    region: 1
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 17
+      optionId: 23930
+    - slotId: 18
+      optionId: 37301
+    - slotId: 19
+      optionId: 38699
+    icon: {fileID: 0}
+  - definitionId: item.armor.work_boots
+    displayName: Work Boots
+    presentationId: 211
+    region: 2
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 1
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 
+    populationAllowedColorIds: 
+    parts:
+    - slotId: 20
+      optionId: 63411
+    - slotId: 21
+      optionId: 49652
     icon: {fileID: 0}

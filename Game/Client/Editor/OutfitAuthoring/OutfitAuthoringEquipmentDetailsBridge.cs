@@ -10,6 +10,7 @@ using Game.Client.OutfitAuthoring;
 using Game.Client.Presentation.Characters;
 using Player.Networking;
 using UnityEditor;
+using UnityEngine;
 
 namespace Game.Client.Editor
 {
@@ -21,6 +22,43 @@ namespace Game.Client.Editor
     [InitializeOnLoad]
     internal static class OutfitAuthoringEquipmentDetailsBridge
     {
+
+        [Serializable]
+        private sealed class ArmorCatalogDocument
+        {
+            public ArmorCatalogItem[] items = Array.Empty<ArmorCatalogItem>();
+        }
+
+        [Serializable]
+        private sealed class ArmorCatalogItem
+        {
+            public string definitionId;
+            public string displayName;
+            public string kind;
+            public string subtype;
+            public ushort presentationId;
+            public int maxStack = 1;
+            public float weight;
+            public int maxDurability;
+            public string[] tags = Array.Empty<string>();
+            public ArmorEquipmentBlock equipment;
+        }
+
+        [Serializable]
+        private sealed class ArmorEquipmentBlock
+        {
+            public string[] allowedEquipmentSlots = Array.Empty<string>();
+            public ArmorStatModifier[] statModifiers = Array.Empty<ArmorStatModifier>();
+        }
+
+        [Serializable]
+        private sealed class ArmorStatModifier
+        {
+            public string statId;
+            public float additive;
+            public float multiplier = 1f;
+        }
+
         private static readonly Regex DefinitionIdRegex = new Regex("\\\"definitionId\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"", RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private static readonly Regex DisplayNameRegex = new Regex("\\\"displayName\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"", RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private static readonly Regex PresentationIdRegex = new Regex("\\\"presentationId\\\"\\s*:\\s*(\\d+)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -45,11 +83,11 @@ namespace Game.Client.Editor
 
         private static void BindPermanentDelegates()
         {
-            OutfitAuthoringWorkbench.EditorServerItemsProvider = LoadServerItems;
-            OutfitAuthoringWorkbench.EditorOptionsProvider = LoadOptions;
-            OutfitAuthoringWorkbench.EditorCacheStatusProvider = CheckCache;
-            OutfitAuthoringWorkbench.EditorEquipmentUpdateHandler = UpdateEquipmentOnly;
-            OutfitAuthoringWorkbench.EditorSetDefaultBodyHandler = SetDefaultBody;
+            OutfitAuthoringEquipmentDetailsPanel.EditorServerItemsProvider = LoadServerItems;
+            OutfitAuthoringEquipmentDetailsPanel.EditorOptionsProvider = LoadOptions;
+            OutfitAuthoringEquipmentDetailsPanel.EditorCacheStatusProvider = CheckCache;
+            OutfitAuthoringEquipmentDetailsPanel.EditorEquipmentUpdateHandler = UpdateEquipmentOnly;
+            OutfitAuthoringEquipmentDetailsPanel.EditorSetDefaultBodyHandler = SetDefaultBody;
         }
 
         private static void TryWrapExistingSaveHandler()
@@ -69,66 +107,120 @@ namespace Game.Client.Editor
             OutfitAuthoringController.EditorSaveHandler = SaveWithWorkbenchDetails;
         }
 
-        private static OutfitAuthoringSaveResult SaveWithWorkbenchDetails(OutfitAuthoringSaveRequest request)
+        private static OutfitAuthoringSaveResult SaveWithWorkbenchDetails(
+            OutfitAuthoringSaveRequest request)
         {
             if (_baseSaveHandler == null)
-                return new OutfitAuthoringSaveResult(false, "Outfit Builder base save handler is unavailable.");
+                return new OutfitAuthoringSaveResult(
+                    false,
+                    "Outfit Builder base save handler is unavailable.");
 
-            OutfitWorkbenchEquipmentEdit details = OutfitAuthoringWorkbench.Active != null
-                ? OutfitAuthoringWorkbench.Active.CaptureEquipmentEdit()
-                : new OutfitWorkbenchEquipmentEdit();
+            // V7 recovery gate:
+            // Do not perform a second Armor.json rewrite here.
+            // The base save path owns the authoritative item update and now preserves
+            // existing weight/durability/tags/statModifiers on UPDATE EXISTING.
+            OutfitAuthoringSaveResult result =
+                _baseSaveHandler(request);
 
-            OutfitAuthoringSaveResult result = _baseSaveHandler(request);
-            if (!result.success)
-                return result;
+            if (result.success)
+                OutfitAuthoringEquipmentDetailsPanel.Active
+                    ?.NotifyServerSaveCompleted(result.definitionId);
 
-            try
-            {
-                if (!PatchSavedArmorItem(result.definitionId, result.presentationId, request, details, out string error))
-                    return new OutfitAuthoringSaveResult(false, result.message + " Equipment detail update failed: " + error,
-                        result.definitionId, result.presentationId, result.updatedExisting);
-
-                OutfitAuthoringWorkbench.Active?.NotifyServerSaveCompleted(result.definitionId);
-                return new OutfitAuthoringSaveResult(true,
-                    result.message + " Equipment details normalized to the current server ItemDefinition schema.",
-                    result.definitionId, result.presentationId, result.updatedExisting);
-            }
-            catch (Exception ex)
-            {
-                return new OutfitAuthoringSaveResult(false,
-                    result.message + " Equipment detail update failed: " + ex.Message,
-                    result.definitionId, result.presentationId, result.updatedExisting);
-            }
+            return result;
         }
 
         private static OutfitWorkbenchServerItem[] LoadServerItems()
         {
-            if (!OutfitAuthoringSaveBridge.TryGetReviewPaths(out OutfitAuthoringSaveBridge.ReviewPaths paths))
-                return Array.Empty<OutfitWorkbenchServerItem>();
+            if (!OutfitAuthoringSaveBridge.TryGetReviewPaths(
+                    out OutfitAuthoringSaveBridge.ReviewPaths paths))
+            {
+                throw new InvalidOperationException(
+                    "Server Content Root is not configured, or GameplayContent.json / Items/Equipment/Armor.json is missing.");
+            }
+
+            if (!File.Exists(paths.armorPath))
+                throw new FileNotFoundException("Armor.json was not found.", paths.armorPath);
 
             string json = File.ReadAllText(paths.armorPath);
-            List<string> objects = ExtractItems(json);
-            var result = new List<OutfitWorkbenchServerItem>();
-            for (int i = 0; i < objects.Count; ++i)
+
+            ArmorCatalogDocument document;
+            try
             {
-                string item = objects[i];
-                string definitionId = MatchString(DefinitionIdRegex, item);
-                if (string.IsNullOrWhiteSpace(definitionId))
+                document = JsonUtility.FromJson<ArmorCatalogDocument>(json);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Armor.json is invalid JSON and could not be parsed: {ex.Message}");
+            }
+
+            ArmorCatalogItem[] source =
+                document?.items ?? Array.Empty<ArmorCatalogItem>();
+
+            if (source.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Armor.json was read but contains no parsed items: '{paths.armorPath}'.");
+            }
+
+            var result = new List<OutfitWorkbenchServerItem>(source.Length);
+
+            for (int i = 0; i < source.Length; ++i)
+            {
+                ArmorCatalogItem item = source[i];
+                if (item == null || string.IsNullOrWhiteSpace(item.definitionId))
                     continue;
+
+                string slotId = string.Empty;
+                if (item.equipment?.allowedEquipmentSlots != null &&
+                    item.equipment.allowedEquipmentSlots.Length > 0)
+                {
+                    slotId = item.equipment.allowedEquipmentSlots[0] ?? string.Empty;
+                }
+
+                ArmorStatModifier[] sourceMods =
+                    item.equipment?.statModifiers ??
+                    Array.Empty<ArmorStatModifier>();
+
+                var mods =
+                    new OutfitWorkbenchStatModifier[sourceMods.Length];
+
+                for (int m = 0; m < sourceMods.Length; ++m)
+                {
+                    ArmorStatModifier sourceMod = sourceMods[m];
+                    mods[m] = new OutfitWorkbenchStatModifier
+                    {
+                        statId = sourceMod?.statId ?? string.Empty,
+                        additive = sourceMod?.additive ?? 0f,
+                        multiplier = sourceMod?.multiplier ?? 1f,
+                    };
+                }
+
                 result.Add(new OutfitWorkbenchServerItem
                 {
-                    definitionId = definitionId,
-                    displayName = DefaultIfEmpty(MatchString(DisplayNameRegex, item), definitionId),
-                    presentationId = (ushort)MathfClamp(MatchInt(PresentationIdRegex, item, 0), 0, ushort.MaxValue),
-                    equipmentSlotId = MatchString(SlotRegex, item),
-                    maxStack = Math.Max(1, MatchInt(MaxStackRegex, item, 1)),
-                    weight = Math.Max(0f, MatchFloat(WeightRegex, item, 0f)),
-                    maxDurability = Math.Max(0, MatchInt(DurabilityRegex, item, 0)),
-                    tags = ParseTags(item),
-                    statModifiers = ParseModifiers(item),
+                    definitionId = item.definitionId,
+                    displayName = string.IsNullOrWhiteSpace(item.displayName)
+                        ? item.definitionId
+                        : item.displayName,
+                    presentationId = item.presentationId,
+                    equipmentSlotId = slotId,
+                    maxStack = Math.Max(1, item.maxStack),
+                    weight = Math.Max(0f, item.weight),
+                    maxDurability = Math.Max(0, item.maxDurability),
+                    tags = item.tags ?? Array.Empty<string>(),
+                    statModifiers = mods,
                 });
             }
-            return result.OrderBy(x => x.displayName, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            if (result.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Armor.json contains item objects, but none have a definitionId: '{paths.armorPath}'.");
+            }
+
+            return result
+                .OrderBy(x => x.displayName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
 
         private static OutfitWorkbenchOptions LoadOptions()

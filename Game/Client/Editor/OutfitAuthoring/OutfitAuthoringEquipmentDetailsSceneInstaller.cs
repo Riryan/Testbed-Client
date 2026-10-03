@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
-// Deprecated intentionally.
-// Outfit Authoring UI.prefab now owns the permanent Outfit Builder workbench UI.
-// There is no one-shot installer/menu workflow for Equipment Details anymore.
-namespace Game.Client.Editor { internal static class OutfitAuthoringEquipmentDetailsSceneInstaller { } }
+namespace Game.Client.Editor
+{
+    // Retained only so older references compile. Outfit Authoring UI is now a serialized prefab; no install/repair menu is used.
+    public static class OutfitAuthoringEquipmentDetailsSceneInstaller { }
+}
 #endif
