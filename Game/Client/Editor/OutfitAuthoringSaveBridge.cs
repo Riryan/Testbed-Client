@@ -14,12 +14,6 @@ using UnityEngine;
 
 namespace Game.Client.Editor
 {
-    /// <summary>
-    /// Editor-only persistence bridge for the Play Mode Outfit Builder.
-    /// Client visual data stays in CharacterVisualProfile. Matching authoritative item content
-    /// is appended to the standalone server's existing Content Catalog V2 Armor.json using the
-    /// same presentation id. No new runtime/network message is introduced.
-    /// </summary>
     [InitializeOnLoad]
     public static class OutfitAuthoringSaveBridge
     {
@@ -38,6 +32,7 @@ namespace Game.Client.Editor
         [Serializable]
         private sealed class ManifestDocument
         {
+            public long revision;
             public EquipmentSlotRecord[] equipmentSlots = Array.Empty<EquipmentSlotRecord>();
         }
 
@@ -51,6 +46,22 @@ namespace Game.Client.Editor
             public ushort presentationSlotId;
         }
 
+        internal readonly struct ReviewPaths
+        {
+            public readonly string contentRoot;
+            public readonly string manifestPath;
+            public readonly string armorPath;
+            public readonly long revision;
+
+            public ReviewPaths(string contentRoot, string manifestPath, string armorPath, long revision)
+            {
+                this.contentRoot = contentRoot;
+                this.manifestPath = manifestPath;
+                this.armorPath = armorPath;
+                this.revision = revision;
+            }
+        }
+
         static OutfitAuthoringSaveBridge()
         {
             OutfitAuthoringController.EditorSaveHandler = Save;
@@ -62,7 +73,7 @@ namespace Game.Client.Editor
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 return;
-            TryResolveServerContentRoot(interactive: true, out _);
+            TryResolveServerContentRoot(true, out _);
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         }
 
@@ -71,7 +82,7 @@ namespace Game.Client.Editor
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 return;
-            TryResolveServerContentRoot(interactive: true, out _);
+            TryResolveServerContentRoot(true, out _);
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             EditorApplication.isPlaying = true;
         }
@@ -92,7 +103,7 @@ namespace Game.Client.Editor
             {
                 EditorUtility.DisplayDialog(
                     "Server Content Root Not Set",
-                    "Choose the Content folder that contains GameplayContent.json, or the server repository root that contains Content/GameplayContent.json.",
+                    "Choose the Content folder containing GameplayContent.json, or the server repository root containing Content/GameplayContent.json.",
                     "OK");
                 return;
             }
@@ -102,14 +113,37 @@ namespace Game.Client.Editor
         }
 
         [MenuItem("MMO Tools/Characters/Outfit Builder/Clear Server Content Root")]
-        private static void ClearServerContentRoot()
+        private static void ClearServerContentRoot() => EditorPrefs.DeleteKey(ServerContentRootPreference);
+
+        internal static bool TryGetReviewPaths(out ReviewPaths paths)
         {
-            EditorPrefs.DeleteKey(ServerContentRootPreference);
+            paths = default;
+            if (!TryResolveServerContentRoot(false, out string contentRoot))
+                return false;
+
+            string manifestPath = Path.Combine(contentRoot, ManifestFileName);
+            string armorPath = Path.Combine(contentRoot, ArmorRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(manifestPath) || !File.Exists(armorPath))
+                return false;
+
+            long revision = 0;
+            try
+            {
+                Match m = RevisionRegex.Match(File.ReadAllText(manifestPath));
+                if (m.Success)
+                    long.TryParse(m.Groups[2].Value, out revision);
+            }
+            catch { }
+
+            paths = new ReviewPaths(contentRoot, manifestPath, armorPath, revision);
+            return true;
         }
+
+        internal static OutfitAuthoringEquipmentSlotOption[] GetEquipmentSlotsForReview() => LoadEquipmentSlots();
 
         private static OutfitAuthoringEquipmentSlotOption[] LoadEquipmentSlots()
         {
-            if (!TryResolveServerContentRoot(interactive: false, out string contentRoot))
+            if (!TryResolveServerContentRoot(false, out string contentRoot))
                 return Array.Empty<OutfitAuthoringEquipmentSlotOption>();
 
             string manifestPath = Path.Combine(contentRoot, ManifestFileName);
@@ -142,32 +176,98 @@ namespace Game.Client.Editor
         private static OutfitAuthoringSaveResult Save(OutfitAuthoringSaveRequest request)
         {
             request ??= new OutfitAuthoringSaveRequest();
+
             string itemName = (request.itemName ?? string.Empty).Trim();
             string slotId = (request.equipmentSlotId ?? string.Empty).Trim();
             if (itemName.Length == 0)
-                return new OutfitAuthoringSaveResult(false, "Item name is required.");
+                return Fail("Item name is required.");
             if (slotId.Length == 0 || request.equipmentSlotPresentationId == 0)
-                return new OutfitAuthoringSaveResult(false, "A valid server Equipment Slot is required.");
+                return Fail("A valid server Equipment Slot is required.");
 
-            if (!TryResolveServerContentRoot(interactive: false, out string contentRoot))
-                return new OutfitAuthoringSaveResult(false, "Server Content Root is not configured. Use MMO Tools > Characters > Outfit Builder > Set Server Content Root.");
-
-            string manifestPath = Path.Combine(contentRoot, ManifestFileName);
-            string armorPath = Path.Combine(contentRoot, ArmorRelativePath.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(manifestPath))
-                return new OutfitAuthoringSaveResult(false, $"Server manifest was not found: {manifestPath}");
-            if (!File.Exists(armorPath))
-                return new OutfitAuthoringSaveResult(false, $"Server armor catalog was not found: {armorPath}");
+            if (!TryGetReviewPaths(out ReviewPaths paths))
+                return Fail("Server Content Root is not configured or its Armor/manifest files are missing.");
 
             OutfitAuthoringEquipmentSlotOption serverSlot = LoadEquipmentSlots()
                 .FirstOrDefault(s => string.Equals(s.slotId, slotId, StringComparison.Ordinal));
             if (serverSlot == null || serverSlot.presentationSlotId != request.equipmentSlotPresentationId)
-                return new OutfitAuthoringSaveResult(false, "The selected Equipment Slot no longer matches the current server content manifest. Reopen the builder and select it again.");
+                return Fail("Selected Equipment Slot no longer matches the server manifest. Reopen/reselect it.");
 
             CharacterVisualProfile profile = AssetDatabase.LoadAssetAtPath<CharacterVisualProfile>(
                 CharacterVisualCatalogBuilder.OutputAssetPath);
             if (profile == null)
-                return new OutfitAuthoringSaveResult(false, "CharacterVisualProfile.asset was not found. Rebuild the current visual catalog first.");
+                return Fail("CharacterVisualProfile.asset was not found.");
+
+            string originalArmor;
+            string originalManifest;
+            try
+            {
+                originalArmor = File.ReadAllText(paths.armorPath);
+                originalManifest = File.ReadAllText(paths.manifestPath);
+            }
+            catch (Exception ex)
+            {
+                return Fail($"Could not read server content files: {ex.Message}");
+            }
+
+            CharacterWearableSetDefinition[] originalWearables =
+                profile.WearableSets != null ? profile.WearableSets.ToArray() : Array.Empty<CharacterWearableSetDefinition>();
+
+            string definitionId;
+            ushort presentationId;
+            int wearableIndex = -1;
+
+            if (request.updateExisting)
+            {
+                definitionId = (request.existingDefinitionId ?? string.Empty).Trim();
+                presentationId = request.existingPresentationId;
+                if (definitionId.Length == 0 || presentationId == 0)
+                    return Fail("Existing-item edit mode has no stable definition/presentation identity.");
+
+                for (int i = 0; i < originalWearables.Length; ++i)
+                {
+                    CharacterWearableSetDefinition w = originalWearables[i];
+                    if (w != null && string.Equals(w.definitionId, definitionId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        wearableIndex = i;
+                        break;
+                    }
+                }
+
+                if (wearableIndex < 0)
+                    return Fail($"Client wearable '{definitionId}' no longer exists. Refresh the existing-item list.");
+                if (originalWearables[wearableIndex].presentationId != presentationId)
+                    return Fail($"Client wearable '{definitionId}' presentationId changed. Refresh before updating.");
+
+                if (!TryFindItemObject(originalArmor, definitionId, out _, out _, out string serverObject))
+                    return Fail($"Server Armor item '{definitionId}' no longer exists. Update aborted.");
+
+                Match serverPresentation = PresentationIdRegex.Match(serverObject);
+                if (!serverPresentation.Success ||
+                    !ushort.TryParse(serverPresentation.Groups[1].Value, out ushort currentServerPresentation) ||
+                    currentServerPresentation != presentationId)
+                {
+                    return Fail($"Server Armor item '{definitionId}' presentationId no longer matches {presentationId}. Update aborted.");
+                }
+            }
+            else
+            {
+                for (int i = 0; i < originalWearables.Length; ++i)
+                {
+                    CharacterWearableSetDefinition w = originalWearables[i];
+                    if (w != null && string.Equals((w.displayName ?? string.Empty).Trim(), itemName, StringComparison.OrdinalIgnoreCase))
+                        return Fail($"An authored outfit named '{itemName}' already exists. Load it from Existing Item and use UPDATE EXISTING.");
+                }
+
+                try
+                {
+                    presentationId = NextPresentationId(paths.contentRoot, originalWearables);
+                    definitionId = NextDefinitionId(paths.contentRoot, itemName);
+                }
+                catch (Exception ex)
+                {
+                    return Fail(ex.Message);
+                }
+            }
 
             CharacterWearablePartSelection[] parts = request.parts ?? Array.Empty<CharacterWearablePartSelection>();
             ushort[] colors = (request.allowedColorIds ?? Array.Empty<ushort>())
@@ -176,57 +276,12 @@ namespace Game.Client.Editor
                 .OrderBy(id => id)
                 .ToArray();
 
-            string originalArmor;
-            string originalManifest;
-            try
-            {
-                originalArmor = File.ReadAllText(armorPath);
-                originalManifest = File.ReadAllText(manifestPath);
-            }
-            catch (Exception ex)
-            {
-                return new OutfitAuthoringSaveResult(false, $"Could not read server content files: {ex.Message}");
-            }
-
-            ushort presentationId;
-            string definitionId;
-            try
-            {
-                presentationId = NextPresentationId(contentRoot, profile.WearableSets);
-                definitionId = NextDefinitionId(contentRoot, itemName);
-            }
-            catch (Exception ex)
-            {
-                return new OutfitAuthoringSaveResult(false, ex.Message);
-            }
-
-            string updatedArmor;
-            string updatedManifest;
-            try
-            {
-                string serverItemJson = BuildArmorItemJson(
-                    definitionId,
-                    itemName,
-                    presentationId,
-                    slotId);
-                updatedArmor = AppendItemToCatalog(originalArmor, serverItemJson);
-                updatedManifest = IncrementManifestRevision(originalManifest);
-            }
-            catch (Exception ex)
-            {
-                return new OutfitAuthoringSaveResult(false, $"Could not prepare server item content: {ex.Message}");
-            }
-
-            ushort primary = colors.Contains((ushort)1)
-                ? (ushort)1
-                : colors.Length > 0 ? colors[0] : (ushort)1;
-            ushort secondary = colors.Contains((ushort)8)
-                ? (ushort)8
-                : colors.Length > 1 ? colors[1] : primary;
-
+            ushort primary = colors.Contains((ushort)1) ? (ushort)1 : colors.Length > 0 ? colors[0] : (ushort)1;
+            ushort secondary = colors.Contains((ushort)8) ? (ushort)8 : colors.Length > 1 ? colors[1] : primary;
             CharacterWearableRegion region = Enum.IsDefined(typeof(CharacterWearableRegion), request.visualRegion)
                 ? request.visualRegion
                 : CharacterWearableRegion.Upper;
+
             var saved = new CharacterWearableSetDefinition
             {
                 definitionId = definitionId,
@@ -241,24 +296,45 @@ namespace Game.Client.Editor
                 playerAllowedColorIds = (ushort[])colors.Clone(),
                 populationAllowedColorIds = (ushort[])colors.Clone(),
                 parts = (CharacterWearablePartSelection[])parts.Clone(),
-                icon = null,
+                icon = wearableIndex >= 0 ? originalWearables[wearableIndex].icon : null,
             };
 
-            CharacterWearableSetDefinition[] originalWearables = profile.WearableSets.ToArray();
+            string serverItemJson = BuildArmorItemJson(definitionId, itemName, presentationId, slotId);
+            string updatedArmor;
+            try
+            {
+                updatedArmor = request.updateExisting
+                    ? ReplaceItemInCatalog(originalArmor, definitionId, serverItemJson)
+                    : AppendItemToCatalog(originalArmor, serverItemJson);
+            }
+            catch (Exception ex)
+            {
+                return Fail($"Could not prepare server Armor content: {ex.Message}");
+            }
+
+            string updatedManifest;
+            try { updatedManifest = IncrementManifestRevision(originalManifest); }
+            catch (Exception ex) { return Fail(ex.Message); }
+
             bool armorWritten = false;
             bool manifestWritten = false;
             try
             {
-                var values = new List<CharacterWearableSetDefinition>(originalWearables) { saved };
-                Undo.RecordObject(profile, "Save Play Mode Outfit Item");
+                var values = new List<CharacterWearableSetDefinition>(originalWearables);
+                if (request.updateExisting)
+                    values[wearableIndex] = saved;
+                else
+                    values.Add(saved);
+
+                Undo.RecordObject(profile, request.updateExisting ? "Update Existing Outfit Item" : "Create Outfit Item");
                 profile.SetWearableSets(values.ToArray());
                 EditorUtility.SetDirty(profile);
                 AssetDatabase.SaveAssets();
                 CharacterVisualProfileRegistry.ResetForTestsOrReload();
 
-                WriteFileSafely(armorPath, updatedArmor);
+                WriteFileSafely(paths.armorPath, updatedArmor);
                 armorWritten = true;
-                WriteFileSafely(manifestPath, updatedManifest);
+                WriteFileSafely(paths.manifestPath, updatedManifest);
                 manifestWritten = true;
             }
             catch (Exception ex)
@@ -274,18 +350,24 @@ namespace Game.Client.Editor
 
                 try
                 {
-                    if (armorWritten) WriteFileSafely(armorPath, originalArmor);
-                    if (manifestWritten) WriteFileSafely(manifestPath, originalManifest);
+                    if (armorWritten) WriteFileSafely(paths.armorPath, originalArmor);
+                    if (manifestWritten) WriteFileSafely(paths.manifestPath, originalManifest);
                 }
                 catch { }
 
-                return new OutfitAuthoringSaveResult(false, $"Save rolled back because one side failed: {ex.Message}");
+                return Fail($"Save rolled back because one side failed: {ex.Message}");
             }
 
+            string verb = request.updateExisting ? "Updated" : "Created";
             return new OutfitAuthoringSaveResult(
                 true,
-                $"Saved {itemName} -> {slotId} | presentation {presentationId} | client wearable + server Armor catalog.");
+                $"{verb} {itemName} | {definitionId} | presentation {presentationId}. Server manifest revision advanced; the existing gameplay-settings cache will refresh through its normal revision/snapshot path.",
+                definitionId,
+                presentationId,
+                request.updateExisting);
         }
+
+        private static OutfitAuthoringSaveResult Fail(string message) => new OutfitAuthoringSaveResult(false, message);
 
         private static ushort NextPresentationId(string contentRoot, IReadOnlyList<CharacterWearableSetDefinition> wearables)
         {
@@ -296,8 +378,7 @@ namespace Game.Client.Editor
                 string[] files = Directory.GetFiles(itemsRoot, "*.json", SearchOption.AllDirectories);
                 for (int f = 0; f < files.Length; ++f)
                 {
-                    string text = File.ReadAllText(files[f]);
-                    MatchCollection matches = PresentationIdRegex.Matches(text);
+                    MatchCollection matches = PresentationIdRegex.Matches(File.ReadAllText(files[f]));
                     for (int i = 0; i < matches.Count; ++i)
                         if (int.TryParse(matches[i].Groups[1].Value, out int value) && value > max)
                             max = value;
@@ -305,14 +386,12 @@ namespace Game.Client.Editor
             }
 
             if (wearables != null)
-            {
                 for (int i = 0; i < wearables.Count; ++i)
                     if (wearables[i] != null && wearables[i].presentationId > max)
                         max = wearables[i].presentationId;
-            }
 
             if (max >= ushort.MaxValue)
-                throw new InvalidOperationException("No free ushort presentation ID remains for authored equipment.");
+                throw new InvalidOperationException("No free ushort presentation ID remains.");
             return (ushort)Math.Max(1, max + 1);
         }
 
@@ -325,8 +404,7 @@ namespace Game.Client.Editor
                 string[] files = Directory.GetFiles(itemsRoot, "*.json", SearchOption.AllDirectories);
                 for (int f = 0; f < files.Length; ++f)
                 {
-                    string text = File.ReadAllText(files[f]);
-                    MatchCollection matches = DefinitionIdRegex.Matches(text);
+                    MatchCollection matches = DefinitionIdRegex.Matches(File.ReadAllText(files[f]));
                     for (int i = 0; i < matches.Count; ++i)
                         if (!string.IsNullOrWhiteSpace(matches[i].Groups[1].Value))
                             used.Add(matches[i].Groups[1].Value);
@@ -348,8 +426,7 @@ namespace Game.Client.Editor
 
         private static string Slug(string value)
         {
-            if (string.IsNullOrWhiteSpace(value))
-                return string.Empty;
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
             var builder = new StringBuilder(value.Length);
             bool separator = false;
             for (int i = 0; i < value.Length; ++i)
@@ -369,11 +446,7 @@ namespace Game.Client.Editor
             return builder.ToString().Trim('_');
         }
 
-        private static string BuildArmorItemJson(
-            string definitionId,
-            string displayName,
-            ushort presentationId,
-            string equipmentSlotId)
+        private static string BuildArmorItemJson(string definitionId, string displayName, ushort presentationId, string equipmentSlotId)
         {
             string qDefinition = JsonEscape(definitionId);
             string qName = JsonEscape(displayName);
@@ -399,12 +472,7 @@ namespace Game.Client.Editor
         private static string JsonEscape(string value)
         {
             if (value == null) return string.Empty;
-            return value
-                .Replace("\\", "\\\\")
-                .Replace("\"", "\\\"")
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n")
-                .Replace("\t", "\\t");
+            return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
         }
 
         private static string AppendItemToCatalog(string json, string itemJson)
@@ -419,26 +487,80 @@ namespace Game.Client.Editor
             string closingIndent = LineIndentAt(json, closeIndex);
             string itemIndent = closingIndent + "  ";
             string indentedItem = IndentBlock(itemJson, itemIndent);
-
             string before = json.Substring(0, closeIndex).TrimEnd();
             string after = json.Substring(closeIndex);
-            string separator = hasItems ? "," : string.Empty;
-            return before + separator + Environment.NewLine + indentedItem + Environment.NewLine + closingIndent + after;
+            return before + (hasItems ? "," : string.Empty) + Environment.NewLine + indentedItem + Environment.NewLine + closingIndent + after;
+        }
+
+        private static string ReplaceItemInCatalog(string json, string definitionId, string replacementJson)
+        {
+            if (!TryFindItemObject(json, definitionId, out int start, out int endExclusive, out _))
+                throw new InvalidOperationException($"Armor.json does not contain item '{definitionId}'.");
+
+            string indent = LineIndentAt(json, start);
+            string replacement = IndentBlock(replacementJson, indent);
+            return json.Substring(0, start) + replacement + json.Substring(endExclusive);
+        }
+
+        private static bool TryFindItemObject(string json, string definitionId, out int start, out int endExclusive, out string objectJson)
+        {
+            start = -1;
+            endExclusive = -1;
+            objectJson = string.Empty;
+            if (!TryFindArray(json, "items", out int open, out int close))
+                return false;
+
+            bool inString = false;
+            bool escaped = false;
+            int depth = 0;
+            int objectStart = -1;
+
+            for (int i = open + 1; i < close; ++i)
+            {
+                char c = json[i];
+                if (inString)
+                {
+                    if (escaped) escaped = false;
+                    else if (c == '\\') escaped = true;
+                    else if (c == '"') inString = false;
+                    continue;
+                }
+                if (c == '"') { inString = true; continue; }
+                if (c == '{')
+                {
+                    if (depth == 0) objectStart = i;
+                    depth++;
+                }
+                else if (c == '}')
+                {
+                    depth--;
+                    if (depth == 0 && objectStart >= 0)
+                    {
+                        int objectEnd = i + 1;
+                        string candidate = json.Substring(objectStart, objectEnd - objectStart);
+                        Match match = DefinitionIdRegex.Match(candidate);
+                        if (match.Success && string.Equals(match.Groups[1].Value, definitionId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            start = objectStart;
+                            endExclusive = objectEnd;
+                            objectJson = candidate;
+                            return true;
+                        }
+                        objectStart = -1;
+                    }
+                }
+            }
+            return false;
         }
 
         private static bool TryFindArray(string json, string propertyName, out int openIndex, out int closeIndex)
         {
             openIndex = -1;
             closeIndex = -1;
-            Match property = Regex.Match(
-                json,
-                "\\\"" + Regex.Escape(propertyName) + "\\\"\\s*:\\s*\\[",
-                RegexOptions.CultureInvariant);
-            if (!property.Success)
-                return false;
+            Match property = Regex.Match(json, "\\\"" + Regex.Escape(propertyName) + "\\\"\\s*:\\s*\\[", RegexOptions.CultureInvariant);
+            if (!property.Success) return false;
             openIndex = json.IndexOf('[', property.Index + property.Length - 1);
-            if (openIndex < 0)
-                return false;
+            if (openIndex < 0) return false;
 
             bool inString = false;
             bool escaped = false;
@@ -483,8 +605,7 @@ namespace Game.Client.Editor
             int lineStart = text.LastIndexOf('\n', Math.Max(0, index - 1));
             lineStart = lineStart < 0 ? 0 : lineStart + 1;
             int i = lineStart;
-            while (i < text.Length && i < index && (text[i] == ' ' || text[i] == '\t'))
-                i++;
+            while (i < text.Length && i < index && (text[i] == ' ' || text[i] == '\t')) i++;
             return text.Substring(lineStart, i - lineStart);
         }
 
@@ -508,10 +629,7 @@ namespace Game.Client.Editor
             {
                 if (File.Exists(path))
                 {
-                    try
-                    {
-                        File.Replace(temp, path, backup, true);
-                    }
+                    try { File.Replace(temp, path, backup, true); }
                     catch (PlatformNotSupportedException)
                     {
                         File.Copy(path, backup, true);
@@ -526,8 +644,7 @@ namespace Game.Client.Editor
             }
             finally
             {
-                if (File.Exists(temp))
-                    File.Delete(temp);
+                if (File.Exists(temp)) File.Delete(temp);
             }
         }
 
@@ -585,8 +702,7 @@ namespace Game.Client.Editor
         private static bool TryNormalizeContentRoot(string path, out string contentRoot)
         {
             contentRoot = string.Empty;
-            if (string.IsNullOrWhiteSpace(path))
-                return false;
+            if (string.IsNullOrWhiteSpace(path)) return false;
             try
             {
                 string full = Path.GetFullPath(path);
@@ -606,8 +722,7 @@ namespace Game.Client.Editor
             return false;
         }
 
-        private static string ProjectRoot() =>
-            Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+        private static string ProjectRoot() => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
     }
 }
 #endif

@@ -83563,3 +83563,68 @@ MonoBehaviour:
     - slotId: 10
       optionId: 48965
     icon: {fileID: 0}
+  - definitionId: armor.sleeveless_with_pendent
+    displayName: Sleeveless With Pendent
+    presentationId: 206
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 29345
+    - slotId: 11
+      optionId: 36510
+    - slotId: 12
+      optionId: 57370
+    icon: {fileID: 0}
+  - definitionId: armor.hoodie_with_front_pouch
+    displayName: Hoodie With Front Pouch
+    presentationId: 207
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 45007
+    - slotId: 11
+      optionId: 33205
+    - slotId: 12
+      optionId: 36931
+    - slotId: 13
+      optionId: 25732
+    - slotId: 14
+      optionId: 52992
+    icon: {fileID: 0}
+  - definitionId: armor.holter_top_with_undershirt
+    displayName: Holter Top With Undershirt
+    presentationId: 208
+    region: 0
+    playerEligible: 1
+    populationEligible: 1
+    defaultPrimaryColorId: 1
+    defaultSecondaryColorId: 8
+    colorUsageReviewed: 1
+    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    parts:
+    - slotId: 10
+      optionId: 60953
+    - slotId: 11
+      optionId: 36510
+    - slotId: 12
+      optionId: 57370
+    - slotId: 13
+      optionId: 17204
+    - slotId: 14
+      optionId: 3090
+    icon: {fileID: 0}

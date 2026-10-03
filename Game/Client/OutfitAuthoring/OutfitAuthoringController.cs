@@ -31,26 +31,34 @@ namespace Game.Client.OutfitAuthoring
         public CharacterWearableRegion visualRegion = CharacterWearableRegion.Upper;
         public CharacterWearablePartSelection[] parts = Array.Empty<CharacterWearablePartSelection>();
         public ushort[] allowedColorIds = Array.Empty<ushort>();
+        public bool updateExisting;
+        public string existingDefinitionId;
+        public ushort existingPresentationId;
     }
 
     public readonly struct OutfitAuthoringSaveResult
     {
         public readonly bool success;
         public readonly string message;
+        public readonly string definitionId;
+        public readonly ushort presentationId;
+        public readonly bool updatedExisting;
 
-        public OutfitAuthoringSaveResult(bool success, string message)
+        public OutfitAuthoringSaveResult(
+            bool success,
+            string message,
+            string definitionId = "",
+            ushort presentationId = 0,
+            bool updatedExisting = false)
         {
             this.success = success;
             this.message = message ?? string.Empty;
+            this.definitionId = definitionId ?? string.Empty;
+            this.presentationId = presentationId;
+            this.updatedExisting = updatedExisting;
         }
     }
 
-    /// <summary>
-    /// Scene-authored Outfit Builder controller. The UI hierarchy is serialized in the scene;
-    /// this component only binds current catalog/server data and drives the live Player preview.
-    /// It reuses CharacterVisualProfile, ModularCharacterAppearancePresenter and the existing
-    /// standalone server equipment/content contracts. No runtime UI construction is performed.
-    /// </summary>
     [DisallowMultipleComponent]
     public sealed class OutfitAuthoringController : MonoBehaviour
     {
@@ -82,7 +90,7 @@ namespace Game.Client.OutfitAuthoring
             public OutfitAuthoringSlotRow row;
             public CharacterVisualSlotDefinition slot;
             public readonly List<CharacterVisualOptionDefinition> options = new List<CharacterVisualOptionDefinition>();
-            public int optionIndex = -1; // -1 = canonical Default Base
+            public int optionIndex = -1;
         }
 
         private static readonly ushort[] PreviewColorChannels =
@@ -108,6 +116,14 @@ namespace Game.Client.OutfitAuthoring
         private GameObject _mannequin;
         private ModularCharacterAppearancePresenter _presenter;
         private ushort _previewColorId;
+        private string _editingDefinitionId = string.Empty;
+        private ushort _editingPresentationId;
+
+        public bool IsEditingExisting => !string.IsNullOrWhiteSpace(_editingDefinitionId) && _editingPresentationId != 0;
+        public string EditingDefinitionId => _editingDefinitionId;
+        public ushort EditingPresentationId => _editingPresentationId;
+        public event Action AuthoringModeChanged;
+        public event Action<OutfitAuthoringSaveResult> Saved;
 
         private void Start()
         {
@@ -126,7 +142,8 @@ namespace Game.Client.OutfitAuthoring
             BindItemControls();
             BindSave();
             ApplyPreview();
-            SetStatus("Ready", true);
+            RefreshSaveLabel();
+            SetStatus("Ready - New Item", true);
         }
 
         private void OnDestroy()
@@ -298,7 +315,7 @@ namespace Game.Client.OutfitAuthoring
             if (state == null)
                 return;
 
-            int choiceCount = state.options.Count + 1; // Default + every Player-allowed catalog mesh
+            int choiceCount = state.options.Count + 1;
             if (choiceCount <= 1)
                 return;
 
@@ -458,9 +475,180 @@ namespace Game.Client.OutfitAuthoring
                 visualRegion = region,
                 parts = BuildPartSelections().ToArray(),
                 allowedColorIds = allowed.ToArray(),
+                updateExisting = IsEditingExisting,
+                existingDefinitionId = _editingDefinitionId,
+                existingPresentationId = _editingPresentationId,
             });
 
+            if (result.success && !string.IsNullOrWhiteSpace(result.definitionId) && result.presentationId != 0)
+            {
+                _editingDefinitionId = result.definitionId;
+                _editingPresentationId = result.presentationId;
+                RefreshSaveLabel();
+                AuthoringModeChanged?.Invoke();
+            }
+
             SetStatus(result.message, result.success);
+            Saved?.Invoke(result);
+        }
+
+        // Integrity overlay load hook. This is merged into the existing controller so the
+        // overlay can rehydrate an already-authored item without inventing another path.
+        public void BeginNewItem()
+        {
+            _editingDefinitionId = string.Empty;
+            _editingPresentationId = 0;
+
+            if (itemNameInput != null)
+                itemNameInput.text = string.Empty;
+            if (equipmentSlotDropdown != null)
+                equipmentSlotDropdown.Select(_equipmentSlots.Count > 0 ? 0 : -1);
+            if (visualLayerDropdown != null)
+                visualLayerDropdown.Select(0);
+
+            for (int i = 0; i < _slotStates.Count; ++i)
+            {
+                _slotStates[i].optionIndex = -1;
+                RefreshSlotLabel(_slotStates[i]);
+            }
+
+            _allowedColorIds.Clear();
+            HashSet<ushort> available = BuildAvailableColorSet();
+            foreach (ushort id in available)
+                _allowedColorIds.Add(id);
+
+            OutfitAuthoringColorCell[] cells = colorCells ?? Array.Empty<OutfitAuthoringColorCell>();
+            for (int i = 0; i < cells.Length; ++i)
+            {
+                if (cells[i] == null) continue;
+                cells[i].SetAllowed(_allowedColorIds.Contains(cells[i].ColorId));
+                cells[i].SetPreviewSelected(false);
+            }
+
+            _previewColorId = 0;
+            if (previewColorText != null)
+                previewColorText.text = "Preview: none";
+
+            ApplyPreview();
+            RefreshSaveLabel();
+            SetStatus("New Item mode.", true);
+            AuthoringModeChanged?.Invoke();
+        }
+
+        public bool LoadExistingWearable(
+            CharacterWearableSetDefinition wearable,
+            string equipmentSlotId,
+            ushort equipmentSlotPresentationId)
+        {
+            if (wearable == null || _profile == null || _presenter == null ||
+                string.IsNullOrWhiteSpace(wearable.definitionId) || wearable.presentationId == 0)
+                return false;
+
+            _editingDefinitionId = wearable.definitionId;
+            _editingPresentationId = wearable.presentationId;
+
+            if (itemNameInput != null)
+                itemNameInput.text = wearable.displayName ?? wearable.definitionId ?? string.Empty;
+
+            if (visualLayerDropdown != null)
+                visualLayerDropdown.Select(Mathf.Clamp((int)wearable.region, 0, 3));
+
+            if (equipmentSlotDropdown != null)
+            {
+                int selected = -1;
+                for (int i = 0; i < _equipmentSlots.Count; ++i)
+                {
+                    OutfitAuthoringEquipmentSlotOption option = _equipmentSlots[i];
+                    if (option == null)
+                        continue;
+
+                    if ((!string.IsNullOrWhiteSpace(equipmentSlotId) &&
+                         string.Equals(option.slotId, equipmentSlotId, StringComparison.Ordinal)) ||
+                        (equipmentSlotPresentationId != 0 &&
+                         option.presentationSlotId == equipmentSlotPresentationId))
+                    {
+                        selected = i;
+                        break;
+                    }
+                }
+                equipmentSlotDropdown.Select(selected);
+            }
+
+            CharacterWearablePartSelection[] parts =
+                wearable.parts ?? Array.Empty<CharacterWearablePartSelection>();
+
+            for (int i = 0; i < _slotStates.Count; ++i)
+            {
+                SlotState state = _slotStates[i];
+                state.optionIndex = -1;
+
+                ushort wanted = 0;
+                for (int p = 0; p < parts.Length; ++p)
+                {
+                    if (parts[p].slotId == state.row.PrimarySlotId)
+                    {
+                        wanted = parts[p].optionId;
+                        break;
+                    }
+                }
+
+                if (wanted != 0)
+                {
+                    for (int o = 0; o < state.options.Count; ++o)
+                    {
+                        if (state.options[o] != null && state.options[o].optionId == wanted)
+                        {
+                            state.optionIndex = o;
+                            break;
+                        }
+                    }
+                }
+
+                RefreshSlotLabel(state);
+            }
+
+            _allowedColorIds.Clear();
+            ushort[] allowed = wearable.playerAllowedColorIds ?? Array.Empty<ushort>();
+            for (int i = 0; i < allowed.Length; ++i)
+                if (allowed[i] != 0)
+                    _allowedColorIds.Add(allowed[i]);
+
+            OutfitAuthoringColorCell[] cells = colorCells ?? Array.Empty<OutfitAuthoringColorCell>();
+            for (int i = 0; i < cells.Length; ++i)
+            {
+                OutfitAuthoringColorCell cell = cells[i];
+                if (cell != null)
+                    cell.SetAllowed(_allowedColorIds.Contains(cell.ColorId));
+            }
+
+            _previewColorId = wearable.defaultPrimaryColorId;
+            if (_previewColorId != 0)
+            {
+                if (previewColorText != null)
+                    previewColorText.text =
+                        $"Preview: {_previewColorId:00}  {SidekickCharacterPaletteUtility.GetClothingPaletteName(_previewColorId)}";
+
+                for (int i = 0; i < cells.Length; ++i)
+                    if (cells[i] != null)
+                        cells[i].SetPreviewSelected(cells[i].ColorId == _previewColorId);
+            }
+
+            ApplyPreview();
+            RefreshSaveLabel();
+            SetStatus(
+                $"Editing existing {wearable.definitionId} | presentation {wearable.presentationId}.",
+                true);
+            AuthoringModeChanged?.Invoke();
+            return true;
+        }
+
+        private void RefreshSaveLabel()
+        {
+            if (saveButton == null)
+                return;
+            Text label = saveButton.GetComponentInChildren<Text>(true);
+            if (label != null)
+                label.text = IsEditingExisting ? "UPDATE EXISTING" : "CREATE NEW";
         }
 
         private HashSet<ushort> BuildAvailableColorSet()

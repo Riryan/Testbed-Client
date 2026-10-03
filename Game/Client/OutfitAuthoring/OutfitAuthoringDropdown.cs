@@ -6,8 +6,8 @@ using UnityEngine.UI;
 namespace Game.Client.OutfitAuthoring
 {
     /// <summary>
-    /// Small scene-authored dropdown shell. Only the data-driven option rows are cloned at runtime;
-    /// the visible field, popup panel and row template all exist in the serialized scene hierarchy.
+    /// Small scene-authored dropdown shell. Only data-driven option rows are cloned at runtime;
+    /// the visible field, popup panel and row template remain serialized scene UI.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class OutfitAuthoringDropdown : MonoBehaviour
@@ -23,6 +23,7 @@ namespace Game.Client.OutfitAuthoring
         private int _selectedIndex = -1;
 
         public int SelectedIndex => _selectedIndex;
+        public event Action<int> SelectionChanged;
 
         private void Awake()
         {
@@ -66,7 +67,9 @@ namespace Game.Client.OutfitAuthoring
                     }
 
                     Text label = clone.GetComponentInChildren<Text>(true);
-                    if (label != null) label.text = _labels[i];
+                    if (label != null)
+                        label.text = _labels[i];
+
                     clone.onClick.RemoveAllListeners();
                     clone.onClick.AddListener(() => Select(captured));
                     _spawnedOptions.Add(clone);
@@ -74,18 +77,31 @@ namespace Game.Client.OutfitAuthoring
             }
 
             if (optionsContainer != null)
-                optionsContainer.sizeDelta = new Vector2(optionsContainer.sizeDelta.x, Mathf.Max(40f, 12f + _labels.Count * 34f));
+                optionsContainer.sizeDelta = new Vector2(
+                    optionsContainer.sizeDelta.x,
+                    Mathf.Max(40f, 12f + _labels.Count * 34f));
 
-            Select(selectedIndex, close: true);
+            Select(selectedIndex, close: true, notify: true);
         }
 
         public void Select(int index, bool close = true)
         {
-            _selectedIndex = index >= 0 && index < _labels.Count ? index : -1;
+            Select(index, close, notify: true);
+        }
+
+        public void Select(int index, bool close, bool notify)
+        {
+            int next = index >= 0 && index < _labels.Count ? index : -1;
+            bool changed = next != _selectedIndex;
+            _selectedIndex = next;
+
             if (selectedText != null)
                 selectedText.text = _selectedIndex >= 0 ? _labels[_selectedIndex] : "No options";
             if (close && optionsPanel != null)
                 optionsPanel.SetActive(false);
+
+            if (notify && (changed || _selectedIndex >= 0))
+                SelectionChanged?.Invoke(_selectedIndex);
         }
 
         public void Close()
