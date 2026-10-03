@@ -59,7 +59,6 @@ namespace Testing.Player.Tests
 
             Add(seen, PlayerGameplayActionRequestTypes.BeginAbility, RequestIdRanges.CharacterActions.Start, RequestIdRanges.CharacterActions.End, "BeginAbility");
             Add(seen, PlayerGameplayActionRequestTypes.CancelAbility, RequestIdRanges.CharacterActions.Start, RequestIdRanges.CharacterActions.End, "CancelAbility");
-            Add(seen, PlayerGameplayActionRequestTypes.Interaction, RequestIdRanges.CharacterActions.Start, RequestIdRanges.CharacterActions.End, "LegacyInteraction");
             Add(seen, PlayerGameplayActionRequestTypes.Respawn, RequestIdRanges.CharacterActions.Start, RequestIdRanges.CharacterActions.End, "Respawn");
             Add(seen, PlayerGameplayActionRequestTypes.InteractionMenu, RequestIdRanges.CharacterActions.Start, RequestIdRanges.CharacterActions.End, "LegacyInteractionMenu");
             Add(seen, PlayerGameplayActionRequestTypes.ContextInteraction, RequestIdRanges.CharacterActions.Start, RequestIdRanges.CharacterActions.End, "LegacyContextInteraction");
@@ -80,9 +79,10 @@ namespace Testing.Player.Tests
         {
             Assert.AreEqual(1300, RequestIdRanges.Interactions.Start);
             Assert.AreEqual(1399, RequestIdRanges.Interactions.End);
-            Assert.AreEqual(RequestIdRanges.CharacterActions.Start, RequestIdRanges.Find(PlayerGameplayActionRequestTypes.Interaction).Start);
-            Assert.IsFalse(RequestIdRanges.Interactions.Start <= PlayerGameplayActionRequestTypes.Interaction &&
-                           PlayerGameplayActionRequestTypes.Interaction <= RequestIdRanges.Interactions.End);
+            const ushort retiredLegacyInteractionRequestId = 503;
+            Assert.AreEqual(RequestIdRanges.CharacterActions.Start, RequestIdRanges.Find(retiredLegacyInteractionRequestId).Start);
+            Assert.IsFalse(RequestIdRanges.Interactions.Start <= retiredLegacyInteractionRequestId &&
+                           retiredLegacyInteractionRequestId <= RequestIdRanges.Interactions.End);
         }
 
         private static void Add(HashSet<ushort> seen, ushort id, ushort start, ushort end, string name)

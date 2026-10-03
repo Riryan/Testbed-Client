@@ -326,7 +326,7 @@ namespace Game.Client.UI.Root
             _manager.PlayerCombatDamageReceived += OnCombatDamageReceived;
             _manager.PlayerAbilityCastStateReceived += OnAbilityCastStateReceived;
             _manager.PlayerCombatOwnerStateReceived += OnCombatOwnerStateReceived;
-            _manager.PlayerInteractionResultReceived += OnInteractionResultReceived;
+            _manager.ContextInteractionResultReceived += OnInteractionResultReceived;
             _manager.WorldItemsChangedReceived += OnWorldItemsChangedReceived;
             _manager.WorldItemInteractionResultReceived += OnWorldItemInteractionResultReceived;
             _chatTransport?.Dispose();
@@ -352,7 +352,7 @@ namespace Game.Client.UI.Root
             _manager.PlayerCombatDamageReceived -= OnCombatDamageReceived;
             _manager.PlayerAbilityCastStateReceived -= OnAbilityCastStateReceived;
             _manager.PlayerCombatOwnerStateReceived -= OnCombatOwnerStateReceived;
-            _manager.PlayerInteractionResultReceived -= OnInteractionResultReceived;
+            _manager.ContextInteractionResultReceived -= OnInteractionResultReceived;
             _manager.WorldItemsChangedReceived -= OnWorldItemsChangedReceived;
             _manager.WorldItemInteractionResultReceived -= OnWorldItemInteractionResultReceived;
             if (_chatTransport != null)
@@ -741,7 +741,7 @@ namespace Game.Client.UI.Root
                 InteractionActionId.Inspect);
         }
 
-        public async UniTask<PlayerInteractionResponseMessage> RequestPlayerInteractionAsync(
+        public async UniTask<ContextInteractionResponseMessage> RequestPlayerInteractionAsync(
             uint targetObjectId,
             ushort targetGeneration,
             InteractionCategoryId categoryId,
@@ -751,15 +751,15 @@ namespace Game.Client.UI.Root
                 BindManager();
             uint sequence = NextInteractionSequence();
             if (_manager == null)
-                return PlayerInteractionResponseMessage.Failed(
+                return ContextInteractionResponseMessage.Failed(
                     sequence,
+                    InteractionTargetReferenceWire.Player(targetObjectId, targetGeneration),
                     categoryId,
                     actionId,
                     InteractionResultCode.InvalidState,
                     "client game manager is unavailable");
-            return await _manager.RequestPlayerInteractionAsync(
-                targetObjectId,
-                targetGeneration,
+            return await _manager.RequestContextInteractionAsync(
+                InteractionTargetReferenceWire.Player(targetObjectId, targetGeneration),
                 categoryId,
                 actionId,
                 sequence);
@@ -1323,7 +1323,7 @@ namespace Game.Client.UI.Root
                 : $"Loot rejected: {(InteractionResultCode)message.resultCode}: {message.detail}");
         }
 
-        private void OnInteractionResultReceived(PlayerInteractionResponseMessage message)
+        private void OnInteractionResultReceived(ContextInteractionResponseMessage message)
         {
             PresentSystemMessage(message.success
                 ? $"{message.ActionId}: succeeded"
