@@ -5,7 +5,9 @@
         "Game.Client",
         "Game.Shared",
         "UnityEngine.UI",
-        "Player.Client"
+        "Player.Client",
+        "Player.Networking",
+	"LiteNetLibManager"
     ],
     "includePlatforms": [
         "Editor"
