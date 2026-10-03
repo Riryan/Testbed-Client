@@ -24,7 +24,7 @@ namespace Game.Client.Editor
             // canonical authoring pass instead of introducing a second trade repair/binding system.
             // It rebuilds and serializes StandaloneTradeUI (including tradeWindowRoot and the
             // rest of its required references) into StandaloneClientUI.prefab.
-            StandaloneClientUIGameplayFlowAuthoring.UpgradeExistingPrefab();
+           // StandaloneClientUIGameplayFlowAuthoring.UpgradeExistingPrefab();
             RemoveObsoleteRootTradeComponent();
 
             GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
