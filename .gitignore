@@ -78,3 +78,8 @@ Testing (3).zip
 Testing (2).zip
 Testing.zip
 /FImpossible Creations
+Game/Client/Editor/StandaloneSkillsFlatListV13Installer.cs
+Game/Client/Editor/StandaloneSkillsFlatListV14Installer.cs
+Game/Client/Editor/StandaloneSkillsListOverlayInstaller.cs
+Game/Client/Editor/StandaloneSkillsListOverlayInstallerV11.cs
+Game/Client/Editor/StandaloneSkillsListOverlayV12Hotfix.cs

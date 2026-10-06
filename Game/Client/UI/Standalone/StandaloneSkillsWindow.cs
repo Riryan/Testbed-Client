@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Game.Client.Content;
 using Game.Shared.Content;
 using Player.Networking;
@@ -14,6 +15,8 @@ namespace Game.Client.UI.Standalone
     /// - Learned abilities from the existing Gameplay Settings catalog + progression learned IDs.
     ///
     /// Opening the window never fetches state merely because it is being viewed.
+    /// V1.4 keeps the existing row path for compatibility, but prefers one authored flat Text
+    /// for the progression list so the core skill display does not depend on ScrollRect/layout state.
     /// </summary>
     public sealed class StandaloneSkillsWindow : MonoBehaviour
     {
@@ -29,6 +32,7 @@ namespace Game.Client.UI.Standalone
         [SerializeField] private GameObject progressionPage;
         [SerializeField] private RectTransform progressionContent;
         [SerializeField] private StandaloneProgressionRow progressionRowTemplate;
+        [SerializeField] private Text progressionListText;
 
         [Header("Abilities")]
         [SerializeField] private GameObject abilitiesPage;
@@ -109,10 +113,12 @@ namespace Game.Client.UI.Standalone
         {
             if (ReferenceEquals(_manager, manager))
                 return;
+
             UnbindManager();
             _manager = manager;
             if (_manager == null)
                 return;
+
             _manager.ProgressionSnapshotReceived += OnProgression;
             _manager.GameplaySettingsSnapshotReceived += OnGameplaySettings;
         }
@@ -141,13 +147,21 @@ namespace Game.Client.UI.Standalone
 
         private void ApplyTabVisibility()
         {
-            if (progressionPage != null) progressionPage.SetActive(!_showAbilities);
-            if (abilitiesPage != null) abilitiesPage.SetActive(_showAbilities);
+            if (progressionPage != null)
+                progressionPage.SetActive(!_showAbilities);
+
+            if (progressionListText != null)
+                progressionListText.gameObject.SetActive(!_showAbilities);
+
+            if (abilitiesPage != null)
+                abilitiesPage.SetActive(_showAbilities);
         }
 
         private void Render()
         {
-            ProgressionSnapshotMessage progression = _manager != null ? _manager.LatestProgression : default;
+            ProgressionSnapshotMessage progression =
+                _manager != null ? _manager.LatestProgression : default;
+
             if (levelSummaryText != null)
             {
                 levelSummaryText.text = progression.success
@@ -164,84 +178,212 @@ namespace Game.Client.UI.Standalone
         private void RenderProgression(ProgressionSnapshotMessage snapshot)
         {
             ClearRows(_progressionRows);
+
             if (!snapshot.success)
             {
+                if (progressionListText != null)
+                    progressionListText.text = string.Empty;
                 SetStatus("Progression has not been hydrated yet.");
                 return;
             }
 
-            ProgressTrackDefinition[] definitions = ClientRecoveryContentCache.GetProgressTracks();
-            ProgressTrackWire[] values = snapshot.tracks ?? Array.Empty<ProgressTrackWire>();
+            ProgressTrackDefinition[] definitions =
+                ClientRecoveryContentCache.GetProgressTracks();
+
+            ProgressTrackWire[] values =
+                snapshot.tracks ?? Array.Empty<ProgressTrackWire>();
+
             var byId = new Dictionary<ushort, int>(values.Length);
             for (int i = 0; i < values.Length; ++i)
                 byId[values[i].dataId] = values[i].value;
 
+            // Preferred V1.4 path. This uses the exact same definitions/state as the row path,
+            // but presents them through one authored Text directly inside the known-visible
+            // Skills window hierarchy.
+            if (progressionListText != null)
+            {
+                var text = new StringBuilder(1024);
+                text.AppendLine("TYPE             SKILL                              VALUE");
+                text.AppendLine("------------------------------------------------------------");
+
+                int visibleCount = 0;
+
+                for (int i = 0; i < definitions.Length; ++i)
+                {
+                    ProgressTrackDefinition definition = definitions[i];
+                    if (definition == null ||
+                        !MeetsClientKnownTrackAccess(definition, snapshot.factionDataId))
+                        continue;
+
+                    int value =
+                        byId.TryGetValue(definition.dataId, out int tracked)
+                            ? tracked
+                            : 0;
+
+                    string kind =
+                        Humanize(definition.kind.ToString()).ToUpperInvariant();
+
+                    string name =
+                        string.IsNullOrWhiteSpace(definition.displayName)
+                            ? definition.definitionId
+                            : definition.displayName;
+
+                    text.Append(kind.PadRight(17));
+                    text.Append(name.PadRight(35));
+                    text.Append(value.ToString("N0"));
+                    text.Append(" / ");
+                    text.Append(Math.Max(1, definition.maximumValue).ToString("N0"));
+                    text.AppendLine();
+
+                    visibleCount++;
+                }
+
+                progressionListText.text = text.ToString();
+                progressionListText.gameObject.SetActive(true);
+
+                SetStatus(
+                    visibleCount == 0
+                        ? "No client-known progression definitions are installed."
+                        : $"{visibleCount} progression tracks");
+
+                return;
+            }
+
+            // Existing authored row path retained as fallback/compatibility.
             int count = 0;
+
             for (int i = 0; i < definitions.Length; ++i)
             {
                 ProgressTrackDefinition definition = definitions[i];
-                if (definition == null || progressionRowTemplate == null || progressionContent == null)
+
+                if (definition == null ||
+                    progressionRowTemplate == null ||
+                    progressionContent == null ||
+                    !MeetsClientKnownTrackAccess(definition, snapshot.factionDataId))
                     continue;
 
-                StandaloneProgressionRow row = Instantiate(progressionRowTemplate, progressionContent);
+                StandaloneProgressionRow row =
+                    Instantiate(progressionRowTemplate, progressionContent);
+
                 row.gameObject.name = $"Track_{definition.definitionId}";
                 row.gameObject.SetActive(true);
-                int value = byId.TryGetValue(definition.dataId, out int tracked) ? tracked : 0;
+
+                int value =
+                    byId.TryGetValue(definition.dataId, out int tracked)
+                        ? tracked
+                        : 0;
+
                 row.Bind(
                     Humanize(definition.kind.ToString()),
-                    string.IsNullOrWhiteSpace(definition.displayName) ? definition.definitionId : definition.displayName,
+                    string.IsNullOrWhiteSpace(definition.displayName)
+                        ? definition.definitionId
+                        : definition.displayName,
                     value,
                     Math.Max(1, definition.maximumValue));
+
                 _progressionRows.Add(row.gameObject);
                 count++;
             }
 
-            SetStatus(count == 0 ? "No client-known progression definitions are installed." : $"{count} progression tracks");
+            if (progressionContent != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(progressionContent);
+            }
+
+            SetStatus(
+                count == 0
+                    ? "No client-known progression definitions are installed."
+                    : $"{count} progression tracks");
+        }
+
+        private static bool MeetsClientKnownTrackAccess(
+            ProgressTrackDefinition definition,
+            ushort factionDataId)
+        {
+            UnlockPredicateDefinition[] predicates =
+                definition?.unlockPredicates ??
+                Array.Empty<UnlockPredicateDefinition>();
+
+            for (int i = 0; i < predicates.Length; ++i)
+            {
+                UnlockPredicateDefinition predicate = predicates[i];
+
+                if (predicate == null)
+                    continue;
+
+                // Presentation filtering only. The GameServer remains authoritative.
+                if (predicate.kind == UnlockPredicateKind.Faction &&
+                    predicate.dataId != 0 &&
+                    predicate.dataId != factionDataId)
+                    return false;
+            }
+
+            return true;
         }
 
         private void RenderAbilities(ProgressionSnapshotMessage snapshot)
         {
             ClearRows(_abilityRows);
+
             if (!snapshot.success)
             {
                 SetStatus("Abilities have not been hydrated yet.");
                 return;
             }
+
             if (PlayerGameplaySettingsRuntime.Revision <= 0)
             {
                 SetStatus("Ability catalog has not been hydrated yet.");
                 return;
             }
 
-            ushort[] learned = snapshot.knownAbilityWireIds ?? Array.Empty<ushort>();
-            GameplayAbilityClientReference[] catalog = PlayerGameplaySettingsRuntime.GetAbilityClientReferences();
-            var rows = new List<GameplayAbilityClientReference>(learned.Length);
+            ushort[] learned =
+                snapshot.knownAbilityWireIds ?? Array.Empty<ushort>();
+
+            GameplayAbilityClientReference[] catalog =
+                PlayerGameplaySettingsRuntime.GetAbilityClientReferences();
+
+            var rows =
+                new List<GameplayAbilityClientReference>(learned.Length);
+
             for (int i = 0; i < catalog.Length; ++i)
             {
                 GameplayAbilityClientReference ability = catalog[i];
-                if (ability.WireId == 0 || string.IsNullOrWhiteSpace(ability.DefinitionId))
+
+                if (ability.WireId == 0 ||
+                    string.IsNullOrWhiteSpace(ability.DefinitionId))
                     continue;
+
                 if (Array.BinarySearch(learned, ability.WireId) < 0)
                     continue;
+
                 rows.Add(ability);
             }
 
             rows.Sort(CompareAbilities);
+
             for (int i = 0; i < rows.Count; ++i)
             {
                 if (abilityRowTemplate == null || abilitiesContent == null)
                     break;
+
                 GameplayAbilityClientReference ability = rows[i];
-                StandaloneAbilityRow row = Instantiate(abilityRowTemplate, abilitiesContent);
+
+                StandaloneAbilityRow row =
+                    Instantiate(abilityRowTemplate, abilitiesContent);
+
                 row.gameObject.name = $"Ability_{ability.DefinitionId}";
                 row.gameObject.SetActive(true);
                 row.Bind(ability, tooltip);
+
                 _abilityRows.Add(row.gameObject);
             }
 
-            SetStatus(rows.Count == 0
-                ? "No abilities learned on this character."
-                : $"{rows.Count} learned abilities — drag an ability to a hotbar slot to assign it.");
+            SetStatus(
+                rows.Count == 0
+                    ? "No abilities learned on this character."
+                    : $"{rows.Count} learned abilities — drag an ability to a hotbar slot to assign it.");
         }
 
         private void SetStatus(string value)
@@ -250,41 +392,67 @@ namespace Game.Client.UI.Standalone
                 statusText.text = value ?? string.Empty;
         }
 
-        private static int CompareAbilities(GameplayAbilityClientReference a, GameplayAbilityClientReference b)
+        private static int CompareAbilities(
+            GameplayAbilityClientReference a,
+            GameplayAbilityClientReference b)
         {
-            int category = a.presentation.category.CompareTo(b.presentation.category);
-            if (category != 0) return category;
-            int order = a.presentation.sortOrder.CompareTo(b.presentation.sortOrder);
-            if (order != 0) return order;
-            string an = a.DisplayName;
-            string bn = b.DisplayName;
-            return string.Compare(an, bn, StringComparison.OrdinalIgnoreCase);
+            int category =
+                a.presentation.category.CompareTo(b.presentation.category);
+
+            if (category != 0)
+                return category;
+
+            int order =
+                a.presentation.sortOrder.CompareTo(b.presentation.sortOrder);
+
+            if (order != 0)
+                return order;
+
+            return string.Compare(
+                a.DisplayName,
+                b.DisplayName,
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private static string Humanize(string value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
             var chars = new List<char>(value.Length + 8);
+
             for (int i = 0; i < value.Length; ++i)
             {
                 char c = value[i];
-                if (i > 0 && char.IsUpper(c) && !char.IsUpper(value[i - 1]))
+
+                if (i > 0 &&
+                    char.IsUpper(c) &&
+                    !char.IsUpper(value[i - 1]))
                     chars.Add(' ');
+
                 chars.Add(c);
             }
+
             return new string(chars.ToArray());
         }
 
         private static void ClearRows(List<GameObject> rows)
         {
             for (int i = 0; i < rows.Count; ++i)
-                if (rows[i] != null) Destroy(rows[i]);
+            {
+                if (rows[i] != null)
+                    Destroy(rows[i]);
+            }
+
             rows.Clear();
         }
 
 #if UNITY_EDITOR
         [Obsolete("Use the V2.11 tabbed ConfigureForEditor overload.")]
-        public void ConfigureForEditor(GameObject authoredRoot, Button authoredClose, Text authoredSummary)
+        public void ConfigureForEditor(
+            GameObject authoredRoot,
+            Button authoredClose,
+            Text authoredSummary)
         {
             windowRoot = authoredRoot;
             closeButton = authoredClose;
@@ -320,6 +488,12 @@ namespace Game.Client.UI.Standalone
             abilitiesContent = authoredAbilitiesContent;
             abilityRowTemplate = authoredAbilityTemplate;
             tooltip = authoredTooltip;
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+
+        public void ConfigureFlatProgressionListForEditor(Text authoredProgressionList)
+        {
+            progressionListText = authoredProgressionList;
             UnityEditor.EditorUtility.SetDirty(this);
         }
 #endif
