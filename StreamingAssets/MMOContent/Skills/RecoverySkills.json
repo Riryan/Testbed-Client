@@ -47,6 +47,66 @@
       "defaultMode": "Gain",
       "unlockPredicates": [],
       "dataId": 65013
+    },
+    {
+      "definitionId": "mastery.small_arms",
+      "displayName": "Small Arms",
+      "kind": "Mastery",
+      "maximumValue": 100,
+      "groupId": "combat",
+      "groupCap": 200,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65014
+    },
+    {
+      "definitionId": "mastery.rifles",
+      "displayName": "Rifles",
+      "kind": "Mastery",
+      "maximumValue": 100,
+      "groupId": "combat",
+      "groupCap": 200,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65015
+    },
+    {
+      "definitionId": "general.tech",
+      "displayName": "Tech",
+      "kind": "General",
+      "maximumValue": 100,
+      "groupId": "support",
+      "groupCap": 200,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65016
+    },
+    {
+      "definitionId": "general.first_aid",
+      "displayName": "First Aid",
+      "kind": "General",
+      "maximumValue": 100,
+      "groupId": "support",
+      "groupCap": 200,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65017
+    },
+    {
+      "definitionId": "mastery.thrown_weapons",
+      "displayName": "Thrown Weapons",
+      "kind": "Mastery",
+      "maximumValue": 100,
+      "groupId": "combat",
+      "groupCap": 200,
+      "decayCooldownSeconds": 86400,
+      "defaultMode": "Gain",
+      "unlockPredicates": [],
+      "dataId": 65018
     }
   ]
 }
