@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Game.Client.Presentation.Characters;
 using Game.Shared.Characters;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Game.Client.OutfitAuthoring
@@ -31,6 +32,8 @@ namespace Game.Client.OutfitAuthoring
         public CharacterWearableRegion visualRegion = CharacterWearableRegion.Upper;
         public CharacterWearablePartSelection[] parts = Array.Empty<CharacterWearablePartSelection>();
         public ushort[] allowedColorIds = Array.Empty<ushort>();
+        public ushort defaultPrimaryColorId;
+        public ushort defaultSecondaryColorId;
         public bool updateExisting;
         public string existingDefinitionId;
         public ushort existingPresentationId;
@@ -64,6 +67,7 @@ namespace Game.Client.OutfitAuthoring
     {
         public static Func<OutfitAuthoringSaveRequest, OutfitAuthoringSaveResult> EditorSaveHandler;
         public static Func<OutfitAuthoringEquipmentSlotOption[]> EditorEquipmentSlotProvider;
+        public static Func<CharacterWearablePartSelection[], int> EditorEnsurePrimaryDyeHandler;
 
         [Header("Preview")]
         [SerializeField] private Transform previewAnchor;
@@ -97,23 +101,48 @@ namespace Game.Client.OutfitAuthoring
             public int optionIndex = -1;
         }
 
-        private static readonly ushort[] PreviewColorChannels =
+        private static readonly ushort[] PreviewPrimaryColorChannels =
         {
             SidekickCharacterPaletteUtility.ClothingPrimaryColorChannelId,
-            SidekickCharacterPaletteUtility.ClothingSecondaryColorChannelId,
             SidekickCharacterPaletteUtility.UpperPrimaryColorChannelId,
-            SidekickCharacterPaletteUtility.UpperSecondaryColorChannelId,
             SidekickCharacterPaletteUtility.LowerPrimaryColorChannelId,
-            SidekickCharacterPaletteUtility.LowerSecondaryColorChannelId,
             SidekickCharacterPaletteUtility.FeetPrimaryColorChannelId,
-            SidekickCharacterPaletteUtility.FeetSecondaryColorChannelId,
             SidekickCharacterPaletteUtility.AccessoryPrimaryColorChannelId,
+        };
+
+        private static readonly ushort[] PreviewSecondaryColorChannels =
+        {
+            SidekickCharacterPaletteUtility.ClothingSecondaryColorChannelId,
+            SidekickCharacterPaletteUtility.UpperSecondaryColorChannelId,
+            SidekickCharacterPaletteUtility.LowerSecondaryColorChannelId,
+            SidekickCharacterPaletteUtility.FeetSecondaryColorChannelId,
             SidekickCharacterPaletteUtility.AccessorySecondaryColorChannelId,
         };
 
         private readonly List<SlotState> _slotStates = new List<SlotState>();
         private readonly List<OutfitAuthoringEquipmentSlotOption> _equipmentSlots = new List<OutfitAuthoringEquipmentSlotOption>();
         private readonly HashSet<ushort> _allowedColorIds = new HashSet<ushort>();
+        private readonly List<ushort> _availableColorIds = new List<ushort>();
+
+        private Text _compactColorNameText;
+        private Button _compactColorUseButton;
+        private Button _compactColorPrimaryButton;
+        private Button _compactColorSecondaryButton;
+        private Image _compactColorSwatch;
+        private int _compactColorIndex;
+        private ushort _testPrimaryColorId;
+        private ushort _testSecondaryColorId;
+
+        private Vector3 _previewOrbitTarget;
+        private float _previewOrbitDistance;
+        private float _previewOrbitYaw;
+        private float _previewOrbitPitch;
+        private bool _previewOrbitReady;
+        private bool _previewDragging;
+        private Vector3 _previewLastMousePosition;
+        private Vector3 _previewInitialPosition;
+        private Quaternion _previewInitialRotation;
+        private float _previewInitialFov;
 
         private CharacterVisualProfile _profile;
         private CharacterAppearanceRecipe _recipe;
@@ -143,8 +172,10 @@ namespace Game.Client.OutfitAuthoring
             BuildMannequin();
             BindMeshRows();
             BindColors();
+            BuildCompactColorUi();
             BindItemControls();
             BindSave();
+            CapturePreviewOrbit();
             ApplyPreview();
             RefreshSaveLabel();
             SetStatus("Ready - New Item", true);
@@ -154,6 +185,11 @@ namespace Game.Client.OutfitAuthoring
         {
             if (_mannequin != null)
                 Destroy(_mannequin);
+        }
+
+        private void Update()
+        {
+            UpdatePreviewInteraction();
         }
 
         private void LoadEquipmentSlots()
@@ -268,29 +304,23 @@ namespace Game.Client.OutfitAuthoring
         private void BindColors()
         {
             _allowedColorIds.Clear();
+            _availableColorIds.Clear();
+
             HashSet<ushort> available = BuildAvailableColorSet();
-            Color[] palette = SidekickCharacterPaletteUtility.ClothingPalette;
+            foreach (ushort id in available)
+                _availableColorIds.Add(id);
+            _availableColorIds.Sort();
+
+            // The old swatch grid is intentionally hidden. The compact Color Setup box
+            // below Mesh Parts uses this same canonical palette data.
             OutfitAuthoringColorCell[] cells = colorCells ?? Array.Empty<OutfitAuthoringColorCell>();
-
             for (int i = 0; i < cells.Length; ++i)
-            {
-                OutfitAuthoringColorCell cell = cells[i];
-                if (cell == null)
-                    continue;
+                if (cells[i] != null)
+                    cells[i].gameObject.SetActive(false);
 
-                ushort id = cell.ColorId;
-                bool enabled = id > 0 && id <= palette.Length && available.Contains(id);
-                cell.gameObject.SetActive(enabled);
-                if (!enabled)
-                    continue;
-
-                _allowedColorIds.Add(id);
-                cell.Configure(
-                    palette[id - 1],
-                    true,
-                    PreviewColor,
-                    ToggleColorAllowed);
-            }
+            _compactColorIndex = 0;
+            _testPrimaryColorId = 0;
+            _testSecondaryColorId = 0;
         }
 
         private void BindItemControls()
@@ -312,6 +342,7 @@ namespace Game.Client.OutfitAuthoring
                     "Feet / Boots / Shoes",
                     "Accessory / Gloves",
                 }, 0);
+                visualLayerDropdown.SelectionChanged += _ => ApplyPreview();
             }
         }
 
@@ -433,10 +464,20 @@ namespace Game.Client.OutfitAuthoring
             for (int i = 0; i < parts.Count; ++i)
                 SetRecipeMesh(_recipe, parts[i].slotId, parts[i].optionId);
 
-            if (_previewColorId > 0)
+            // Wearable-wide color preview: one Primary value is pushed through every
+            // canonical primary clothing channel, and one Secondary value through every
+            // canonical secondary channel. This prevents a multi-mesh outfit from showing
+            // hips in one default color and legs in another while authoring.
+            if (_testPrimaryColorId > 0)
             {
-                for (int i = 0; i < PreviewColorChannels.Length; ++i)
-                    SetRecipeColor(_recipe, PreviewColorChannels[i], _previewColorId);
+                for (int i = 0; i < PreviewPrimaryColorChannels.Length; ++i)
+                    SetRecipeColor(_recipe, PreviewPrimaryColorChannels[i], _testPrimaryColorId);
+            }
+
+            if (_testSecondaryColorId > 0)
+            {
+                for (int i = 0; i < PreviewSecondaryColorChannels.Length; ++i)
+                    SetRecipeColor(_recipe, PreviewSecondaryColorChannels[i], _testSecondaryColorId);
             }
 
             _presenter.ApplyAppearance(_recipe);
@@ -505,6 +546,8 @@ namespace Game.Client.OutfitAuthoring
                 visualRegion = region,
                 parts = BuildPartSelections().ToArray(),
                 allowedColorIds = allowed.ToArray(),
+                defaultPrimaryColorId = _testPrimaryColorId,
+                defaultSecondaryColorId = _testSecondaryColorId,
                 updateExisting = IsEditingExisting,
                 existingDefinitionId = _editingDefinitionId,
                 existingPresentationId = _editingPresentationId,
@@ -575,21 +618,11 @@ namespace Game.Client.OutfitAuthoring
             }
 
             _allowedColorIds.Clear();
-            HashSet<ushort> available = BuildAvailableColorSet();
-            foreach (ushort id in available)
-                _allowedColorIds.Add(id);
-
-            OutfitAuthoringColorCell[] cells = colorCells ?? Array.Empty<OutfitAuthoringColorCell>();
-            for (int i = 0; i < cells.Length; ++i)
-            {
-                if (cells[i] == null) continue;
-                cells[i].SetAllowed(_allowedColorIds.Contains(cells[i].ColorId));
-                cells[i].SetPreviewSelected(false);
-            }
-
+            _testPrimaryColorId = 0;
+            _testSecondaryColorId = 0;
+            _compactColorIndex = 0;
             _previewColorId = 0;
-            if (previewColorText != null)
-                previewColorText.text = "Preview: none";
+            RefreshCompactColorUi();
 
             ApplyPreview();
             RefreshSaveLabel();
@@ -682,10 +715,38 @@ namespace Game.Client.OutfitAuthoring
             }
 
             _allowedColorIds.Clear();
-            _previewColorId = wearable != null
-                ? wearable.defaultPrimaryColorId
-                : (ushort)0;
+            if (wearable != null)
+            {
+                ushort[] allowedColors = wearable.playerAllowedColorIds ?? Array.Empty<ushort>();
+                for (int i = 0; i < allowedColors.Length; ++i)
+                    if (allowedColors[i] != 0)
+                        _allowedColorIds.Add(allowedColors[i]);
 
+                _testPrimaryColorId = wearable.defaultPrimaryColorId;
+                _testSecondaryColorId = wearable.defaultSecondaryColorId;
+                _previewColorId = _testPrimaryColorId;
+
+                int preferred = _availableColorIds.IndexOf(_testPrimaryColorId);
+                if (preferred < 0 && _allowedColorIds.Count > 0)
+                {
+                    foreach (ushort id in _allowedColorIds)
+                    {
+                        preferred = _availableColorIds.IndexOf(id);
+                        if (preferred >= 0)
+                            break;
+                    }
+                }
+                _compactColorIndex = preferred >= 0 ? preferred : 0;
+            }
+            else
+            {
+                _testPrimaryColorId = 0;
+                _testSecondaryColorId = 0;
+                _previewColorId = 0;
+                _compactColorIndex = 0;
+            }
+
+            RefreshCompactColorUi();
             ApplyPreview();
             RefreshSaveLabel();
 
@@ -741,6 +802,375 @@ namespace Game.Client.OutfitAuthoring
             Text label = saveButton.GetComponentInChildren<Text>(true);
             if (label != null)
                 label.text = IsEditingExisting ? "UPDATE EXISTING" : "CREATE NEW";
+        }
+
+        private void BuildCompactColorUi()
+        {
+            Transform panelTransform = FindSceneTransformByName("ColorPanel");
+            if (panelTransform == null)
+                return;
+
+            GameObject panel = panelTransform.gameObject;
+            panel.SetActive(true);
+
+            RectTransform panelRect = panelTransform as RectTransform;
+            if (panelRect != null)
+            {
+                panelRect.anchorMin = new Vector2(1f, 1f);
+                panelRect.anchorMax = new Vector2(1f, 1f);
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = new Vector2(-260f, -810f);
+                panelRect.sizeDelta = new Vector2(490f, 132f);
+            }
+
+            // Retire the old grid visually without deleting any prefab data.
+            for (int i = 0; i < panelTransform.childCount; ++i)
+                panelTransform.GetChild(i).gameObject.SetActive(false);
+
+            if (previewColorText != null)
+            {
+                previewColorText.gameObject.SetActive(true);
+                previewColorText.transform.SetParent(panelTransform, false);
+                RectTransform textRect = previewColorText.rectTransform;
+                textRect.anchorMin = new Vector2(0.5f, 1f);
+                textRect.anchorMax = new Vector2(0.5f, 1f);
+                textRect.pivot = new Vector2(0.5f, 1f);
+                textRect.anchoredPosition = new Vector2(0f, -12f);
+                textRect.sizeDelta = new Vector2(210f, 30f);
+                previewColorText.alignment = TextAnchor.MiddleCenter;
+                _compactColorNameText = previewColorText;
+            }
+
+            Transform templateTransform = FindSceneTransformByName("ClearMeshSelectionsButton");
+            Button template = templateTransform != null ? templateTransform.GetComponent<Button>() : null;
+            if (template == null)
+                return;
+
+            Button previous = CreateCompactButton(template, panelTransform, "ColorPrevButton", "< PREV", new Vector2(-192f, -12f), new Vector2(74f, 30f));
+            Button next = CreateCompactButton(template, panelTransform, "ColorNextButton", "NEXT >", new Vector2(192f, -12f), new Vector2(74f, 30f));
+            _compactColorUseButton = CreateCompactButton(template, panelTransform, "ColorUseButton", "[ ] USE", new Vector2(112f, -12f), new Vector2(82f, 30f));
+            _compactColorPrimaryButton = CreateCompactButton(template, panelTransform, "ColorPrimaryButton", "TEST PRIMARY", new Vector2(-105f, -72f), new Vector2(190f, 34f));
+            _compactColorSecondaryButton = CreateCompactButton(template, panelTransform, "ColorSecondaryButton", "TEST SECONDARY", new Vector2(105f, -72f), new Vector2(190f, 34f));
+
+            if (previous != null) previous.onClick.AddListener(() => CycleCompactColor(-1));
+            if (next != null) next.onClick.AddListener(() => CycleCompactColor(1));
+            if (_compactColorUseButton != null) _compactColorUseButton.onClick.AddListener(ToggleCurrentCompactColorAllowed);
+            if (_compactColorPrimaryButton != null) _compactColorPrimaryButton.onClick.AddListener(TestCurrentColorAsPrimary);
+            if (_compactColorSecondaryButton != null) _compactColorSecondaryButton.onClick.AddListener(TestCurrentColorAsSecondary);
+
+            GameObject swatchObject = new GameObject("ColorCurrentSwatch", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            swatchObject.layer = panel.layer;
+            swatchObject.transform.SetParent(panelTransform, false);
+            RectTransform swatchRect = swatchObject.GetComponent<RectTransform>();
+            swatchRect.anchorMin = new Vector2(0.5f, 1f);
+            swatchRect.anchorMax = new Vector2(0.5f, 1f);
+            swatchRect.pivot = new Vector2(0.5f, 1f);
+            swatchRect.anchoredPosition = new Vector2(-118f, -13f);
+            swatchRect.sizeDelta = new Vector2(26f, 26f);
+            _compactColorSwatch = swatchObject.GetComponent<Image>();
+
+            RefreshCompactColorUi();
+        }
+
+        private static Button CreateCompactButton(
+            Button template,
+            Transform parent,
+            string objectName,
+            string labelText,
+            Vector2 anchoredPosition,
+            Vector2 size)
+        {
+            if (template == null || parent == null)
+                return null;
+
+            Button button = Instantiate(template, parent, false);
+            button.name = objectName;
+            button.gameObject.SetActive(true);
+            button.onClick.RemoveAllListeners();
+
+            RectTransform rect = button.transform as RectTransform;
+            if (rect != null)
+            {
+                rect.anchorMin = new Vector2(0.5f, 1f);
+                rect.anchorMax = new Vector2(0.5f, 1f);
+                rect.pivot = new Vector2(0.5f, 1f);
+                rect.anchoredPosition = anchoredPosition;
+                rect.sizeDelta = size;
+            }
+
+            Text label = button.GetComponentInChildren<Text>(true);
+            if (label != null)
+                label.text = labelText;
+
+            return button;
+        }
+
+        private void CycleCompactColor(int delta)
+        {
+            if (_availableColorIds.Count == 0)
+                return;
+
+            _compactColorIndex = (_compactColorIndex + delta) % _availableColorIds.Count;
+            if (_compactColorIndex < 0)
+                _compactColorIndex += _availableColorIds.Count;
+            RefreshCompactColorUi();
+        }
+
+        private ushort CurrentCompactColorId =>
+            _compactColorIndex >= 0 && _compactColorIndex < _availableColorIds.Count
+                ? _availableColorIds[_compactColorIndex]
+                : (ushort)0;
+
+        private void ToggleCurrentCompactColorAllowed()
+        {
+            ushort colorId = CurrentCompactColorId;
+            if (colorId == 0)
+                return;
+
+            if (!_allowedColorIds.Add(colorId))
+                _allowedColorIds.Remove(colorId);
+
+            RefreshCompactColorUi();
+        }
+
+        private int CountSelectedPartsWithDyeChannel(
+            CharacterWearablePartSelection[] parts,
+            CharacterVisualPaletteChannel channel)
+        {
+            if (_profile == null || parts == null)
+                return 0;
+
+            int count = 0;
+            var seen = new HashSet<ulong>();
+            for (int i = 0; i < parts.Length; ++i)
+            {
+                CharacterWearablePartSelection part = parts[i];
+                if (part.slotId == 0 || part.optionId == 0)
+                    continue;
+
+                ulong key = ((ulong)part.slotId << 32) | part.optionId;
+                if (!seen.Add(key) ||
+                    !_profile.TryGetOption(
+                        part.slotId,
+                        part.optionId,
+                        out CharacterVisualOptionDefinition option) ||
+                    option == null)
+                    continue;
+
+                CharacterVisualPaletteCellDefinition[] cells =
+                    option.paletteCells ?? Array.Empty<CharacterVisualPaletteCellDefinition>();
+
+                for (int c = 0; c < cells.Length; ++c)
+                {
+                    if (cells[c].IsValid && cells[c].channel == channel)
+                    {
+                        count++;
+                        break;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        private int EnsurePrimaryDyeForSelectedParts(
+            CharacterWearablePartSelection[] parts)
+        {
+            if (parts == null || parts.Length == 0)
+                return 0;
+
+            int ready = CountSelectedPartsWithDyeChannel(
+                parts,
+                CharacterVisualPaletteChannel.Primary);
+
+            if (ready >= parts.Length || EditorEnsurePrimaryDyeHandler == null)
+                return ready;
+
+            try
+            {
+                return EditorEnsurePrimaryDyeHandler.Invoke(parts);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Primary dye authoring failed: {ex.Message}", false);
+                return ready;
+            }
+        }
+
+        private void TestCurrentColorAsPrimary()
+        {
+            ushort colorId = CurrentCompactColorId;
+            if (colorId == 0)
+                return;
+
+            CharacterWearablePartSelection[] parts =
+                BuildPartSelections().ToArray();
+
+            int ready = EnsurePrimaryDyeForSelectedParts(parts);
+
+            _testPrimaryColorId = colorId;
+            _previewColorId = colorId;
+            RefreshCompactColorUi();
+            ApplyPreview();
+
+            if (parts.Length > 0 && ready == 0)
+            {
+                SetStatus(
+                    "PRIMARY could not apply because no usable non-skin dye cell was found for the selected mesh set.",
+                    false);
+            }
+            else if (parts.Length > 0)
+            {
+                SetStatus(
+                    $"PRIMARY preview applied to {ready}/{parts.Length} selected mesh part(s).",
+                    ready == parts.Length);
+            }
+        }
+
+        private void TestCurrentColorAsSecondary()
+        {
+            ushort colorId = CurrentCompactColorId;
+            if (colorId == 0)
+                return;
+
+            CharacterWearablePartSelection[] parts =
+                BuildPartSelections().ToArray();
+            int ready = CountSelectedPartsWithDyeChannel(
+                parts,
+                CharacterVisualPaletteChannel.Secondary);
+
+            _testSecondaryColorId = colorId;
+            RefreshCompactColorUi();
+            ApplyPreview();
+
+            if (parts.Length > 0 && ready == 0)
+            {
+                SetStatus(
+                    "SECONDARY has no authored dye cells on this mesh set. It was not auto-guessed.",
+                    false);
+            }
+            else if (parts.Length > 0)
+            {
+                SetStatus(
+                    $"SECONDARY preview applied to {ready}/{parts.Length} selected mesh part(s).",
+                    ready == parts.Length);
+            }
+        }
+
+        private void RefreshCompactColorUi()
+        {
+            ushort colorId = CurrentCompactColorId;
+            string colorName = colorId != 0
+                ? SidekickCharacterPaletteUtility.GetClothingPaletteName(colorId)
+                : "No palette colors";
+
+            if (_compactColorNameText != null)
+                _compactColorNameText.text = colorId != 0 ? $"{colorId:00}  {colorName}" : colorName;
+
+            if (_compactColorSwatch != null)
+            {
+                Color[] palette = SidekickCharacterPaletteUtility.ClothingPalette;
+                _compactColorSwatch.color = colorId > 0 && colorId <= palette.Length
+                    ? palette[colorId - 1]
+                    : Color.clear;
+            }
+
+            SetButtonLabel(_compactColorUseButton,
+                colorId != 0 && _allowedColorIds.Contains(colorId) ? "[X] USE" : "[ ] USE");
+            SetButtonLabel(_compactColorPrimaryButton,
+                _testPrimaryColorId == 0
+                    ? "TEST PRIMARY"
+                    : $"PRIMARY: {SidekickCharacterPaletteUtility.GetClothingPaletteName(_testPrimaryColorId)}");
+            SetButtonLabel(_compactColorSecondaryButton,
+                _testSecondaryColorId == 0
+                    ? "TEST SECONDARY"
+                    : $"SECONDARY: {SidekickCharacterPaletteUtility.GetClothingPaletteName(_testSecondaryColorId)}");
+        }
+
+        private static void SetButtonLabel(Button button, string text)
+        {
+            if (button == null)
+                return;
+            Text label = button.GetComponentInChildren<Text>(true);
+            if (label != null)
+                label.text = text ?? string.Empty;
+        }
+
+        private void CapturePreviewOrbit()
+        {
+            if (previewCamera == null || _mannequin == null)
+                return;
+
+            Bounds bounds = CalculateBounds(_mannequin);
+            _previewOrbitTarget = bounds.center;
+            Vector3 offset = previewCamera.transform.position - _previewOrbitTarget;
+            _previewOrbitDistance = Mathf.Max(0.25f, offset.magnitude);
+            _previewOrbitYaw = Mathf.Atan2(offset.x, offset.z) * Mathf.Rad2Deg;
+            _previewOrbitPitch = Mathf.Asin(Mathf.Clamp(offset.y / _previewOrbitDistance, -1f, 1f)) * Mathf.Rad2Deg;
+            _previewInitialPosition = previewCamera.transform.position;
+            _previewInitialRotation = previewCamera.transform.rotation;
+            _previewInitialFov = previewCamera.fieldOfView;
+            _previewOrbitReady = true;
+        }
+
+        private void UpdatePreviewInteraction()
+        {
+            if (previewCamera == null || !_previewOrbitReady)
+                return;
+
+            bool overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
+            if (UnityEngine.Input.GetMouseButtonDown(0) && !overUi)
+            {
+                _previewDragging = true;
+                _previewLastMousePosition = UnityEngine.Input.mousePosition;
+            }
+
+            if (UnityEngine.Input.GetMouseButtonUp(0))
+                _previewDragging = false;
+
+            if (_previewDragging && UnityEngine.Input.GetMouseButton(0))
+            {
+                Vector3 now = UnityEngine.Input.mousePosition;
+                Vector3 delta = now - _previewLastMousePosition;
+                _previewLastMousePosition = now;
+
+                _previewOrbitYaw -= delta.x * 0.32f;
+                _previewOrbitPitch = Mathf.Clamp(_previewOrbitPitch + delta.y * 0.32f, -35f, 78f);
+                ApplyPreviewOrbitPose();
+            }
+
+            float scroll = UnityEngine.Input.mouseScrollDelta.y;
+            if (!overUi && !Mathf.Approximately(scroll, 0f))
+                previewCamera.fieldOfView = Mathf.Clamp(previewCamera.fieldOfView - scroll * 2.25f, 18f, 55f);
+        }
+
+        private void ApplyPreviewOrbitPose()
+        {
+            if (previewCamera == null || !_previewOrbitReady)
+                return;
+
+            Quaternion orbit = Quaternion.Euler(_previewOrbitPitch, _previewOrbitYaw, 0f);
+            previewCamera.transform.position =
+                _previewOrbitTarget + orbit * Vector3.forward * _previewOrbitDistance;
+            previewCamera.transform.LookAt(_previewOrbitTarget);
+        }
+
+        private static Transform FindSceneTransformByName(string objectName)
+        {
+            if (string.IsNullOrWhiteSpace(objectName))
+                return null;
+
+            RectTransform[] values = Resources.FindObjectsOfTypeAll<RectTransform>();
+            for (int i = 0; i < values.Length; ++i)
+            {
+                RectTransform value = values[i];
+                if (value != null && value.gameObject.scene.IsValid() &&
+                    string.Equals(value.name, objectName, StringComparison.Ordinal))
+                    return value;
+            }
+
+            return null;
         }
 
         private HashSet<ushort> BuildAvailableColorSet()

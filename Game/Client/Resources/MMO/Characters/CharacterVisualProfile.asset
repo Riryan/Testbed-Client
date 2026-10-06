@@ -46513,10 +46513,15 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 1
-      paletteCells: []
+      paletteCells:
+      - colorMapWidth: 32
+        colorMapHeight: 32
+        cellX: 0
+        cellY: 20
+        channel: 0
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
-      paletteScanSignature: 
+      paletteScanSignature: 32x32:0,14C;32x32:0,15C;32x32:0,18C;32x32:16,18C;32x32:0,20C;32x32:0,21C;
       accessTier: 0
       factionRestricted: 0
       requiredFaction: 1
@@ -49946,10 +49951,15 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 1
-      paletteCells: []
+      paletteCells:
+      - colorMapWidth: 32
+        colorMapHeight: 32
+        cellX: 2
+        cellY: 20
+        channel: 0
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
-      paletteScanSignature: 
+      paletteScanSignature: 32x32:2,20C;32x32:2,21C;
       accessTier: 0
       factionRestricted: 0
       requiredFaction: 1
@@ -53145,10 +53155,15 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 1
-      paletteCells: []
+      paletteCells:
+      - colorMapWidth: 32
+        colorMapHeight: 32
+        cellX: 4
+        cellY: 20
+        channel: 0
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
-      paletteScanSignature: 
+      paletteScanSignature: 32x32:4,20C;32x32:4,21C;
       accessTier: 0
       factionRestricted: 0
       requiredFaction: 1
@@ -54218,10 +54233,15 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 0
-      paletteCells: []
+      paletteCells:
+      - colorMapWidth: 32
+        colorMapHeight: 32
+        cellX: 6
+        cellY: 18
+        channel: 0
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
-      paletteScanSignature: 
+      paletteScanSignature: 32x32:6,16C;32x32:7,16C;32x32:6,18C;32x32:7,18C;32x32:16,18C;32x32:17,18C;32x32:6,19C;
       accessTier: 0
       factionRestricted: 0
       requiredFaction: 1
@@ -58123,10 +58143,15 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 0
-      paletteCells: []
+      paletteCells:
+      - colorMapWidth: 32
+        colorMapHeight: 32
+        cellX: 8
+        cellY: 18
+        channel: 0
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
-      paletteScanSignature: 
+      paletteScanSignature: 32x32:8,16C;32x32:9,16C;32x32:8,18C;32x32:9,18C;32x32:16,18C;32x32:17,18C;32x32:8,19C;
       accessTier: 0
       factionRestricted: 0
       requiredFaction: 1
@@ -83647,17 +83672,17 @@ MonoBehaviour:
     - slotId: 19
       optionId: 38699
     icon: {fileID: 0}
-  - definitionId: armor.work_pants
+  - definitionId: item.armor.work_pants
     displayName: Work Pants
     presentationId: 210
     region: 1
     playerEligible: 1
     populationEligible: 1
-    defaultPrimaryColorId: 1
-    defaultSecondaryColorId: 8
+    defaultPrimaryColorId: 30
+    defaultSecondaryColorId: 10
     colorUsageReviewed: 1
-    playerAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
-    populationAllowedColorIds: 0100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    playerAllowedColorIds: 010002000400050006000700080009000a000b000c000d000e00100011001200130014001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
+    populationAllowedColorIds: 010002000400050006000700080009000a000b000c000d000e00100011001200130014001700180019001a001b001c001d001e001f0020002100220023002400250026002700280029002a002b002c00
     parts:
     - slotId: 17
       optionId: 23930

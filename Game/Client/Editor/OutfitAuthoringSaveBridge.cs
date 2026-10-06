@@ -79,6 +79,8 @@ namespace Game.Client.Editor
         {
             OutfitAuthoringController.EditorSaveHandler = Save;
             OutfitAuthoringController.EditorEquipmentSlotProvider = LoadEquipmentSlots;
+            OutfitAuthoringController.EditorEnsurePrimaryDyeHandler =
+                CharacterVisualPaletteAuthoringWindow.EnsurePrimaryDyeForOutfit;
         }
 
         [MenuItem("MMO Tools/Characters/Outfit Builder/Open Play Mode Outfit Builder")]
@@ -351,14 +353,24 @@ namespace Game.Client.Editor
             }
 
             CharacterWearablePartSelection[] parts = request.parts ?? Array.Empty<CharacterWearablePartSelection>();
-            ushort[] colors = (request.allowedColorIds ?? Array.Empty<ushort>())
+            var colorValues = new List<ushort>((request.allowedColorIds ?? Array.Empty<ushort>())
                 .Where(id => id > 0)
+                .Distinct());
+
+            ushort primary = request.defaultPrimaryColorId;
+            ushort secondary = request.defaultSecondaryColorId;
+
+            // A tested default is also a valid color for this wearable. Do not invent
+            // palette IDs when the author has not selected any color.
+            if (primary > 0 && !colorValues.Contains(primary))
+                colorValues.Add(primary);
+            if (secondary > 0 && !colorValues.Contains(secondary))
+                colorValues.Add(secondary);
+
+            ushort[] colors = colorValues
                 .Distinct()
                 .OrderBy(id => id)
                 .ToArray();
-
-            ushort primary = colors.Contains((ushort)1) ? (ushort)1 : colors.Length > 0 ? colors[0] : (ushort)1;
-            ushort secondary = colors.Contains((ushort)8) ? (ushort)8 : colors.Length > 1 ? colors[1] : primary;
             CharacterWearableRegion region = Enum.IsDefined(typeof(CharacterWearableRegion), request.visualRegion)
                 ? request.visualRegion
                 : CharacterWearableRegion.Upper;
@@ -373,7 +385,7 @@ namespace Game.Client.Editor
                 populationEligible = true,
                 defaultPrimaryColorId = primary,
                 defaultSecondaryColorId = secondary,
-                colorUsageReviewed = true,
+                colorUsageReviewed = colors.Length > 0 || primary > 0 || secondary > 0,
                 playerAllowedColorIds = (ushort[])colors.Clone(),
                 populationAllowedColorIds = (ushort[])colors.Clone(),
                 parts = (CharacterWearablePartSelection[])parts.Clone(),
