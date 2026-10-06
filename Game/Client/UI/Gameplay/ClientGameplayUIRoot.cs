@@ -406,16 +406,23 @@ namespace Game.Client.UI.Gameplay
         private static void ApplyResource(Slider slider, Text label, string prefix, int current, int minimum, int maximum)
         {
             int safeMaximum = Math.Max(minimum + 1, maximum);
+            int safeCurrent = Mathf.Clamp(current, minimum, safeMaximum);
             if (slider != null)
             {
                 slider.minValue = minimum;
                 slider.maxValue = safeMaximum;
-                slider.SetValueWithoutNotify(Mathf.Clamp(current, minimum, safeMaximum));
+                slider.SetValueWithoutNotify(safeCurrent);
             }
             if (label != null)
-                label.text = $"{prefix}  {current:N0} / {maximum:N0}";
+            {
+                double span = Math.Max(1, safeMaximum - minimum);
+                int percent = Mathf.Clamp(
+                    (int)Math.Round(((safeCurrent - minimum) / span) * 100d, MidpointRounding.AwayFromZero),
+                    0,
+                    100);
+                label.text = $"{prefix}  {percent}%";
+            }
         }
-
         private void HandleGameplayUiInput()
         {
             if (IsTextInputFocused())
