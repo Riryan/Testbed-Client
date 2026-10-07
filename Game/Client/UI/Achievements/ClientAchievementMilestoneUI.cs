@@ -4,12 +4,11 @@ using UnityEngine;
 namespace Game.Client.UI.Achievements
 {
     /// <summary>
-    /// Retired V1/V1.1 F8/OnGUI compatibility shim.
-    /// The real UI is now authored in StandaloneClientUI.prefab.
+    /// Retired V2.1 compatibility shim. V3 uses the actual StandaloneClientUI prefab.
     /// </summary>
     [Obsolete("Use StandaloneAchievementMilestoneWindow.")]
     [DisallowMultipleComponent]
-    public sealed class StandaloneAchievementMilestoneOverlay : MonoBehaviour
+    public sealed class ClientAchievementMilestoneUI : MonoBehaviour
     {
         private void Awake() => enabled = false;
     }

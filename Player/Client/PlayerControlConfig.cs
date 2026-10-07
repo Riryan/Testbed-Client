@@ -36,6 +36,8 @@ namespace Player.Client
         InteractionAction3 = 20,
         InteractionAction4 = 21,
         DropSelected = 22,
+        OpenAchievements = 23,
+
         HotbarSlot1 = 100,
         HotbarSlot2 = 101,
         HotbarSlot3 = 102,
@@ -78,6 +80,8 @@ namespace Player.Client
                 { PlayerControlAction.InteractionAction3, KeyCode.F },
                 { PlayerControlAction.InteractionAction4, KeyCode.Q },
                 { PlayerControlAction.DropSelected, KeyCode.G },
+                { PlayerControlAction.OpenAchievements, KeyCode.Y },
+
                 { PlayerControlAction.HotbarSlot1, KeyCode.Alpha1 },
                 { PlayerControlAction.HotbarSlot2, KeyCode.Alpha2 },
                 { PlayerControlAction.HotbarSlot3, KeyCode.Alpha3 },
@@ -92,6 +96,7 @@ namespace Player.Client
 
         private static readonly Dictionary<PlayerControlAction, KeyCode> Current =
             new Dictionary<PlayerControlAction, KeyCode>();
+
         private static bool _loaded;
 
         public static event Action<PlayerControlAction, KeyCode> BindingChanged;
@@ -99,11 +104,15 @@ namespace Player.Client
         public static KeyCode GetBinding(PlayerControlAction action)
         {
             EnsureLoaded();
-            return Current.TryGetValue(action, out KeyCode value) ? value : GetDefaultBinding(action);
+            return Current.TryGetValue(action, out KeyCode value)
+                ? value
+                : GetDefaultBinding(action);
         }
 
         public static KeyCode GetDefaultBinding(PlayerControlAction action) =>
-            Defaults.TryGetValue(action, out KeyCode value) ? value : KeyCode.None;
+            Defaults.TryGetValue(action, out KeyCode value)
+                ? value
+                : KeyCode.None;
 
         public static bool GetKey(PlayerControlAction action)
         {
@@ -132,16 +141,19 @@ namespace Player.Client
             BindingChanged?.Invoke(action, key);
         }
 
-        public static void ResetBinding(PlayerControlAction action) => SetBinding(action, GetDefaultBinding(action));
+        public static void ResetBinding(PlayerControlAction action) =>
+            SetBinding(action, GetDefaultBinding(action));
 
         public static void ResetAllDefaults()
         {
             EnsureLoaded();
+
             foreach (KeyValuePair<PlayerControlAction, KeyCode> pair in Defaults)
             {
                 PlayerPrefs.DeleteKey(PreferencePrefix + pair.Key);
                 Current[pair.Key] = pair.Value;
             }
+
             PlayerPrefs.Save();
 
             foreach (KeyValuePair<PlayerControlAction, KeyCode> pair in Defaults)
@@ -152,18 +164,30 @@ namespace Player.Client
         {
             if (_loaded)
                 return;
+
             _loaded = true;
+
             foreach (KeyValuePair<PlayerControlAction, KeyCode> pair in Defaults)
             {
-                int value = PlayerPrefs.GetInt(PreferencePrefix + pair.Key, (int)pair.Value);
-                Current[pair.Key] = Enum.IsDefined(typeof(KeyCode), value) ? (KeyCode)value : pair.Value;
+                int value =
+                    PlayerPrefs.GetInt(
+                        PreferencePrefix + pair.Key,
+                        (int)pair.Value);
+
+                Current[pair.Key] =
+                    Enum.IsDefined(typeof(KeyCode), value)
+                        ? (KeyCode)value
+                        : pair.Value;
             }
         }
 
         public static PlayerControlAction HotbarAction(int oneBasedSlot)
         {
             int clamped = Mathf.Clamp(oneBasedSlot, 1, 10);
-            return (PlayerControlAction)((int)PlayerControlAction.HotbarSlot1 + (clamped - 1));
+
+            return (PlayerControlAction)(
+                (int)PlayerControlAction.HotbarSlot1 +
+                (clamped - 1));
         }
 
         public static string DisplayName(PlayerControlAction action)
@@ -193,10 +217,17 @@ namespace Player.Client
                 case PlayerControlAction.InteractionAction3: return "Interaction Action 3";
                 case PlayerControlAction.InteractionAction4: return "Interaction Action 4";
                 case PlayerControlAction.DropSelected: return "Drop Selected Item";
+                case PlayerControlAction.OpenAchievements: return "Achievements";
+
                 default:
-                    int value = (int)action - (int)PlayerControlAction.HotbarSlot1 + 1;
+                    int value =
+                        (int)action -
+                        (int)PlayerControlAction.HotbarSlot1 +
+                        1;
+
                     if (value >= 1 && value <= 10)
                         return $"Hotbar Slot {value}";
+
                     return action.ToString();
             }
         }
@@ -204,8 +235,10 @@ namespace Player.Client
         public static string BindingLabel(PlayerControlAction action)
         {
             KeyCode key = GetBinding(action);
+
             if (key == KeyCode.None)
                 return "Unbound";
+
             switch (key)
             {
                 case KeyCode.Alpha0: return "0";
