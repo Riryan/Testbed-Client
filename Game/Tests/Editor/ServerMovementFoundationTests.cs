@@ -60,6 +60,64 @@ namespace Game.Tests.Editor
         }
 
         [Test]
+        public void GroundedMotor_TraversesWalkSurfaceOverCoveredStairRisers()
+        {
+            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            {
+                mapId = "stair_riser_test",
+                collisionTriangles = new[]
+                {
+                    // Canonical walk surface: a smooth 0.4 m rise over 2 m.
+                    Triangle(0f, 0f, -1f, 2f, 0.4f, -1f, 2f, 0.4f, 1f, true),
+                    Triangle(0f, 0f, -1f, 2f, 0.4f, 1f, 0f, 0f, 1f, true),
+
+                    // Raw static stair risers underneath that walk surface.
+                    Triangle(0.5f, 0f, -1f, 0.5f, 0.1f, -1f, 0.5f, 0.1f, 1f, false),
+                    Triangle(0.5f, 0f, -1f, 0.5f, 0.1f, 1f, 0.5f, 0f, 1f, false),
+                    Triangle(1.0f, 0.1f, -1f, 1.0f, 0.2f, -1f, 1.0f, 0.2f, 1f, false),
+                    Triangle(1.0f, 0.1f, -1f, 1.0f, 0.2f, 1f, 1.0f, 0.1f, 1f, false),
+                    Triangle(1.5f, 0.2f, -1f, 1.5f, 0.3f, -1f, 1.5f, 0.3f, 1f, false),
+                    Triangle(1.5f, 0.2f, -1f, 1.5f, 0.3f, 1f, 1.5f, 0.2f, 1f, false),
+                }
+            });
+
+            var motor = new ServerCharacterMotor();
+            var state = new CharacterMotorState(new WorldPosition(0.1f, 0.02f, 0f));
+
+            for (int i = 0; i < 18; ++i)
+                motor.Tick(state, new CharacterMovementIntent(1f, 0f), 0.05f, world);
+
+            Assert.That(state.Position.X, Is.GreaterThan(1.6f));
+            Assert.That(state.Position.Y, Is.GreaterThan(0.28f));
+            Assert.That(state.Grounded, Is.True);
+        }
+
+        [Test]
+        public void GroundedMotor_CoveredDetailRuleDoesNotIgnoreTallWall()
+        {
+            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            {
+                mapId = "tall_wall_test",
+                collisionTriangles = new[]
+                {
+                    Triangle(-2f, 0f, -1f, 2f, 0f, -1f, 2f, 0f, 1f, true),
+                    Triangle(-2f, 0f, -1f, 2f, 0f, 1f, -2f, 0f, 1f, true),
+                    Triangle(0.5f, 0f, -1f, 0.5f, 1.5f, -1f, 0.5f, 1.5f, 1f, false),
+                    Triangle(0.5f, 0f, -1f, 0.5f, 1.5f, 1f, 0.5f, 0f, 1f, false),
+                }
+            });
+
+            var motor = new ServerCharacterMotor();
+            var state = new CharacterMotorState(new WorldPosition(-0.5f, 0f, 0f));
+
+            for (int i = 0; i < 20; ++i)
+                motor.Tick(state, new CharacterMovementIntent(1f, 0f), 0.05f, world);
+
+            Assert.That(state.Position.X, Is.LessThan(0.25f));
+            Assert.That(state.Grounded, Is.True);
+        }
+
+        [Test]
         public void FallingMotor_DoesNotTunnelThroughSolidNonWalkableFloor()
         {
             var world = new ServerCollisionWorld(new ServerMapSnapshot
