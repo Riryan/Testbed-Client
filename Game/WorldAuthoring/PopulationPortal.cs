@@ -120,7 +120,12 @@ namespace Game.WorldAuthoring
             Gizmos.DrawLine(d, e);
             Gizmos.DrawWireSphere(e, 0.24f);
             if (routeMarker != null)
-                Gizmos.DrawLine(e, routeMarker.transform.position);
+            {
+                Vector3 routePosition = routeMarker.transform.position;
+                Gizmos.color = PopulationRouteMarker.ConnectionColor(
+                    PopulationRouteMarker.IsConnectionWalkable(e, routePosition, gameObject.scene));
+                Gizmos.DrawLine(e, routePosition);
+            }
         }
     }
 }

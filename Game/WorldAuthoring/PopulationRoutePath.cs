@@ -54,20 +54,22 @@ namespace Game.WorldAuthoring
                     first = current;
                 if (previous != null)
                 {
-                    Gizmos.color = oneWay
-                        ? new Color(1f, 0.5f, 0.05f, 0.55f)
-                        : new Color(0.1f, 0.75f, 1f, 0.55f);
-                    Gizmos.DrawLine(previous.transform.position, current.transform.position);
+                    Vector3 from = previous.transform.position;
+                    Vector3 to = current.transform.position;
+                    Gizmos.color = PopulationRouteMarker.ConnectionColor(
+                        PopulationRouteMarker.IsConnectionWalkable(from, to, gameObject.scene));
+                    Gizmos.DrawLine(from, to);
                 }
                 previous = current;
             }
 
             if (loop && first != null && previous != null && first != previous)
             {
-                Gizmos.color = oneWay
-                    ? new Color(1f, 0.5f, 0.05f, 0.55f)
-                    : new Color(0.1f, 0.75f, 1f, 0.55f);
-                Gizmos.DrawLine(previous.transform.position, first.transform.position);
+                Vector3 from = previous.transform.position;
+                Vector3 to = first.transform.position;
+                Gizmos.color = PopulationRouteMarker.ConnectionColor(
+                    PopulationRouteMarker.IsConnectionWalkable(from, to, gameObject.scene));
+                Gizmos.DrawLine(from, to);
             }
         }
     }

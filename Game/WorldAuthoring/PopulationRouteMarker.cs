@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Game.Shared.Population;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace Game.WorldAuthoring
 {
@@ -94,12 +95,16 @@ namespace Game.WorldAuthoring
 
             if (links != null)
             {
-                Gizmos.color = new Color(0.15f, 0.9f, 0.3f, 0.8f);
                 for (int i = 0; i < links.Count; ++i)
                 {
                     PopulationRouteMarker linked = links[i];
-                    if (IsValidSceneLink(linked) && !IsOneWayOverridePair(linked))
-                        Gizmos.DrawLine(transform.position, linked.transform.position);
+                    if (!IsValidSceneLink(linked) || IsOneWayOverridePair(linked))
+                        continue;
+
+                    Vector3 from = transform.position;
+                    Vector3 to = linked.transform.position;
+                    Gizmos.color = ConnectionColor(IsConnectionWalkable(from, to, gameObject.scene));
+                    Gizmos.DrawLine(from, to);
                 }
             }
 
@@ -108,14 +113,128 @@ namespace Game.WorldAuthoring
                 for (int i = 0; i < oneWayOutboundLinks.Count; ++i)
                 {
                     PopulationRouteMarker linked = oneWayOutboundLinks[i];
-                    if (IsValidSceneLink(linked))
-                        DrawOneWayGizmo(transform.position, linked.transform.position);
+                    if (!IsValidSceneLink(linked))
+                        continue;
+
+                    Vector3 from = transform.position;
+                    Vector3 to = linked.transform.position;
+                    Gizmos.color = ConnectionColor(IsConnectionWalkable(from, to, gameObject.scene));
+                    DrawOneWayGizmo(from, to);
                 }
             }
         }
 
         private bool IsValidSceneLink(PopulationRouteMarker linked) =>
             linked != null && linked != this && linked.gameObject.scene == gameObject.scene;
+
+        public static bool IsConnectionWalkable(
+            Vector3 from,
+            Vector3 to,
+            UnityEngine.SceneManagement.Scene scene)
+        {
+            ServerMap map = FindServerMap(scene);
+            float distance = Vector3.Distance(from, to);
+            int samples = Mathf.Clamp(Mathf.CeilToInt(distance / 0.5f), 1, 256);
+
+            for (int i = 0; i <= samples; ++i)
+            {
+                float t = i / (float)samples;
+                Vector3 sample = Vector3.Lerp(from, to, t);
+                if (!IsWalkableSample(sample, scene, map))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsWalkableSample(
+            Vector3 sample,
+            UnityEngine.SceneManagement.Scene scene,
+            ServerMap map)
+        {
+            const float navSampleRadius = 0.65f;
+            if (NavMesh.SamplePosition(sample, out NavMeshHit navHit, navSampleRadius, NavMesh.AllAreas))
+            {
+                Vector3 delta = navHit.position - sample;
+                if (Mathf.Abs(delta.y) <= 1.0f &&
+                    new Vector2(delta.x, delta.z).sqrMagnitude <= navSampleRadius * navSampleRadius)
+                {
+                    return true;
+                }
+            }
+
+            Ray ray = new Ray(sample + Vector3.up * 1.5f, Vector3.down);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 3.0f, ~0, QueryTriggerInteraction.Ignore);
+            if (hits == null || hits.Length == 0)
+                return false;
+
+            float maximumSlope = map != null ? map.NavAgentMaxSlope : 50f;
+            float minimumNormalY = Mathf.Cos(maximumSlope * Mathf.Deg2Rad);
+
+            for (int i = 0; i < hits.Length; ++i)
+            {
+                RaycastHit hit = hits[i];
+                Collider collider = hit.collider;
+                if (collider == null ||
+                    collider.gameObject.scene != scene ||
+                    !collider.enabled ||
+                    collider.isTrigger ||
+                    !collider.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                if (map != null &&
+                    (map.CollisionLayers.value & (1 << collider.gameObject.layer)) == 0)
+                {
+                    continue;
+                }
+
+                if (collider.GetComponentInParent<ServerBakeIgnore>() != null ||
+                    collider.GetComponentInParent<WorldInteractable>() != null)
+                {
+                    continue;
+                }
+
+                ServerSurface surface = collider.GetComponentInParent<ServerSurface>();
+                if (surface != null &&
+                    (surface.flags & Game.Shared.World.ServerSurfaceFlags.Water) != 0 &&
+                    (surface.flags & Game.Shared.World.ServerSurfaceFlags.Walkable) == 0)
+                {
+                    continue;
+                }
+
+                if (hit.normal.y < minimumNormalY)
+                    continue;
+
+                // Match the server walk bake's default behavior: ordinary eligible level
+                // geometry is walkable unless explicitly excluded. ServerSurface metadata
+                // refines classification but is not required for sidewalks/floors to count.
+                return true;
+            }
+
+            return false;
+        }
+
+        private static ServerMap FindServerMap(UnityEngine.SceneManagement.Scene scene)
+        {
+            ServerMap[] maps = UnityEngine.Object.FindObjectsByType<ServerMap>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            for (int i = 0; i < maps.Length; ++i)
+            {
+                ServerMap map = maps[i];
+                if (map != null && map.gameObject.scene == scene)
+                    return map;
+            }
+
+            return null;
+        }
+
+        public static Color ConnectionColor(bool walkable) =>
+            walkable
+                ? new Color(0.15f, 0.9f, 0.3f, 0.85f)
+                : new Color(0.95f, 0.15f, 0.1f, 0.9f);
 
         private bool IsOneWayOverridePair(PopulationRouteMarker linked)
         {
@@ -128,7 +247,6 @@ namespace Game.WorldAuthoring
 
         private static void DrawOneWayGizmo(Vector3 from, Vector3 to)
         {
-            Gizmos.color = new Color(1f, 0.5f, 0.05f, 0.9f);
             Gizmos.DrawLine(from, to);
             Vector3 direction = to - from;
             direction.y = 0f;
