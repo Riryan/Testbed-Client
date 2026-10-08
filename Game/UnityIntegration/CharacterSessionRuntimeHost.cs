@@ -1,4 +1,5 @@
 using System;
+using Game.GameServer.Integration;
 using System.Threading;
 using System.Threading.Tasks;
 using Game.Server.Application.Characters;
@@ -29,7 +30,7 @@ using Game.Shared.Abilities;
 using Game.Shared.Interactions;
 using Game.Shared.Sessions;
 using Game.Shared.World;
-using Game.UnityIntegration.Backend;
+using Game.GameServer.Backend;
 using LiteNetLibManager;
 using UnityEngine;
 using UnityEngine.SceneManagement;
