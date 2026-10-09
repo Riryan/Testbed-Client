@@ -51,6 +51,8 @@ namespace Game.WorldAuthoring
         [Min(1)] public int spawnBurstLimit = 1;
 
         [Header("Density")]
+        [Tooltip("Maximum number of Population actors owned by this spawn-capable portal that may exist in the world at once. The bake creates exactly this many lightweight portal-owned spawn anchors.")]
+        [Min(1)] public int maximumActiveInWorld = 5;
         [Min(1)] public int maximumActiveNearby = 12;
         [Min(0.5f)] public float activeNearbyRadius = 18f;
         [Min(0.1f)] public float exitClearanceRadius = 0.45f;
@@ -93,6 +95,7 @@ namespace Game.WorldAuthoring
             minimumSpawnInterval = Mathf.Max(0f, minimumSpawnInterval);
             maximumSpawnInterval = Mathf.Max(minimumSpawnInterval, maximumSpawnInterval);
             spawnBurstLimit = Mathf.Max(1, spawnBurstLimit);
+            maximumActiveInWorld = Mathf.Max(1, maximumActiveInWorld);
             maximumActiveNearby = Mathf.Max(1, maximumActiveNearby);
             activeNearbyRadius = Mathf.Max(0.5f, activeNearbyRadius);
             exitClearanceRadius = Mathf.Max(0.1f, exitClearanceRadius);

@@ -7,9 +7,8 @@ namespace Game.Tests.Editor
     public sealed class ServerSlopeClearanceTests
     {
         [Test]
-        public void StandingCapsule_DoesNotTreatLegalSlopeAsWall()
+        public void StandingCapsule_AcceptsLegalBakedMovementSlope()
         {
-            // 3m run, 1m rise ~= 18.4 degrees.
             ServerCollisionTriangle ramp = Triangle(
                 0f, 0f, -2f,
                 3f, 1f, -2f,
@@ -25,19 +24,18 @@ namespace Game.Tests.Editor
             var world = new ServerCollisionWorld(new ServerMapSnapshot
             {
                 mapId = "slope_test",
+                movementTriangles = new[] { ramp, ramp2 },
                 collisionTriangles = new[] { ramp, ramp2 },
             });
 
             var capsule = new ServerCapsule(0.35f, 1.8f);
             var feet = new WorldPosition(1.5f, 0.5f, 0f);
 
-            Assert.That(
-                world.IsStandingCapsuleClear(feet, capsule, 50f),
-                Is.True);
+            Assert.That(world.IsStandingCapsuleClear(feet, capsule, 50f), Is.True);
         }
 
         [Test]
-        public void StandingCapsule_StillRejectsVerticalWall()
+        public void RawWall_RemainsPhysicalCollisionForNonGroundedQueries()
         {
             ServerCollisionTriangle floor = Triangle(
                 -2f, 0f, -2f,
@@ -66,15 +64,14 @@ namespace Game.Tests.Editor
             var world = new ServerCollisionWorld(new ServerMapSnapshot
             {
                 mapId = "wall_test",
+                movementTriangles = new[] { floor, floor2 },
                 collisionTriangles = new[] { floor, floor2, wall, wall2 },
             });
 
             var capsule = new ServerCapsule(0.35f, 1.8f);
             var feet = new WorldPosition(0f, 0f, 0f);
 
-            Assert.That(
-                world.IsStandingCapsuleClear(feet, capsule, 50f),
-                Is.False);
+            Assert.That(world.IsCapsuleClear(feet, capsule), Is.False);
         }
 
         private static ServerCollisionTriangle Triangle(

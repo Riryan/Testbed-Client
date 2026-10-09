@@ -103,6 +103,11 @@ namespace Game.Tests.Editor
             AuthoritativeActorKind actorKind) => new ServerMapSnapshot
         {
             mapId = "recovery_test",
+            movementTriangles = new[]
+            {
+                Triangle(-5f, 0f, -5f, 5f, 0f, -5f, 5f, 0f, 5f),
+                Triangle(-5f, 0f, -5f, 5f, 0f, 5f, -5f, 0f, 5f),
+            },
             collisionTriangles = new[]
             {
                 Triangle(-5f, 0f, -5f, 5f, 0f, -5f, 5f, 0f, 5f),

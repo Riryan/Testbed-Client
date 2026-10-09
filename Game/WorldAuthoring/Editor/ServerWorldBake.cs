@@ -177,6 +177,7 @@ namespace Game.WorldAuthoring.Editor
                     : null,
                 navMesh = navMesh,
                 sharedWorld = sharedWorld,
+                movementTriangles = supportTriangles,
                 collisionTriangles = triangles.ToArray(),
                 dynamicBlockers = blockers,
                 traversalLinks = Array.Empty<ServerTraversalLink>(),
@@ -2053,6 +2054,7 @@ namespace Game.WorldAuthoring.Editor
                     minimumSpawnInterval = Mathf.Max(0f, source.minimumSpawnInterval),
                     maximumSpawnInterval = Mathf.Max(source.minimumSpawnInterval, source.maximumSpawnInterval),
                     spawnBurstLimit = Mathf.Max(1, source.spawnBurstLimit),
+                    maximumActiveInWorld = Mathf.Max(1, source.maximumActiveInWorld),
                     maximumActiveNearby = Mathf.Max(1, source.maximumActiveNearby),
                     activeNearbyRadius = Mathf.Max(0.5f, source.activeNearbyRadius),
                     exitClearanceRadius = Mathf.Max(0.1f, source.exitClearanceRadius),
@@ -2200,7 +2202,10 @@ namespace Game.WorldAuthoring.Editor
             for (int i = 0; i < spawns.Length; ++i)
             {
                 ServerSpawn spawn = spawns[i];
-                int count = spawn.kind == ServerSpawnKind.Population
+                bool portalBackedPopulation =
+                    spawn.kind == ServerSpawnKind.Population &&
+                    (spawn.populationPortal != null || spawn.portalId > 0);
+                int count = spawn.kind == ServerSpawnKind.Population && !portalBackedPopulation
                     ? Mathf.Clamp(spawn.populationCount, 1, 4096)
                     : 1;
 
@@ -2334,9 +2339,64 @@ namespace Game.WorldAuthoring.Editor
                 return false;
             }
 
+            PopulationPortal[] portals = Object.FindObjectsByType<PopulationPortal>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None)
+                .Where(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy)
+                .OrderBy(x => HierarchyPath(x.transform), StringComparer.Ordinal)
+                .ToArray();
+
+            var portalById = new Dictionary<long, PopulationPortal>();
+            for (int i = 0; i < portals.Length; ++i)
+            {
+                PopulationPortal portal = portals[i];
+                long id = StableId(portal.BakeId);
+                if (id > 0 && !portalById.ContainsKey(id))
+                    portalById.Add(id, portal);
+            }
+
+            PopulationPortal ResolvePortal(ServerSpawn spawn)
+            {
+                if (spawn == null || spawn.kind != ServerSpawnKind.Population)
+                    return null;
+
+                if (spawn.populationPortal != null &&
+                    spawn.populationPortal.gameObject.scene == scene &&
+                    spawn.populationPortal.gameObject.activeInHierarchy)
+                {
+                    return spawn.populationPortal;
+                }
+
+                if (spawn.portalId > 0 &&
+                    portalById.TryGetValue(spawn.portalId, out PopulationPortal byId))
+                {
+                    return byId;
+                }
+
+                return null;
+            }
+
+            bool IsSpawnCapable(PopulationPortal portal) =>
+                portal != null &&
+                portal.mode != PopulationPortalMode.DespawnOnly;
+
+            // Non-portal spawns retain their existing authored count semantics. Portal-backed
+            // Population spawns are optional templates only; portal capacity is owned by the
+            // PopulationPortal itself so duplicated/missing ServerSpawn objects cannot change
+            // how many actors a doorway may have active in the world.
             for (int i = 0; i < spawns.Length; ++i)
             {
                 ServerSpawn spawn = spawns[i];
+                PopulationPortal resolvedPortal = ResolvePortal(spawn);
+                if (spawn.kind == ServerSpawnKind.Population &&
+                    resolvedPortal != null &&
+                    IsSpawnCapable(resolvedPortal))
+                {
+                    continue;
+                }
 
                 long routeNodeId = spawn.routeNodeId;
                 long portalId = spawn.portalId;
@@ -2372,6 +2432,63 @@ namespace Game.WorldAuthoring.Editor
                         capsuleHeight = spawn.capsuleHeight,
                         maximumGroundSnap = spawn.maximumGroundSnap,
                         tags = spawn.tags ?? Array.Empty<string>(),
+                        routeNodeId = routeNodeId,
+                        portalId = portalId,
+                    });
+                }
+            }
+
+            // Every spawn-capable portal is self-sufficient. It always contributes exactly its
+            // Max Active In World capacity as lightweight dormant Population identities.
+            // Existing linked Population spawns are cycled only as optional archetype/capsule
+            // templates; a portal with no templates still produces generic Civilian Population.
+            for (int p = 0; p < portals.Length; ++p)
+            {
+                PopulationPortal portal = portals[p];
+                if (!IsSpawnCapable(portal))
+                    continue;
+
+                long portalId = StableId(portal.BakeId);
+                long routeNodeId = portal.routeMarker != null
+                    ? StableId(portal.routeMarker.BakeId)
+                    : 0L;
+
+                ServerSpawn[] templates = spawns
+                    .Where(x =>
+                        x != null &&
+                        x.enabledForServer &&
+                        x.kind == ServerSpawnKind.Population &&
+                        ResolvePortal(x) == portal)
+                    .ToArray();
+
+                int capacity = Mathf.Clamp(portal.maximumActiveInWorld, 1, 4096);
+                for (int instance = 0; instance < capacity; ++instance)
+                {
+                    ServerSpawn template = templates.Length > 0
+                        ? templates[instance % templates.Length]
+                        : null;
+
+                    long id = StableId(portalId, $"|active:{instance}");
+                    output.Add(new ServerSpawnAnchor
+                    {
+                        stableId = id,
+                        label = capacity > 1
+                            ? $"{portal.label} Active #{instance + 1}"
+                            : $"{portal.label} Active",
+                        kind = ServerSpawnKind.Population,
+                        actorKind = AuthoritativeActorKind.Population,
+                        archetypeId = template?.archetypeId ?? string.Empty,
+                        deathLootTableId = template?.deathLootTableId ?? string.Empty,
+                        // Validate the anchor on the real exterior walk surface. The existing
+                        // Population runtime immediately parks portal-owned identities at the
+                        // interior point until cadence/density rules release them.
+                        pose = Pose(portal.EffectiveExterior),
+                        priority = template?.priority ?? 0,
+                        enabled = true,
+                        capsuleRadius = template != null ? template.capsuleRadius : 0.35f,
+                        capsuleHeight = template != null ? template.capsuleHeight : 1.8f,
+                        maximumGroundSnap = template != null ? template.maximumGroundSnap : 0.65f,
+                        tags = template?.tags ?? Array.Empty<string>(),
                         routeNodeId = routeNodeId,
                         portalId = portalId,
                     });
