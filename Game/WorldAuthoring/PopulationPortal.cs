@@ -119,8 +119,7 @@ namespace Game.WorldAuthoring
             Gizmos.DrawLine(c, d);
             Gizmos.DrawLine(d, e);
             Gizmos.DrawWireSphere(e, 0.24f);
-            if (routeMarker != null)
-                Gizmos.DrawLine(e, routeMarker.transform.position);
+            // Exterior -> route connection is drawn by the Editor-only baked-server validator.
         }
     }
 }

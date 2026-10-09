@@ -91,27 +91,8 @@ namespace Game.WorldAuthoring
 
             float halfWidth = Mathf.Max(0.25f, pathWidth * 0.5f);
             Gizmos.DrawLine(transform.position - transform.right * halfWidth, transform.position + transform.right * halfWidth);
-
-            if (links != null)
-            {
-                Gizmos.color = new Color(0.15f, 0.9f, 0.3f, 0.8f);
-                for (int i = 0; i < links.Count; ++i)
-                {
-                    PopulationRouteMarker linked = links[i];
-                    if (IsValidSceneLink(linked) && !IsOneWayOverridePair(linked))
-                        Gizmos.DrawLine(transform.position, linked.transform.position);
-                }
-            }
-
-            if (oneWayOutboundLinks != null)
-            {
-                for (int i = 0; i < oneWayOutboundLinks.Count; ++i)
-                {
-                    PopulationRouteMarker linked = oneWayOutboundLinks[i];
-                    if (IsValidSceneLink(linked))
-                        DrawOneWayGizmo(transform.position, linked.transform.position);
-                }
-            }
+            // Connection lines are drawn by the Editor-only baked-server validator so the
+            // Scene view reflects the same ServerCollisionWorld used by the GameServer.
         }
 
         private bool IsValidSceneLink(PopulationRouteMarker linked) =>
@@ -124,23 +105,6 @@ namespace Game.WorldAuthoring
             bool outbound = oneWayOutboundLinks != null && oneWayOutboundLinks.Contains(linked);
             bool inbound = linked.oneWayOutboundLinks != null && linked.oneWayOutboundLinks.Contains(this);
             return outbound || inbound;
-        }
-
-        private static void DrawOneWayGizmo(Vector3 from, Vector3 to)
-        {
-            Gizmos.color = new Color(1f, 0.5f, 0.05f, 0.9f);
-            Gizmos.DrawLine(from, to);
-            Vector3 direction = to - from;
-            direction.y = 0f;
-            if (direction.sqrMagnitude <= 0.0001f)
-                return;
-            direction.Normalize();
-            Vector3 center = Vector3.Lerp(from, to, 0.72f);
-            Vector3 side = Vector3.Cross(Vector3.up, direction).normalized;
-            float length = Mathf.Min(0.65f, Vector3.Distance(from, to) * 0.12f);
-            Vector3 back = center - direction * length;
-            Gizmos.DrawLine(center, back + side * length * 0.45f);
-            Gizmos.DrawLine(center, back - side * length * 0.45f);
         }
     }
 }
