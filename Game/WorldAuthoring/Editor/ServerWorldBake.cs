@@ -2476,7 +2476,7 @@ namespace Game.WorldAuthoring.Editor
                             ? $"{portal.label} Active #{instance + 1}"
                             : $"{portal.label} Active",
                         kind = ServerSpawnKind.Population,
-                        actorKind = AuthoritativeActorKind.Population,
+                        actorKind = Game.Shared.Actors.AuthoritativeActorKind.Population,
                         archetypeId = template?.archetypeId ?? string.Empty,
                         deathLootTableId = template?.deathLootTableId ?? string.Empty,
                         // Validate the anchor on the real exterior walk surface. The existing
