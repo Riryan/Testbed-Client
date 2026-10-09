@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Shared.Population;
 using Game.Shared.World;
 using UnityEditor;
 using UnityEngine;
