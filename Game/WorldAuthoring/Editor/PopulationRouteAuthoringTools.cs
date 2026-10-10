@@ -184,19 +184,12 @@ namespace Game.WorldAuthoring.Editor
                     x.gameObject.activeInHierarchy)
                 .ToArray();
 
-            if (portals.Length == 0)
-                return true;
-
             float maxSq = maximumDistance * maximumDistance;
             for (int p = 0; p < portals.Length; ++p)
             {
                 PopulationPortal portal = portals[p];
-                if (portal.routeMarker != null)
-                    continue;
-
-                PopulationRouteMarker best = null;
-                float bestSq = float.PositiveInfinity;
                 Vector3 from = portal.transform.position;
+                var visible = new List<(PopulationRouteMarker Marker, float DistanceSq)>();
 
                 for (int m = 0; m < markers.Length; ++m)
                 {
@@ -206,40 +199,68 @@ namespace Game.WorldAuthoring.Editor
 
                     Vector3 delta = marker.transform.position - from;
                     float horizontalSq = delta.x * delta.x + delta.z * delta.z;
-                    if (horizontalSq > maxSq || horizontalSq >= bestSq)
+                    if (horizontalSq > maxSq)
                         continue;
 
-                    // Portal marker discovery is intentionally geometric only.
-                    // Doorways often have a door/wall collider between the portal anchor and
-                    // the sidewalk marker, so route-style NavMesh/corridor rejection is too
-                    // strict here. Authoritative walkability is validated by Server World Bake.
-                    best = marker;
-                    bestSq = horizontalSq;
+                    if (!HasPortalMarkerLineOfSight(portal, marker))
+                        continue;
+
+                    visible.Add((marker, horizontalSq));
                 }
 
-                if (best == null)
+                visible.Sort((a, b) => a.DistanceSq.CompareTo(b.DistanceSq));
+
+                Undo.RecordObject(portal, "Scan Population Portal Route Markers");
+                portal.nearbyRouteMarkers ??= new List<PopulationRouteMarker>();
+                portal.nearbyRouteMarkers.Clear();
+
+                if (visible.Count == 0)
                 {
+                    portal.routeMarker = null;
+                    EditorUtility.SetDirty(portal);
                     unresolved++;
                     continue;
                 }
 
-                Undo.RecordObject(portal, "Assign Population Portal Route Marker");
-                portal.routeMarker = best;
+                portal.routeMarker = visible[0].Marker;
+                for (int i = 0; i < visible.Count; ++i)
+                    portal.nearbyRouteMarkers.Add(visible[i].Marker);
+
                 EditorUtility.SetDirty(portal);
                 assigned++;
             }
 
-            if (assigned > 0)
+            if (portals.Length > 0)
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
 
             PopulationSpawnAuthoringSummary.MarkDirty();
             SceneView.RepaintAll();
 
             Debug.Log(
-                $"[Population Authoring] Portal route-marker scan complete: assigned={assigned}, " +
-                $"unresolved={unresolved}, radius={maximumDistance:0.##}m.");
+                $"[Population Authoring] Portal route-marker scan complete: portals={portals.Length}, " +
+                $"assigned={assigned}, unresolved={unresolved}, radius={maximumDistance:0.##}m.");
 
             return true;
+        }
+
+        private static bool HasPortalMarkerLineOfSight(
+            PopulationPortal portal,
+            PopulationRouteMarker marker)
+        {
+            Vector3 from = portal.transform.position + Vector3.up * 1.2f;
+            Vector3 to = marker.transform.position + Vector3.up * 1.2f;
+
+            if (!Physics.Linecast(from, to, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+                return true;
+
+            Transform hitTransform = hit.collider != null ? hit.collider.transform : null;
+            if (hitTransform == null)
+                return true;
+
+            return hitTransform == portal.transform ||
+                   hitTransform == marker.transform ||
+                   hitTransform.IsChildOf(portal.transform) ||
+                   hitTransform.IsChildOf(marker.transform);
         }
 
         public static bool AutoConnectActiveScene(
