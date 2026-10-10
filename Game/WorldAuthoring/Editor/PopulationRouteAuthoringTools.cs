@@ -114,11 +114,7 @@ namespace Game.WorldAuthoring.Editor
 
             PopulationPortal portal = root.AddComponent<PopulationPortal>();
             portal.routeMarker = marker;
-            portal.exterior = CreatePoint(root.transform, "Exterior", 0f);
-            portal.threshold = CreatePoint(root.transform, "Threshold", -0.4f);
-            portal.interaction = CreatePoint(root.transform, "Interaction", -0.8f);
-            portal.approach = CreatePoint(root.transform, "Approach", -1.3f);
-            portal.interiorSpawn = CreatePoint(root.transform, "Interior Spawn", -1.8f);
+            portal.nearbyRouteMarkers.Add(marker);
             Selection.activeGameObject = root;
         }
 
@@ -775,14 +771,5 @@ namespace Game.WorldAuthoring.Editor
             return true;
         }
 
-        private static Transform CreatePoint(Transform parent, string name, float localZ)
-        {
-            var point = new GameObject(name);
-            Undo.RegisterCreatedObjectUndo(point, $"Create {name}");
-            Undo.SetTransformParent(point.transform, parent, $"Parent {name}");
-            point.transform.localPosition = new Vector3(0f, 0f, localZ);
-            point.transform.localRotation = Quaternion.identity;
-            return point.transform;
-        }
     }
 }
