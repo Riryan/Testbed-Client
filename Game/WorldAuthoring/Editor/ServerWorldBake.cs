@@ -1978,6 +1978,19 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
+            if (!ValidatePopulationEntryRouteGraph(
+                    scene,
+                    markers,
+                    markerIds,
+                    nodeOutput,
+                    edgeOutput))
+            {
+                nodes = Array.Empty<ServerPopulationRouteNode>();
+                edges = Array.Empty<ServerPopulationRouteEdge>();
+                portals = Array.Empty<ServerPopulationPortal>();
+                return false;
+            }
+
             PopulationPortal[] portalSources = Object.FindObjectsByType<PopulationPortal>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                 .Where(x => x != null && x.gameObject.scene == scene && x.gameObject.activeInHierarchy)
                 .OrderBy(x => HierarchyPath(x.transform), StringComparer.Ordinal)
@@ -2275,6 +2288,120 @@ namespace Game.WorldAuthoring.Editor
                 Mathf.Max(0.5f, path.width),
                 Mathf.Max(0.01f, path.weight),
                 Mathf.Max(0f, path.minimumClearance));
+        }
+
+        private static bool ValidatePopulationEntryRouteGraph(
+            Scene scene,
+            PopulationRouteMarker[] markers,
+            Dictionary<PopulationRouteMarker, long> markerIds,
+            List<ServerPopulationRouteNode> nodes,
+            List<ServerPopulationRouteEdge> edges)
+        {
+            var nodeIds = new HashSet<long>();
+            for (int i = 0; i < nodes.Count; ++i)
+            {
+                ServerPopulationRouteNode node = nodes[i];
+                if (node != null && node.stableId > 0)
+                    nodeIds.Add(node.stableId);
+            }
+
+            var outgoingDegree = new Dictionary<long, int>();
+            for (int i = 0; i < edges.Count; ++i)
+            {
+                ServerPopulationRouteEdge edge = edges[i];
+                if (edge == null)
+                    continue;
+
+                if (!nodeIds.Contains(edge.fromNodeId) || !nodeIds.Contains(edge.toNodeId))
+                {
+                    Debug.LogError(
+                        $"[Server World Bake] Population route edge {edge.fromNodeId} -> {edge.toNodeId} " +
+                        "references a route node that is not present in the baked node set.");
+                    return false;
+                }
+
+                outgoingDegree.TryGetValue(edge.fromNodeId, out int fromDegree);
+                outgoingDegree[edge.fromNodeId] = fromDegree + 1;
+
+                // A normal authored Link is represented by one baked edge with oneWay=false.
+                // Runtime mirrors it into the reverse adjacency, so count that reverse here too.
+                if (!edge.oneWay)
+                {
+                    outgoingDegree.TryGetValue(edge.toNodeId, out int toDegree);
+                    outgoingDegree[edge.toNodeId] = toDegree + 1;
+                }
+            }
+
+            var entries = new Dictionary<long, string>();
+
+            PopulationPortal[] portals = Object.FindObjectsByType<PopulationPortal>(
+                    FindObjectsInactive.Exclude,
+                    FindObjectsSortMode.None)
+                .Where(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy &&
+                    x.routeMarker != null)
+                .ToArray();
+
+            for (int i = 0; i < portals.Length; ++i)
+            {
+                PopulationPortal portal = portals[i];
+                if (!markerIds.TryGetValue(portal.routeMarker, out long nodeId))
+                    continue;
+
+                if (!entries.ContainsKey(nodeId))
+                    entries.Add(
+                        nodeId,
+                        $"Portal '{HierarchyPath(portal.transform)}' -> Marker '{HierarchyPath(portal.routeMarker.transform)}'");
+            }
+
+            ServerSpawn[] spawns = Object.FindObjectsByType<ServerSpawn>(
+                    FindObjectsInactive.Exclude,
+                    FindObjectsSortMode.None)
+                .Where(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy &&
+                    x.enabledForServer &&
+                    x.routeMarker != null)
+                .ToArray();
+
+            for (int i = 0; i < spawns.Length; ++i)
+            {
+                ServerSpawn spawn = spawns[i];
+                if (!markerIds.TryGetValue(spawn.routeMarker, out long nodeId))
+                    continue;
+
+                if (!entries.ContainsKey(nodeId))
+                    entries.Add(
+                        nodeId,
+                        $"Spawn '{HierarchyPath(spawn.transform)}' -> Marker '{HierarchyPath(spawn.routeMarker.transform)}'");
+            }
+
+            bool valid = true;
+            foreach (KeyValuePair<long, string> entry in entries)
+            {
+                outgoingDegree.TryGetValue(entry.Key, out int degree);
+                if (degree > 0)
+                    continue;
+
+                Debug.LogError(
+                    $"[Server World Bake] Population entry route is orphaned: {entry.Value}. " +
+                    $"Baked nodeId={entry.Key}, outgoingDegree={degree}. " +
+                    "The actor can reach this first node but has no usable baked edge to continue on. " +
+                    "Run Auto Connect Local Routes or add a Link/One Way Outbound Link, then rebake.");
+                valid = false;
+            }
+
+            if (valid && entries.Count > 0)
+            {
+                Debug.Log(
+                    $"[Server World Bake] Population entry-route validation passed: " +
+                    $"entries={entries.Count}, nodes={nodes.Count}, edges={edges.Count}.");
+            }
+
+            return valid;
         }
 
         private static bool TryPopulationMarkerId(
