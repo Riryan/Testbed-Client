@@ -315,29 +315,113 @@ namespace Game.WorldAuthoring.Editor
                 FindObjectsInactive.Include,
                 FindObjectsSortMode.None);
 
+            // Snapshot generated pairs before mutating either endpoint. A generated
+            // bidirectional connection may have been serialized on both markers by an
+            // older authoring pass, while ownership metadata exists on only one endpoint.
+            // Cleaning a generated pair therefore removes that exact pair from BOTH
+            // endpoints and clears reciprocal generated metadata.
+            var pairs = new List<(PopulationRouteMarker A, PopulationRouteMarker B)>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+
             for (int i = 0; i < markers.Length; ++i)
             {
                 PopulationRouteMarker marker = markers[i];
-                if (marker == null || marker.gameObject.scene != scene || marker.generatedLinks == null)
+                if (marker == null ||
+                    marker.gameObject.scene != scene ||
+                    marker.generatedLinks == null)
+                {
+                    continue;
+                }
+
+                for (int g = 0; g < marker.generatedLinks.Count; ++g)
+                {
+                    PopulationRouteMarker target = marker.generatedLinks[g];
+                    if (target == null ||
+                        target == marker ||
+                        target.gameObject.scene != scene)
+                    {
+                        continue;
+                    }
+
+                    string a = marker.BakeId ?? string.Empty;
+                    string b = target.BakeId ?? string.Empty;
+                    string key = string.CompareOrdinal(a, b) <= 0
+                        ? a + "|" + b
+                        : b + "|" + a;
+
+                    if (seen.Add(key))
+                        pairs.Add((marker, target));
+                }
+            }
+
+            for (int i = 0; i < pairs.Count; ++i)
+            {
+                PopulationRouteMarker a = pairs[i].A;
+                PopulationRouteMarker b = pairs[i].B;
+                if (a == null || b == null)
                     continue;
 
-                if (marker.generatedLinks.Count == 0)
-                    continue;
+                Undo.RecordObjects(
+                    new UnityEngine.Object[] { a, b },
+                    "Clean Generated Population Routes");
 
-                Undo.RecordObject(marker, "Clean Generated Population Routes");
+                bool changedA = false;
+                bool changedB = false;
+
+                if (a.links != null && a.links.Remove(b))
+                {
+                    removed++;
+                    changedA = true;
+                }
+
+                if (b.links != null && b.links.Remove(a))
+                {
+                    removed++;
+                    changedB = true;
+                }
+
+                if (a.generatedLinks != null && a.generatedLinks.Remove(b))
+                    changedA = true;
+
+                if (b.generatedLinks != null && b.generatedLinks.Remove(a))
+                    changedB = true;
+
+                if (changedA)
+                    EditorUtility.SetDirty(a);
+                if (changedB)
+                    EditorUtility.SetDirty(b);
+            }
+
+            // Prune stale/null generated metadata that did not form a valid pair.
+            for (int i = 0; i < markers.Length; ++i)
+            {
+                PopulationRouteMarker marker = markers[i];
+                if (marker == null ||
+                    marker.gameObject.scene != scene ||
+                    marker.generatedLinks == null)
+                {
+                    continue;
+                }
+
                 bool changed = false;
                 for (int g = marker.generatedLinks.Count - 1; g >= 0; --g)
                 {
                     PopulationRouteMarker target = marker.generatedLinks[g];
-                    if (target != null && marker.links.Remove(target))
-                        removed++;
-                    marker.generatedLinks.RemoveAt(g);
-                    changed = true;
+                    if (target == null ||
+                        target == marker ||
+                        target.gameObject.scene != scene)
+                    {
+                        if (!changed)
+                            Undo.RecordObject(marker, "Clean Generated Population Routes");
+                        marker.generatedLinks.RemoveAt(g);
+                        changed = true;
+                    }
                 }
 
                 if (changed)
                     EditorUtility.SetDirty(marker);
             }
+
             return removed;
         }
 
