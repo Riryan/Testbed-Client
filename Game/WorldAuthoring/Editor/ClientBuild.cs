@@ -14,7 +14,6 @@ namespace Game.WorldAuthoring.Editor
         private const string OutputPref = "MMO.ClientBuild.Output";
         private string outputPath;
         private bool rebuildNavMesh = true;
-        private float populationAutoLinkRadius = 8f;
         private float populationPortalMarkerRadius = 12f;
         private Vector2 scroll;
 
@@ -51,8 +50,8 @@ namespace Game.WorldAuthoring.Editor
             EditorGUILayout.Space(6);
             EditorGUILayout.LabelField("Population Routes", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Auto-connect creates only replaceable generated links. Manual links are preserved. " +
-                "Candidates must be local, mutually near, directionally sensible, directly reachable on Unity NavMesh, and unobstructed at torso height.",
+                "Auto-connect materializes each Population Route Path in child order as explicit marker Links. " +
+                "Consecutive markers must have clear line of sight. Manual links are preserved; generated path links are replaceable.",
                 MessageType.None);
 
             populationPortalMarkerRadius = EditorGUILayout.Slider(
@@ -73,14 +72,12 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            populationAutoLinkRadius = EditorGUILayout.Slider("Auto Link Radius", populationAutoLinkRadius, 2f, 30f);
-
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Auto Connect Local Routes"))
+                if (GUILayout.Button("Build Route Path Links"))
                 {
                     if (PopulationRouteAuthoringTools.AutoConnectActiveScene(
-                            populationAutoLinkRadius,
+                            0f,
                             out int added,
                             out int removed))
                     {

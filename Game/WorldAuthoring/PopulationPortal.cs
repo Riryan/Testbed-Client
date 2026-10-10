@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Game.Shared.Population;
 using UnityEngine;
 
@@ -22,8 +23,10 @@ namespace Game.WorldAuthoring
         public PopulationNpcTypeMask allowedNpcTypes = PopulationNpcTypeMask.All;
 
         [Header("Route")]
-        [Tooltip("Road/sidewalk marker attached to this entrance.")]
+        [Tooltip("Closest/primary road or sidewalk marker for spawning onto the route network.")]
         public PopulationRouteMarker routeMarker;
+        [Tooltip("Additional nearby route markers with clear authored line of sight to this portal. Rebuilt explicitly by the Build Client scan button.")]
+        public List<PopulationRouteMarker> nearbyRouteMarkers = new List<PopulationRouteMarker>();
 
         // Legacy serialized doorway-sequence authoring retained only so existing scenes
         // deserialize safely. The current Population bake/runtime uses this component's own
@@ -107,8 +110,20 @@ namespace Game.WorldAuthoring
         {
             Gizmos.color = new Color(0.75f, 0.25f, 1f, 0.9f);
             Gizmos.DrawWireSphere(transform.position, 0.24f);
+
             if (routeMarker != null)
                 Gizmos.DrawLine(transform.position, routeMarker.transform.position);
+
+            if (nearbyRouteMarkers == null)
+                return;
+
+            for (int i = 0; i < nearbyRouteMarkers.Count; ++i)
+            {
+                PopulationRouteMarker marker = nearbyRouteMarkers[i];
+                if (marker == null || marker == routeMarker)
+                    continue;
+                Gizmos.DrawLine(transform.position, marker.transform.position);
+            }
         }
     }
 }

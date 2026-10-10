@@ -114,11 +114,7 @@ namespace Game.WorldAuthoring.Editor
 
             PopulationPortal portal = root.AddComponent<PopulationPortal>();
             portal.routeMarker = marker;
-            portal.exterior = CreatePoint(root.transform, "Exterior", 0f);
-            portal.threshold = CreatePoint(root.transform, "Threshold", -0.4f);
-            portal.interaction = CreatePoint(root.transform, "Interaction", -0.8f);
-            portal.approach = CreatePoint(root.transform, "Approach", -1.3f);
-            portal.interiorSpawn = CreatePoint(root.transform, "Interior Spawn", -1.8f);
+            portal.nearbyRouteMarkers.Add(marker);
             Selection.activeGameObject = root;
         }
 
@@ -184,19 +180,12 @@ namespace Game.WorldAuthoring.Editor
                     x.gameObject.activeInHierarchy)
                 .ToArray();
 
-            if (portals.Length == 0)
-                return true;
-
             float maxSq = maximumDistance * maximumDistance;
             for (int p = 0; p < portals.Length; ++p)
             {
                 PopulationPortal portal = portals[p];
-                if (portal.routeMarker != null)
-                    continue;
-
-                PopulationRouteMarker best = null;
-                float bestSq = float.PositiveInfinity;
                 Vector3 from = portal.transform.position;
+                var visible = new List<(PopulationRouteMarker Marker, float DistanceSq)>();
 
                 for (int m = 0; m < markers.Length; ++m)
                 {
@@ -206,40 +195,68 @@ namespace Game.WorldAuthoring.Editor
 
                     Vector3 delta = marker.transform.position - from;
                     float horizontalSq = delta.x * delta.x + delta.z * delta.z;
-                    if (horizontalSq > maxSq || horizontalSq >= bestSq)
+                    if (horizontalSq > maxSq)
                         continue;
 
-                    // Portal marker discovery is intentionally geometric only.
-                    // Doorways often have a door/wall collider between the portal anchor and
-                    // the sidewalk marker, so route-style NavMesh/corridor rejection is too
-                    // strict here. Authoritative walkability is validated by Server World Bake.
-                    best = marker;
-                    bestSq = horizontalSq;
+                    if (!HasPortalMarkerLineOfSight(portal, marker))
+                        continue;
+
+                    visible.Add((marker, horizontalSq));
                 }
 
-                if (best == null)
+                visible.Sort((a, b) => a.DistanceSq.CompareTo(b.DistanceSq));
+
+                Undo.RecordObject(portal, "Scan Population Portal Route Markers");
+                portal.nearbyRouteMarkers ??= new List<PopulationRouteMarker>();
+                portal.nearbyRouteMarkers.Clear();
+
+                if (visible.Count == 0)
                 {
+                    portal.routeMarker = null;
+                    EditorUtility.SetDirty(portal);
                     unresolved++;
                     continue;
                 }
 
-                Undo.RecordObject(portal, "Assign Population Portal Route Marker");
-                portal.routeMarker = best;
+                portal.routeMarker = visible[0].Marker;
+                for (int i = 0; i < visible.Count; ++i)
+                    portal.nearbyRouteMarkers.Add(visible[i].Marker);
+
                 EditorUtility.SetDirty(portal);
                 assigned++;
             }
 
-            if (assigned > 0)
+            if (portals.Length > 0)
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
 
             PopulationSpawnAuthoringSummary.MarkDirty();
             SceneView.RepaintAll();
 
             Debug.Log(
-                $"[Population Authoring] Portal route-marker scan complete: assigned={assigned}, " +
-                $"unresolved={unresolved}, radius={maximumDistance:0.##}m.");
+                $"[Population Authoring] Portal route-marker scan complete: portals={portals.Length}, " +
+                $"assigned={assigned}, unresolved={unresolved}, radius={maximumDistance:0.##}m.");
 
             return true;
+        }
+
+        private static bool HasPortalMarkerLineOfSight(
+            PopulationPortal portal,
+            PopulationRouteMarker marker)
+        {
+            Vector3 from = portal.transform.position + Vector3.up * 1.2f;
+            Vector3 to = marker.transform.position + Vector3.up * 1.2f;
+
+            if (!Physics.Linecast(from, to, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+                return true;
+
+            Transform hitTransform = hit.collider != null ? hit.collider.transform : null;
+            if (hitTransform == null)
+                return true;
+
+            return hitTransform == portal.transform ||
+                   hitTransform == marker.transform ||
+                   hitTransform.IsChildOf(portal.transform) ||
+                   hitTransform.IsChildOf(marker.transform);
         }
 
         public static bool AutoConnectActiveScene(
@@ -248,7 +265,7 @@ namespace Game.WorldAuthoring.Editor
             out int removed)
         {
             added = 0;
-            removed = 0;
+            removed = CleanGeneratedLinks(SceneManager.GetActiveScene());
 
             Scene scene = SceneManager.GetActiveScene();
             if (!scene.IsValid() || !scene.isLoaded)
@@ -257,98 +274,73 @@ namespace Game.WorldAuthoring.Editor
                 return false;
             }
 
-            maximumDistance = Mathf.Clamp(maximumDistance, 2f, 30f);
-            removed = CleanGeneratedLinks(scene);
-
-            PopulationRouteMarker[] markers = Object.FindObjectsByType<PopulationRouteMarker>(
+            PopulationRoutePath[] paths = Object.FindObjectsByType<PopulationRoutePath>(
                     FindObjectsInactive.Exclude,
                     FindObjectsSortMode.None)
-                .Where(x => x != null && x.gameObject.scene == scene && x.gameObject.activeInHierarchy)
-                .OrderBy(x => x.BakeId, StringComparer.Ordinal)
+                .Where(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy)
+                .OrderBy(x => AuthoringPath(x.transform), StringComparer.Ordinal)
                 .ToArray();
 
-            if (markers.Length < 2)
-                return true;
+            int blocked = 0;
+            int usablePaths = 0;
 
-            var neighbors = BuildExistingNeighbors(markers);
-
-            var candidatesByMarker = new Dictionary<PopulationRouteMarker, List<Candidate>>(markers.Length);
-            var pairCandidates = new List<PairCandidate>(markers.Length * 3);
-
-            for (int i = 0; i < markers.Length; ++i)
+            for (int p = 0; p < paths.Length; ++p)
             {
-                PopulationRouteMarker a = markers[i];
-                var list = new List<Candidate>(8);
-                candidatesByMarker[a] = list;
+                PopulationRoutePath path = paths[p];
+                var ordered = new List<PopulationRouteMarker>(path.transform.childCount);
 
-                for (int j = i + 1; j < markers.Length; ++j)
+                for (int c = 0; c < path.transform.childCount; ++c)
                 {
-                    PopulationRouteMarker b = markers[j];
-                    if (AreAlreadyNeighbors(neighbors, a, b))
-                        continue;
-
-                    Vector3 delta = b.transform.position - a.transform.position;
-                    float horizontalSq = delta.x * delta.x + delta.z * delta.z;
-                    if (horizontalSq > maximumDistance * maximumDistance || horizontalSq < 0.04f)
-                        continue;
-
-                    float distance = Mathf.Sqrt(horizontalSq);
-                    if (!IsDirectAuthoringCorridorClear(a, b, maximumDistance))
-                        continue;
-
-                    list.Add(new Candidate(b, distance));
-                    if (!candidatesByMarker.TryGetValue(b, out List<Candidate> reverse))
+                    Transform child = path.transform.GetChild(c);
+                    if (child != null &&
+                        child.gameObject.activeInHierarchy &&
+                        child.TryGetComponent(out PopulationRouteMarker marker))
                     {
-                        reverse = new List<Candidate>(8);
-                        candidatesByMarker[b] = reverse;
+                        ordered.Add(marker);
                     }
-                    reverse.Add(new Candidate(a, distance));
-                    pairCandidates.Add(new PairCandidate(a, b, distance));
                 }
-            }
 
-            foreach (List<Candidate> list in candidatesByMarker.Values)
-                list.Sort((x, y) => x.Distance.CompareTo(y.Distance));
-            pairCandidates.Sort((x, y) => x.Distance.CompareTo(y.Distance));
+                if (ordered.Count < 2)
+                    continue;
 
-            for (int i = 0; i < pairCandidates.Count; ++i)
-            {
-                PairCandidate pair = pairCandidates[i];
-                int maxA = MaxAutomaticDegree(pair.A);
-                int maxB = MaxAutomaticDegree(pair.B);
+                usablePaths++;
 
-                if (NeighborCount(neighbors, pair.A) >= maxA ||
-                    NeighborCount(neighbors, pair.B) >= maxB)
+                for (int i = 0; i < ordered.Count - 1; ++i)
                 {
-                    continue;
+                    PopulationRouteMarker from = ordered[i];
+                    PopulationRouteMarker to = ordered[i + 1];
+
+                    if (!HasRouteMarkerLineOfSight(from, to))
+                    {
+                        blocked++;
+                        Debug.LogWarning(
+                            $"[Population Authoring] Route Path '{AuthoringPath(path.transform)}' " +
+                            $"cannot connect '{AuthoringPath(from.transform)}' -> '{AuthoringPath(to.transform)}' " +
+                            "because line of sight is blocked.");
+                        continue;
+                    }
+
+                    bool alreadyLinked =
+                        (from.links != null && from.links.Contains(to)) ||
+                        (to.links != null && to.links.Contains(from));
+
+                    if (alreadyLinked)
+                        continue;
+
+                    Undo.RecordObject(from, "Materialize Population Route Path");
+                    from.links ??= new List<PopulationRouteMarker>();
+                    from.generatedLinks ??= new List<PopulationRouteMarker>();
+
+                    from.links.Add(to);
+                    if (!from.generatedLinks.Contains(to))
+                        from.generatedLinks.Add(to);
+
+                    EditorUtility.SetDirty(from);
+                    added++;
                 }
-
-                if (!IsMutualNearest(pair, candidatesByMarker, maxA, maxB))
-                    continue;
-
-                if (!DirectionAllows(pair.A, pair.B, neighbors) ||
-                    !DirectionAllows(pair.B, pair.A, neighbors))
-                {
-                    continue;
-                }
-
-                PopulationRouteMarker owner =
-                    string.CompareOrdinal(pair.A.BakeId, pair.B.BakeId) <= 0
-                        ? pair.A
-                        : pair.B;
-                PopulationRouteMarker target = owner == pair.A ? pair.B : pair.A;
-
-                Undo.RecordObject(owner, "Auto Connect Population Routes");
-                if (!owner.links.Contains(target))
-                    owner.links.Add(target);
-                owner.generatedLinks ??= new List<PopulationRouteMarker>();
-                if (!owner.generatedLinks.Contains(target))
-                    owner.generatedLinks.Add(target);
-                EditorUtility.SetDirty(owner);
-
-                AddNeighbor(neighbors, pair.A, pair.B);
-                AddNeighbor(neighbors, pair.B, pair.A);
-                added++;
             }
 
             if (added > 0 || removed > 0)
@@ -356,10 +348,33 @@ namespace Game.WorldAuthoring.Editor
 
             PopulationSpawnAuthoringSummary.MarkDirty();
             SceneView.RepaintAll();
+
             Debug.Log(
-                $"[Population Authoring] Local auto-connect complete: added={added}, " +
-                $"replacedGenerated={removed}, radius={maximumDistance:0.##}m.");
-            return true;
+                $"[Population Authoring] Route-path materialization complete: " +
+                $"paths={usablePaths}, added={added}, replacedGenerated={removed}, blockedByLOS={blocked}. " +
+                "Topology now follows PopulationRoutePath child order and is stored as explicit marker Links.");
+
+            return blocked == 0;
+        }
+
+        private static bool HasRouteMarkerLineOfSight(
+            PopulationRouteMarker a,
+            PopulationRouteMarker b)
+        {
+            Vector3 from = a.transform.position + Vector3.up * 1.2f;
+            Vector3 to = b.transform.position + Vector3.up * 1.2f;
+
+            if (!Physics.Linecast(from, to, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+                return true;
+
+            Transform hitTransform = hit.collider != null ? hit.collider.transform : null;
+            if (hitTransform == null)
+                return true;
+
+            return hitTransform == a.transform ||
+                   hitTransform == b.transform ||
+                   hitTransform.IsChildOf(a.transform) ||
+                   hitTransform.IsChildOf(b.transform);
         }
 
         public static int CleanGeneratedLinksActiveScene()
@@ -603,68 +618,6 @@ namespace Game.WorldAuthoring.Editor
             return true;
         }
 
-        private static bool IsMutualNearest(
-            PairCandidate pair,
-            Dictionary<PopulationRouteMarker, List<Candidate>> candidates,
-            int maxA,
-            int maxB)
-        {
-            return CandidateRank(pair.A, pair.B, candidates) < maxA &&
-                   CandidateRank(pair.B, pair.A, candidates) < maxB;
-        }
-
-        private static int CandidateRank(
-            PopulationRouteMarker from,
-            PopulationRouteMarker target,
-            Dictionary<PopulationRouteMarker, List<Candidate>> candidates)
-        {
-            if (!candidates.TryGetValue(from, out List<Candidate> list))
-                return int.MaxValue;
-
-            for (int i = 0; i < list.Count; ++i)
-                if (list[i].Marker == target)
-                    return i;
-            return int.MaxValue;
-        }
-
-        private static bool DirectionAllows(
-            PopulationRouteMarker from,
-            PopulationRouteMarker to,
-            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors)
-        {
-            if (!neighbors.TryGetValue(from, out HashSet<PopulationRouteMarker> existing) ||
-                existing.Count == 0)
-            {
-                return true;
-            }
-
-            Vector3 newDirection = to.transform.position - from.transform.position;
-            newDirection.y = 0f;
-            if (newDirection.sqrMagnitude <= 0.0001f)
-                return false;
-            newDirection.Normalize();
-
-            float minimumAngle = from.branchNode
-                ? 35f
-                : 100f;
-
-            foreach (PopulationRouteMarker neighbor in existing)
-            {
-                if (neighbor == null)
-                    continue;
-                Vector3 direction = neighbor.transform.position - from.transform.position;
-                direction.y = 0f;
-                if (direction.sqrMagnitude <= 0.0001f)
-                    continue;
-                direction.Normalize();
-
-                if (Vector3.Angle(newDirection, direction) < minimumAngle)
-                    return false;
-            }
-
-            return true;
-        }
-
         private static int MaxAutomaticDegree(PopulationRouteMarker marker) =>
             marker != null && marker.branchNode
                 ? 4
@@ -694,6 +647,22 @@ namespace Game.WorldAuthoring.Editor
                 neighbors.Add(from, set);
             }
             set.Add(to);
+        }
+
+        private static string AuthoringPath(Transform transform)
+        {
+            if (transform == null)
+                return "<null>";
+
+            var parts = new Stack<string>();
+            Transform current = transform;
+            while (current != null)
+            {
+                parts.Push(current.name);
+                current = current.parent;
+            }
+
+            return string.Join("/", parts);
         }
 
         private static PopulationRoutePath ResolveSelectedPath()
@@ -754,14 +723,5 @@ namespace Game.WorldAuthoring.Editor
             return true;
         }
 
-        private static Transform CreatePoint(Transform parent, string name, float localZ)
-        {
-            var point = new GameObject(name);
-            Undo.RegisterCreatedObjectUndo(point, $"Create {name}");
-            Undo.SetTransformParent(point.transform, parent, $"Parent {name}");
-            point.transform.localPosition = new Vector3(0f, 0f, localZ);
-            point.transform.localRotation = Quaternion.identity;
-            return point.transform;
-        }
     }
 }

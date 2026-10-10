@@ -19667,7 +19667,7 @@ MonoBehaviour:
     equipmentDriven: 0
     mirrorSlotId: 0
     mirrorPrimary: 1
-    defaultOptionId: 29650
+    defaultOptionId: 65010
     options:
     - optionId: 48209
       pairId: 30597
@@ -24749,6 +24749,167 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 1
+      paletteCells: []
+      paletteReviewConfirmed: 0
+      paletteReviewFingerprint: 
+      paletteScanSignature: 
+      accessTier: 0
+      factionRestricted: 0
+      requiredFaction: 1
+      thumbnail: {fileID: 0}
+      thumbnailFingerprint: 
+    - optionId: 65010
+      pairId: 0
+      displayName: Nude Torso
+      rendererPath: Assets/Game/SIDEKICK NUDE_WITH_SHAPEKEYS.fbx/SK_NUDE_01_10TORS_HU01
+      mesh: {fileID: -1593158790554829299, guid: cecff0098564a7841ac7a569a91d179d, type: 3}
+      materials:
+      - {fileID: 6794895884373327, guid: cecff0098564a7841ac7a569a91d179d, type: 3}
+      rootBonePath: root
+      bonePaths:
+      - root
+      - root/pelvis
+      - root/pelvis/hipAttachFront
+      - root/pelvis/hipAttachFront
+      - root/pelvis/hipAttach_l
+      - root/pelvis/hipAttach_l
+      - root/pelvis/hipAttachBack
+      - root/pelvis/hipAttachBack
+      - root/pelvis/hipAttach_r
+      - root/pelvis/hipAttach_r
+      - root/pelvis/thigh_l
+      - root/pelvis/thigh_l/thigh_twist_01_l
+      - root/pelvis/thigh_l/thigh_twist_01_l
+      - root/pelvis/thigh_l/calf_l
+      - root/pelvis/thigh_l/calf_l/calf_twist_01_l
+      - root/pelvis/thigh_l/calf_l/calf_twist_01_l
+      - root/pelvis/thigh_l/calf_l/foot_l
+      - root/pelvis/thigh_l/calf_l/foot_l/ball_l
+      - root/pelvis/thigh_l/calf_l/foot_l/ball_l
+      - root/pelvis/thigh_l/calf_l/kneeAttach_l
+      - root/pelvis/thigh_l/calf_l/kneeAttach_l
+      - root/pelvis/thigh_r
+      - root/pelvis/thigh_r/thigh_twist_01_r
+      - root/pelvis/thigh_r/thigh_twist_01_r
+      - root/pelvis/thigh_r/calf_r
+      - root/pelvis/thigh_r/calf_r/calf_twist_01_r
+      - root/pelvis/thigh_r/calf_r/calf_twist_01_r
+      - root/pelvis/thigh_r/calf_r/foot_r
+      - root/pelvis/thigh_r/calf_r/foot_r/ball_r
+      - root/pelvis/thigh_r/calf_r/foot_r/ball_r
+      - root/pelvis/thigh_r/calf_r/kneeAttach_r
+      - root/pelvis/thigh_r/calf_r/kneeAttach_r
+      - root/pelvis/spine_01
+      - root/pelvis/spine_01/spine_02
+      - root/pelvis/spine_01/spine_02/spine_03
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/headAttach
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/headAttach
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/jaw
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/jaw
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/faceAttach
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/faceAttach
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eye_l
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eye_l
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eyeLight_l
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eyeLight_l
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eye_r
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eye_r
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eyeLight_r
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eyeLight_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/upperarm_twist_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/upperarm_twist_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/lowerarm_twist_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/lowerarm_twist_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l/index_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l/index_02_l/index_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l/index_02_l/index_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l/middle_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l/middle_02_l/middle_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l/middle_02_l/middle_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l/ring_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l/ring_02_l/ring_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l/ring_02_l/ring_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l/pinky_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l/pinky_02_l/pinky_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l/pinky_02_l/pinky_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l/thumb_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l/thumb_02_l/thumb_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l/thumb_02_l/thumb_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/prop_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/prop_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/elbowAttach_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/elbowAttach_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/shoulderAttach_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/shoulderAttach_l
+      - root/pelvis/spine_01/spine_02/spine_03/backAttach
+      - root/pelvis/spine_01/spine_02/spine_03/backAttach
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/upperarm_twist_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/upperarm_twist_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/lowerarm_twist_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/lowerarm_twist_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r/index_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r/index_02_r/index_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r/index_02_r/index_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r/middle_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r/middle_02_r/middle_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r/middle_02_r/middle_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r/ring_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r/ring_02_r/ring_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r/ring_02_r/ring_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r/pinky_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r/pinky_02_r/pinky_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r/pinky_02_r/pinky_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r/thumb_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r/thumb_02_r/thumb_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r/thumb_02_r/thumb_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/prop_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/prop_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/elbowAttach_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/elbowAttach_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/shoulderAttach_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/shoulderAttach_r
+      - root/ik_hand_root
+      - root/ik_hand_root/ik_hand_gun
+      - root/ik_hand_root/ik_hand_gun/ik_hand_l
+      - root/ik_hand_root/ik_hand_gun/ik_hand_l
+      - root/ik_hand_root/ik_hand_gun/ik_hand_r
+      - root/ik_hand_root/ik_hand_gun/ik_hand_r
+      - root/ik_foot_root
+      - root/ik_foot_root/ik_foot_l
+      - root/ik_foot_root/ik_foot_l
+      - root/ik_foot_root/ik_foot_r
+      - root/ik_foot_root/ik_foot_r
+      localPosition: {x: -0.000000018101709, y: -0.0000000017896805, z: 0.0000000101496695}
+      localRotation: {x: -0.000000037749494, y: 1.8186118e-12, z: -2.2204459e-16, w: 1}
+      localScale: {x: 1, y: 1, z: 1}
+      localBounds:
+        m_Center: {x: 0.000011861324, y: 1.1915059, z: 0.014777094}
+        m_Extent: {x: 0.30185843, y: 0.35255724, z: 0.28941295}
+      creatorSelectable: 0
+      equipmentDriven: 0
+      usageReviewed: 1
+      playerEligible: 1
+      populationEligible: 0
       paletteCells: []
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
@@ -42540,7 +42701,7 @@ MonoBehaviour:
     equipmentDriven: 0
     mirrorSlotId: 0
     mirrorPrimary: 1
-    defaultOptionId: 33734
+    defaultOptionId: 65017
     options:
     - optionId: 51674
       pairId: 30597
@@ -46990,6 +47151,123 @@ MonoBehaviour:
       usageReviewed: 0
       playerEligible: 1
       populationEligible: 1
+      paletteCells: []
+      paletteReviewConfirmed: 0
+      paletteReviewFingerprint: 
+      paletteScanSignature: 
+      accessTier: 0
+      factionRestricted: 0
+      requiredFaction: 1
+      thumbnail: {fileID: 0}
+      thumbnailFingerprint: 
+    - optionId: 65017
+      pairId: 0
+      displayName: Nude Hips
+      rendererPath: Assets/Game/SIDEKICK NUDE_WITH_SHAPEKEYS.fbx/SK_NUDE_01_17HIPS_HU01
+      mesh: {fileID: -3526675499440864797, guid: cecff0098564a7841ac7a569a91d179d, type: 3}
+      materials:
+      - {fileID: 6794895884373327, guid: cecff0098564a7841ac7a569a91d179d, type: 3}
+      rootBonePath: root
+      bonePaths:
+      - root
+      - root/pelvis
+      - root/pelvis/hipAttachFront
+      - root/pelvis/hipAttach_l
+      - root/pelvis/hipAttachBack
+      - root/pelvis/hipAttach_r
+      - root/pelvis/thigh_l
+      - root/pelvis/thigh_l/thigh_twist_01_l
+      - root/pelvis/thigh_l/calf_l
+      - root/pelvis/thigh_l/calf_l/calf_twist_01_l
+      - root/pelvis/thigh_l/calf_l/foot_l
+      - root/pelvis/thigh_l/calf_l/foot_l/ball_l
+      - root/pelvis/thigh_l/calf_l/kneeAttach_l
+      - root/pelvis/thigh_r
+      - root/pelvis/thigh_r/thigh_twist_01_r
+      - root/pelvis/thigh_r/calf_r
+      - root/pelvis/thigh_r/calf_r/calf_twist_01_r
+      - root/pelvis/thigh_r/calf_r/foot_r
+      - root/pelvis/thigh_r/calf_r/foot_r/ball_r
+      - root/pelvis/thigh_r/calf_r/kneeAttach_r
+      - root/pelvis/spine_01
+      - root/pelvis/spine_01/spine_02
+      - root/pelvis/spine_01/spine_02/spine_03
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/headAttach
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/jaw
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/faceAttach
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eye_l
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eyeLight_l
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eye_r
+      - root/pelvis/spine_01/spine_02/spine_03/neck_01/head/eyeLight_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/upperarm_twist_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/lowerarm_twist_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l/index_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/index_01_l/index_02_l/index_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l/middle_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/middle_01_l/middle_02_l/middle_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l/ring_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/ring_01_l/ring_02_l/ring_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l/pinky_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/pinky_01_l/pinky_02_l/pinky_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l/thumb_02_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/thumb_01_l/thumb_02_l/thumb_03_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/hand_l/prop_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l/elbowAttach_l
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_l/shoulderAttach_l
+      - root/pelvis/spine_01/spine_02/spine_03/backAttach
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/upperarm_twist_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/lowerarm_twist_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r/index_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/index_01_r/index_02_r/index_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r/middle_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/middle_01_r/middle_02_r/middle_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r/ring_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/ring_01_r/ring_02_r/ring_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r/pinky_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/pinky_01_r/pinky_02_r/pinky_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r/thumb_02_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/thumb_01_r/thumb_02_r/thumb_03_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/hand_r/prop_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r/lowerarm_r/elbowAttach_r
+      - root/pelvis/spine_01/spine_02/spine_03/clavicle_r/shoulderAttach_r
+      - root/ik_hand_root
+      - root/ik_hand_root/ik_hand_gun
+      - root/ik_hand_root/ik_hand_gun/ik_hand_l
+      - root/ik_hand_root/ik_hand_gun/ik_hand_r
+      - root/ik_foot_root
+      - root/ik_foot_root/ik_foot_l
+      - root/ik_foot_root/ik_foot_r
+      localPosition: {x: -0, y: 0, z: 0}
+      localRotation: {x: -0.000000037748947, y: 0, z: -0, w: 1}
+      localScale: {x: 1, y: 1, z: 1}
+      localBounds:
+        m_Center: {x: 0.000000029802322, y: 0.6871734, z: -0.02047468}
+        m_Extent: {x: 0.18810567, y: 0.30885094, z: 0.13748479}
+      creatorSelectable: 0
+      equipmentDriven: 0
+      usageReviewed: 1
+      playerEligible: 1
+      populationEligible: 0
       paletteCells: []
       paletteReviewConfirmed: 0
       paletteReviewFingerprint: 
