@@ -1984,7 +1984,6 @@ namespace Game.WorldAuthoring.Editor
                 .ToArray();
             var portalOutput = new List<ServerPopulationPortal>(portalSources.Length);
             var portalIds = new HashSet<long>();
-            var portalRouteNodes = new HashSet<long>();
             for (int i = 0; i < portalSources.Length; ++i)
             {
                 PopulationPortal source = portalSources[i];
@@ -2027,6 +2026,7 @@ namespace Game.WorldAuthoring.Editor
                 }
                 PopulationRouteMarker resolvedRouteMarker = null;
                 long routeNodeId = 0L;
+                var portalNodeIds = new List<long>(8);
 
                 if (source.routeMarker != null)
                 {
@@ -2051,25 +2051,53 @@ namespace Game.WorldAuthoring.Editor
                     {
                         Debug.LogError(
                             $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
-                            "cannot reach its authored Route Marker on the baked movement surface.");
+                            "cannot reach its primary Route Marker on the baked movement surface.");
                         nodes = Array.Empty<ServerPopulationRouteNode>();
                         edges = Array.Empty<ServerPopulationRouteEdge>();
                         portals = Array.Empty<ServerPopulationPortal>();
                         return false;
                     }
+
+                    portalNodeIds.Add(routeNodeId);
                 }
-                else
+
+                if (source.nearbyRouteMarkers != null)
+                {
+                    for (int n = 0; n < source.nearbyRouteMarkers.Count; ++n)
+                    {
+                        PopulationRouteMarker candidate = source.nearbyRouteMarkers[n];
+                        if (candidate == null ||
+                            candidate.gameObject.scene != scene ||
+                            !markerIds.TryGetValue(candidate, out long candidateId) ||
+                            portalNodeIds.Contains(candidateId))
+                        {
+                            continue;
+                        }
+
+                        if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                                portalCollision,
+                                scene,
+                                source.transform.position,
+                                candidate.transform.position))
+                        {
+                            Debug.LogWarning(
+                                $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
+                                $"ignored nearby Route Marker '{HierarchyPath(candidate.transform)}' because the baked movement surface cannot reach it directly.");
+                            continue;
+                        }
+
+                        portalNodeIds.Add(candidateId);
+                    }
+                }
+
+                if (routeNodeId <= 0)
                 {
                     float bestSq = float.PositiveInfinity;
                     for (int m = 0; m < markers.Length; ++m)
                     {
                         PopulationRouteMarker candidate = markers[m];
-                        if (candidate == null ||
-                            !markerIds.TryGetValue(candidate, out long candidateId) ||
-                            portalRouteNodes.Contains(candidateId))
-                        {
+                        if (candidate == null || !markerIds.TryGetValue(candidate, out long candidateId))
                             continue;
-                        }
 
                         Vector3 delta = candidate.transform.position - source.transform.position;
                         float horizontalSq = delta.x * delta.x + delta.z * delta.z;
@@ -2094,23 +2122,20 @@ namespace Game.WorldAuthoring.Editor
                     {
                         Debug.LogError(
                             $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
-                            "has no authored Route Marker and no traversable route node could be resolved automatically.");
+                            "has no primary Route Marker and no traversable route node could be resolved automatically.");
                         nodes = Array.Empty<ServerPopulationRouteNode>();
                         edges = Array.Empty<ServerPopulationRouteEdge>();
                         portals = Array.Empty<ServerPopulationPortal>();
                         return false;
                     }
-                }
 
-                if (!portalRouteNodes.Add(routeNodeId))
+                    if (!portalNodeIds.Contains(routeNodeId))
+                        portalNodeIds.Insert(0, routeNodeId);
+                }
+                else
                 {
-                    Debug.LogError(
-                        $"[Server World Bake] Multiple Population Portals resolve to route node {routeNodeId}. " +
-                        "Assign one portal to a different nearby Route Marker.");
-                    nodes = Array.Empty<ServerPopulationRouteNode>();
-                    edges = Array.Empty<ServerPopulationRouteEdge>();
-                    portals = Array.Empty<ServerPopulationPortal>();
-                    return false;
+                    portalNodeIds.Remove(routeNodeId);
+                    portalNodeIds.Insert(0, routeNodeId);
                 }
 
                 if (!TryResolvePortalBakePose(
@@ -2143,6 +2168,7 @@ namespace Game.WorldAuthoring.Editor
                     threshold = anchor,
                     exterior = anchor,
                     routeNodeId = routeNodeId,
+                    routeNodeIds = portalNodeIds.ToArray(),
                     doorWorldObjectId = 0L,
                     minimumRespawnDelay = Mathf.Max(0f, source.minimumRespawnDelay),
                     maximumRespawnDelay = Mathf.Max(source.minimumRespawnDelay, source.maximumRespawnDelay),
