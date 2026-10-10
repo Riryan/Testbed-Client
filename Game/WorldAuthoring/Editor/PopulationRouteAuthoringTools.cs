@@ -281,7 +281,7 @@ namespace Game.WorldAuthoring.Editor
                     x != null &&
                     x.gameObject.scene == scene &&
                     x.gameObject.activeInHierarchy)
-                .OrderBy(x => HierarchyPath(x.transform), StringComparer.Ordinal)
+                .OrderBy(x => AuthoringPath(x.transform), StringComparer.Ordinal)
                 .ToArray();
 
             int blocked = 0;
@@ -317,8 +317,8 @@ namespace Game.WorldAuthoring.Editor
                     {
                         blocked++;
                         Debug.LogWarning(
-                            $"[Population Authoring] Route Path '{HierarchyPath(path.transform)}' " +
-                            $"cannot connect '{HierarchyPath(from.transform)}' -> '{HierarchyPath(to.transform)}' " +
+                            $"[Population Authoring] Route Path '{AuthoringPath(path.transform)}' " +
+                            $"cannot connect '{AuthoringPath(from.transform)}' -> '{AuthoringPath(to.transform)}' " +
                             "because line of sight is blocked.");
                         continue;
                     }
@@ -647,6 +647,22 @@ namespace Game.WorldAuthoring.Editor
                 neighbors.Add(from, set);
             }
             set.Add(to);
+        }
+
+        private static string AuthoringPath(Transform transform)
+        {
+            if (transform == null)
+                return "<null>";
+
+            var parts = new Stack<string>();
+            Transform current = transform;
+            while (current != null)
+            {
+                parts.Push(current.name);
+                current = current.parent;
+            }
+
+            return string.Join("/", parts);
         }
 
         private static PopulationRoutePath ResolveSelectedPath()
