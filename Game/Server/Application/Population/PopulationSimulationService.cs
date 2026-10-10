@@ -857,7 +857,7 @@ namespace Game.Server.Application.Population
                         pop.SimulationLod = PopulationSimulationLod.Dormant;
                         if (pop.MovementBehavior == SharedAiMovementMode.Route)
                             pop.CurrentNodeId = initialPortal.routeNodeId > 0 ? initialPortal.routeNodeId : pop.CurrentNodeId;
-                        pop.Actor.Position = initialPortal.interiorSpawn.ToWorldPosition();
+                        // Keep the already validated spawn anchor as the safe dormant position.
                         pop.Actor.LastSafePosition = pop.Actor.Position;
                         pop.MotorState = new CharacterMotorState(pop.Actor.Position);
                         pop.DormantUntil = 0d;
@@ -1394,13 +1394,32 @@ namespace Game.Server.Application.Population
                 return;
             }
 
-            ActivatePortalSpawn(pop, portal, now, scheduleImmediately: false);
+            if (!ActivatePortalSpawn(graph, pop, portal, now, scheduleImmediately: false))
+            {
+                pop.PortalRespawnAttempts++;
+                pop.DormantUntil = now + Math.Max(0.25f, portal.blockedRetryDelay);
+            }
         }
 
-        private void ActivatePortalSpawn(PopulationActorRuntime pop, ServerPopulationPortal portal, double now, bool scheduleImmediately)
+        private bool ActivatePortalSpawn(
+            MapGraph graph,
+            PopulationActorRuntime pop,
+            ServerPopulationPortal portal,
+            double now,
+            bool scheduleImmediately)
         {
-            if (pop == null || pop.Actor == null || portal == null)
-                return;
+            if (graph == null || graph.Collision == null || pop == null || pop.Actor == null || portal == null)
+                return false;
+
+            if (!TryValidateBakedPortalPose(
+                    graph,
+                    pop,
+                    portal.interiorSpawn,
+                    requireDynamicClearance: true,
+                    out WorldPosition interior))
+            {
+                return false;
+            }
 
             _portalRespawnsThisTick++;
             RecordPortalRelease(portal, pop, now);
@@ -1408,9 +1427,9 @@ namespace Game.Server.Application.Population
             pop.PortalPhase = PopulationPortalSequencePhase.Interior;
             pop.AiState = PopulationAiState.FollowingRoute;
             pop.RouteReason = PopulationRouteReason.PortalTravel;
-            pop.Actor.Position = portal.interiorSpawn.ToWorldPosition();
-            pop.Actor.LastSafePosition = pop.Actor.Position;
-            pop.MotorState = new CharacterMotorState(pop.Actor.Position);
+            pop.Actor.Position = interior;
+            pop.Actor.LastSafePosition = interior;
+            pop.MotorState = new CharacterMotorState(interior);
             pop.CurrentNodeId = portal.routeNodeId;
             pop.NextNodeId = 0;
             pop.AwaitingPlayerActivation = false;
@@ -1420,6 +1439,7 @@ namespace Game.Server.Application.Population
             Changed?.Invoke(pop);
             if (scheduleImmediately)
                 ScheduleNow(pop, now);
+            return true;
         }
 
         private bool PortalCadenceAllows(ServerPopulationPortal portal, double now, out double nextEligibleAt)
@@ -1488,13 +1508,29 @@ namespace Game.Server.Application.Population
 
         private bool PortalSpawnClear(MapGraph graph, ServerPopulationPortal portal, PopulationActorRuntime pop, IReadOnlyList<PopulationPlayerView> players)
         {
+            if (graph == null || graph.Collision == null || portal == null || pop == null || pop.Actor == null)
+                return false;
+
             WorldPosition exterior = portal.exterior.ToWorldPosition();
-            float radius = Math.Max(0.2f, portal.exitClearanceRadius);
-            if (graph.Collision != null)
+            float radius = Math.Max(Math.Max(0.2f, portal.exitClearanceRadius), pop.CapsuleRadius);
+            float height = Math.Max(pop.CapsuleHeight, radius * 2f);
+            var capsule = new ServerCapsule(radius, height);
+
+            if (!graph.Collision.TryFindGround(
+                    exterior,
+                    radius,
+                    0.25f,
+                    0.35f,
+                    55f,
+                    out ServerGroundHit exteriorGround))
             {
-                var capsule = new ServerCapsule(radius, 1.8f);
-                if (!graph.Collision.IsCapsuleClear(exterior, capsule)) return false;
-                if (!graph.Collision.TryFindGround(exterior, radius, 1f, 2f, 55f, out _)) return false;
+                return false;
+            }
+
+            if (Math.Abs(exteriorGround.Position.Y - exterior.Y) > 0.20f ||
+                !graph.Collision.IsStandingCapsuleClear(exteriorGround.Position, capsule, 55f))
+            {
+                return false;
             }
 
             // Portal density is a Population control. Do not let unrelated authoritative
@@ -1542,25 +1578,64 @@ namespace Game.Server.Application.Population
 
         private void TickPortalExitSequence(PopulationActorRuntime pop, float dt, double now)
         {
-            if (!TryGetGraph(pop.Actor, out MapGraph graph) || !graph.Portals.TryGetValue(pop.LastPortalId, out ServerPopulationPortal portal))
+            if (!TryGetGraph(pop.Actor, out MapGraph graph) ||
+                !graph.Portals.TryGetValue(pop.LastPortalId, out ServerPopulationPortal portal))
             {
                 pop.PortalPhase = PopulationPortalSequencePhase.None;
+                return;
+            }
+
+            if (graph.Collision == null)
+            {
+                FailPortalTraversal(pop, portal, now);
                 return;
             }
 
             ServerPose targetPose;
             switch (pop.PortalPhase)
             {
-                case PopulationPortalSequencePhase.Interior: targetPose = portal.approach; break;
-                case PopulationPortalSequencePhase.Approach: targetPose = portal.interaction; break;
+                case PopulationPortalSequencePhase.Interior:
+                    targetPose = portal.approach;
+                    break;
+                case PopulationPortalSequencePhase.Approach:
+                    targetPose = portal.interaction;
+                    break;
                 case PopulationPortalSequencePhase.Door:
                     if (portal.doorWorldObjectId > 0)
-                        _worldObjects?.TrySetOpenState(pop.Actor.MapId, pop.Actor.InstanceId, portal.doorWorldObjectId, true);
+                    {
+                        if (_worldObjects == null ||
+                            !_worldObjects.TryOpenForSystem(
+                                pop.Actor.MapId,
+                                pop.Actor.InstanceId,
+                                portal.doorWorldObjectId,
+                                out _))
+                        {
+                            FailPortalTraversal(pop, portal, now);
+                            return;
+                        }
+                    }
                     pop.PortalPhase = PopulationPortalSequencePhase.Threshold;
                     return;
-                case PopulationPortalSequencePhase.Threshold: targetPose = portal.threshold; break;
-                case PopulationPortalSequencePhase.Exterior: targetPose = portal.exterior; break;
-                default: pop.PortalPhase = PopulationPortalSequencePhase.None; return;
+                case PopulationPortalSequencePhase.Threshold:
+                    targetPose = portal.threshold;
+                    break;
+                case PopulationPortalSequencePhase.Exterior:
+                    targetPose = portal.exterior;
+                    break;
+                default:
+                    pop.PortalPhase = PopulationPortalSequencePhase.None;
+                    return;
+            }
+
+            if (!TryValidateBakedPortalPose(
+                    graph,
+                    pop,
+                    targetPose,
+                    requireDynamicClearance: false,
+                    out _))
+            {
+                FailPortalTraversal(pop, portal, now);
+                return;
             }
 
             if (MoveTowardPose(graph, pop, targetPose, dt))
@@ -1594,29 +1669,116 @@ namespace Game.Server.Application.Population
 
         private bool MoveTowardPose(MapGraph graph, PopulationActorRuntime pop, ServerPose targetPose, float dt)
         {
+            if (graph == null || graph.Collision == null || pop == null || pop.Actor == null || pop.Motor == null)
+                return false;
+
             WorldPosition target = targetPose.ToWorldPosition();
             float dx = target.X - pop.Actor.Position.X;
             float dz = target.Z - pop.Actor.Position.Z;
             float distSq = dx * dx + dz * dz;
-            if (distSq <= 0.18f * 0.18f)
+            if (distSq <= 0.18f * 0.18f && IsGroundedPortalArrival(graph, pop, target))
             {
-                pop.Actor.YawDegrees = targetPose.yaw;
+                pop.Actor.YawDegrees = NormalizeYaw(targetPose.yaw);
                 return true;
             }
+
             float inv = 1f / MathF.Sqrt(Math.Max(0.0001f, distSq));
-            if (graph.Collision != null)
-            {
-                var intent = new CharacterMovementIntent(dx * inv, dz * inv, false, false);
-                pop.Actor.YawDegrees = NormalizeYaw(targetPose.yaw);
-                pop.Motor.Tick(pop.MotorState, intent, dt, graph.Collision);
-                ApplyMotor(pop);
-            }
-            else
-            {
-                float step = Math.Min(MathF.Sqrt(distSq), pop.WalkSpeed * dt);
-                pop.Actor.Position = new WorldPosition(pop.Actor.Position.X + dx * inv * step, pop.Actor.Position.Y, pop.Actor.Position.Z + dz * inv * step);
-            }
+            var intent = new CharacterMovementIntent(dx * inv, dz * inv, false, false);
+            pop.Actor.YawDegrees = NormalizeYaw(targetPose.yaw);
+            pop.Motor.Tick(pop.MotorState, intent, dt, graph.Collision);
+            ApplyMotor(pop);
             return false;
+        }
+
+        private static bool IsGroundedPortalArrival(MapGraph graph, PopulationActorRuntime pop, WorldPosition target)
+        {
+            if (graph?.Collision == null || pop?.Actor == null)
+                return false;
+
+            float verticalTolerance = Math.Max(0.20f, pop.CapsuleRadius * 0.75f);
+            if (Math.Abs(pop.Actor.Position.Y - target.Y) > verticalTolerance)
+                return false;
+
+            float radius = Math.Max(0.2f, pop.CapsuleRadius);
+            float height = Math.Max(pop.CapsuleHeight, radius * 2f);
+            if (!graph.Collision.TryFindGround(
+                    pop.Actor.Position,
+                    radius,
+                    verticalTolerance,
+                    verticalTolerance + 0.10f,
+                    55f,
+                    out ServerGroundHit ground))
+            {
+                return false;
+            }
+
+            return Math.Abs(ground.Position.Y - target.Y) <= verticalTolerance &&
+                   graph.Collision.IsStandingCapsuleClear(
+                       ground.Position,
+                       new ServerCapsule(radius, height),
+                       55f);
+        }
+
+        private static bool TryValidateBakedPortalPose(
+            MapGraph graph,
+            PopulationActorRuntime pop,
+            ServerPose pose,
+            bool requireDynamicClearance,
+            out WorldPosition grounded)
+        {
+            grounded = default;
+            if (graph?.Collision == null || pop == null)
+                return false;
+
+            WorldPosition authored = pose.ToWorldPosition();
+            float radius = Math.Max(0.2f, pop.CapsuleRadius);
+            float height = Math.Max(pop.CapsuleHeight, radius * 2f);
+
+            if (!graph.Collision.TryFindGround(
+                    authored,
+                    radius,
+                    0.15f,
+                    0.15f,
+                    55f,
+                    out ServerGroundHit ground))
+            {
+                return false;
+            }
+
+            if (Math.Abs(ground.Position.Y - authored.Y) > 0.10f)
+                return false;
+
+            if (requireDynamicClearance &&
+                !graph.Collision.IsStandingCapsuleClear(
+                    ground.Position,
+                    new ServerCapsule(radius, height),
+                    55f))
+            {
+                return false;
+            }
+
+            grounded = ground.Position;
+            return true;
+        }
+
+        private void FailPortalTraversal(PopulationActorRuntime pop, ServerPopulationPortal portal, double now)
+        {
+            if (pop == null || pop.Actor == null || portal == null)
+                return;
+
+            pop.PortalRespawnAttempts++;
+            pop.PortalPhase = PopulationPortalSequencePhase.None;
+            pop.AiState = PopulationAiState.PortalDormant;
+            pop.SimulationLod = PopulationSimulationLod.Dormant;
+            pop.RouteReason = PopulationRouteReason.PortalTravel;
+            pop.NextNodeId = 0;
+            pop.Actor.VelocityX = pop.Actor.VelocityY = pop.Actor.VelocityZ = 0f;
+
+            WorldPosition safe = pop.Actor.LastSafePosition;
+            pop.Actor.Position = safe;
+            pop.MotorState = new CharacterMotorState(safe);
+            pop.DormantUntil = now + Math.Max(0.25f, portal.blockedRetryDelay);
+            ParkForPlayerActivation(pop, portal.exterior.ToWorldPosition(), now);
         }
 
         private bool EnsureNextNode(MapGraph graph, PopulationActorRuntime pop)
@@ -1884,7 +2046,11 @@ namespace Game.Server.Application.Population
                 return;
             }
 
-            ActivatePortalSpawn(pop, portal, now, scheduleImmediately: true);
+            if (!ActivatePortalSpawn(graph, pop, portal, now, scheduleImmediately: true))
+            {
+                pop.PortalRespawnAttempts++;
+                pop.DormantUntil = now + Math.Max(0.25f, portal.blockedRetryDelay);
+            }
         }
 
         private void WakeImmediately(PopulationActorRuntime pop, double now, bool catchUp)

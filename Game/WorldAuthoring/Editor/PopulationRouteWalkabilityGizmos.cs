@@ -349,7 +349,7 @@ namespace Game.WorldAuthoring.Editor
                 invalidCount++;
         }
 
-        private static bool SegmentTraversable(
+        internal static bool SegmentTraversable(
             ServerCollisionWorld world,
             Scene scene,
             Vector3 from,

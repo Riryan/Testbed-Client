@@ -25,6 +25,12 @@ namespace Game.WorldAuthoring
         [Tooltip("Explicit one-way travel FROM this marker TO the linked marker.")]
         public List<PopulationRouteMarker> oneWayOutboundLinks = new List<PopulationRouteMarker>();
 
+        // Editor-owned bookkeeping for replaceable auto-generated bidirectional links.
+        // Manual links remain in 'links' without appearing here and are never removed by
+        // Clean Generated Route Links.
+        [SerializeField, HideInInspector]
+        public List<PopulationRouteMarker> generatedLinks = new List<PopulationRouteMarker>();
+
         [Header("Route Shape")]
         [Min(0.5f)] public float pathWidth = 2.5f;
         [Min(0.01f)] public float routeWeight = 1f;
@@ -71,6 +77,7 @@ namespace Game.WorldAuthoring
             destinationGroup = string.IsNullOrWhiteSpace(destinationGroup) ? string.Empty : destinationGroup.Trim();
             links ??= new List<PopulationRouteMarker>();
             oneWayOutboundLinks ??= new List<PopulationRouteMarker>();
+            generatedLinks ??= new List<PopulationRouteMarker>();
         }
 
         private void EnsureBakeId()

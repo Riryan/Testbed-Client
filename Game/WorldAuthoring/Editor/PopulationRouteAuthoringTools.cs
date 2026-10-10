@@ -1,8 +1,13 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Game.Shared.Actors;
 using Game.Shared.World;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.AI;
+using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 
 namespace Game.WorldAuthoring.Editor
 {
@@ -62,6 +67,8 @@ namespace Game.WorldAuthoring.Editor
             Undo.RecordObject(to, "Connect Population Markers");
             from.oneWayOutboundLinks.Remove(to);
             to.oneWayOutboundLinks.Remove(from);
+            from.generatedLinks?.Remove(to);
+            to.generatedLinks?.Remove(from);
             if (!from.links.Contains(to) && !to.links.Contains(from))
                 from.links.Add(to);
             EditorUtility.SetDirty(from);
@@ -78,6 +85,8 @@ namespace Game.WorldAuthoring.Editor
             Undo.RecordObject(to, "Connect Population Markers One Way");
             from.links.Remove(to);
             to.links.Remove(from);
+            from.generatedLinks?.Remove(to);
+            to.generatedLinks?.Remove(from);
             to.oneWayOutboundLinks.Remove(from);
             if (!from.oneWayOutboundLinks.Contains(to))
                 from.oneWayOutboundLinks.Add(to);
@@ -138,6 +147,398 @@ namespace Game.WorldAuthoring.Editor
             spawn.routeMarker = portal.routeMarker;
             spawn.populationPortal = portal;
             Selection.activeGameObject = go;
+        }
+
+        public static bool AutoConnectActiveScene(
+            float maximumDistance,
+            out int added,
+            out int removed)
+        {
+            added = 0;
+            removed = 0;
+
+            Scene scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                Debug.LogWarning("[Population Authoring] Active scene is not loaded.");
+                return false;
+            }
+
+            maximumDistance = Mathf.Clamp(maximumDistance, 2f, 30f);
+            removed = CleanGeneratedLinks(scene);
+
+            PopulationRouteMarker[] markers = Object.FindObjectsByType<PopulationRouteMarker>(
+                    FindObjectsInactive.Exclude,
+                    FindObjectsSortMode.None)
+                .Where(x => x != null && x.gameObject.scene == scene && x.gameObject.activeInHierarchy)
+                .OrderBy(x => x.BakeId, StringComparer.Ordinal)
+                .ToArray();
+
+            if (markers.Length < 2)
+                return true;
+
+            var neighbors = BuildExistingNeighbors(markers);
+            AddImplicitPathNeighbors(scene, neighbors);
+
+            var candidatesByMarker = new Dictionary<PopulationRouteMarker, List<Candidate>>(markers.Length);
+            var pairCandidates = new List<PairCandidate>(markers.Length * 3);
+
+            for (int i = 0; i < markers.Length; ++i)
+            {
+                PopulationRouteMarker a = markers[i];
+                var list = new List<Candidate>(8);
+                candidatesByMarker[a] = list;
+
+                for (int j = i + 1; j < markers.Length; ++j)
+                {
+                    PopulationRouteMarker b = markers[j];
+                    if (AreAlreadyNeighbors(neighbors, a, b))
+                        continue;
+
+                    Vector3 delta = b.transform.position - a.transform.position;
+                    float horizontalSq = delta.x * delta.x + delta.z * delta.z;
+                    if (horizontalSq > maximumDistance * maximumDistance || horizontalSq < 0.04f)
+                        continue;
+
+                    float distance = Mathf.Sqrt(horizontalSq);
+                    if (!IsDirectAuthoringCorridorClear(a, b, maximumDistance))
+                        continue;
+
+                    list.Add(new Candidate(b, distance));
+                    if (!candidatesByMarker.TryGetValue(b, out List<Candidate> reverse))
+                    {
+                        reverse = new List<Candidate>(8);
+                        candidatesByMarker[b] = reverse;
+                    }
+                    reverse.Add(new Candidate(a, distance));
+                    pairCandidates.Add(new PairCandidate(a, b, distance));
+                }
+            }
+
+            foreach (List<Candidate> list in candidatesByMarker.Values)
+                list.Sort((x, y) => x.Distance.CompareTo(y.Distance));
+            pairCandidates.Sort((x, y) => x.Distance.CompareTo(y.Distance));
+
+            for (int i = 0; i < pairCandidates.Count; ++i)
+            {
+                PairCandidate pair = pairCandidates[i];
+                int maxA = MaxAutomaticDegree(pair.A);
+                int maxB = MaxAutomaticDegree(pair.B);
+
+                if (NeighborCount(neighbors, pair.A) >= maxA ||
+                    NeighborCount(neighbors, pair.B) >= maxB)
+                {
+                    continue;
+                }
+
+                if (!IsMutualNearest(pair, candidatesByMarker, maxA, maxB))
+                    continue;
+
+                if (!DirectionAllows(pair.A, pair.B, neighbors) ||
+                    !DirectionAllows(pair.B, pair.A, neighbors))
+                {
+                    continue;
+                }
+
+                PopulationRouteMarker owner =
+                    string.CompareOrdinal(pair.A.BakeId, pair.B.BakeId) <= 0
+                        ? pair.A
+                        : pair.B;
+                PopulationRouteMarker target = owner == pair.A ? pair.B : pair.A;
+
+                Undo.RecordObject(owner, "Auto Connect Population Routes");
+                if (!owner.links.Contains(target))
+                    owner.links.Add(target);
+                owner.generatedLinks ??= new List<PopulationRouteMarker>();
+                if (!owner.generatedLinks.Contains(target))
+                    owner.generatedLinks.Add(target);
+                EditorUtility.SetDirty(owner);
+
+                AddNeighbor(neighbors, pair.A, pair.B);
+                AddNeighbor(neighbors, pair.B, pair.A);
+                added++;
+            }
+
+            if (added > 0 || removed > 0)
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+
+            PopulationSpawnAuthoringSummary.MarkDirty();
+            SceneView.RepaintAll();
+            Debug.Log(
+                $"[Population Authoring] Local auto-connect complete: added={added}, " +
+                $"replacedGenerated={removed}, radius={maximumDistance:0.##}m.");
+            return true;
+        }
+
+        public static int CleanGeneratedLinksActiveScene()
+        {
+            Scene scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded)
+                return 0;
+
+            int removed = CleanGeneratedLinks(scene);
+            if (removed > 0)
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            SceneView.RepaintAll();
+            Debug.Log($"[Population Authoring] Removed {removed} generated route link(s); manual links were preserved.");
+            return removed;
+        }
+
+        private readonly struct Candidate
+        {
+            public readonly PopulationRouteMarker Marker;
+            public readonly float Distance;
+            public Candidate(PopulationRouteMarker marker, float distance)
+            {
+                Marker = marker;
+                Distance = distance;
+            }
+        }
+
+        private readonly struct PairCandidate
+        {
+            public readonly PopulationRouteMarker A;
+            public readonly PopulationRouteMarker B;
+            public readonly float Distance;
+            public PairCandidate(PopulationRouteMarker a, PopulationRouteMarker b, float distance)
+            {
+                A = a;
+                B = b;
+                Distance = distance;
+            }
+        }
+
+        private static int CleanGeneratedLinks(Scene scene)
+        {
+            int removed = 0;
+            PopulationRouteMarker[] markers = Object.FindObjectsByType<PopulationRouteMarker>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+
+            for (int i = 0; i < markers.Length; ++i)
+            {
+                PopulationRouteMarker marker = markers[i];
+                if (marker == null || marker.gameObject.scene != scene || marker.generatedLinks == null)
+                    continue;
+
+                if (marker.generatedLinks.Count == 0)
+                    continue;
+
+                Undo.RecordObject(marker, "Clean Generated Population Routes");
+                bool changed = false;
+                for (int g = marker.generatedLinks.Count - 1; g >= 0; --g)
+                {
+                    PopulationRouteMarker target = marker.generatedLinks[g];
+                    if (target != null && marker.links.Remove(target))
+                        removed++;
+                    marker.generatedLinks.RemoveAt(g);
+                    changed = true;
+                }
+
+                if (changed)
+                    EditorUtility.SetDirty(marker);
+            }
+            return removed;
+        }
+
+        private static Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> BuildExistingNeighbors(
+            PopulationRouteMarker[] markers)
+        {
+            var result = new Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>>(markers.Length);
+            for (int i = 0; i < markers.Length; ++i)
+                result[markers[i]] = new HashSet<PopulationRouteMarker>();
+
+            for (int i = 0; i < markers.Length; ++i)
+            {
+                PopulationRouteMarker marker = markers[i];
+                AddListedNeighbors(marker, marker.links, result);
+                AddListedNeighbors(marker, marker.oneWayOutboundLinks, result);
+            }
+            return result;
+        }
+
+        private static void AddListedNeighbors(
+            PopulationRouteMarker from,
+            List<PopulationRouteMarker> listed,
+            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors)
+        {
+            if (listed == null || !neighbors.TryGetValue(from, out HashSet<PopulationRouteMarker> set))
+                return;
+
+            for (int i = 0; i < listed.Count; ++i)
+            {
+                PopulationRouteMarker to = listed[i];
+                if (to == null || to == from || !neighbors.ContainsKey(to))
+                    continue;
+                set.Add(to);
+                neighbors[to].Add(from);
+            }
+        }
+
+        private static void AddImplicitPathNeighbors(
+            Scene scene,
+            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors)
+        {
+            PopulationRoutePath[] paths = Object.FindObjectsByType<PopulationRoutePath>(
+                FindObjectsInactive.Exclude,
+                FindObjectsSortMode.None);
+            var pathMarkers = new List<PopulationRouteMarker>(64);
+
+            for (int i = 0; i < paths.Length; ++i)
+            {
+                PopulationRoutePath path = paths[i];
+                if (path == null || path.gameObject.scene != scene || !path.connectChildrenInOrder)
+                    continue;
+
+                path.CollectDirectMarkers(pathMarkers);
+                for (int m = 1; m < pathMarkers.Count; ++m)
+                {
+                    AddNeighbor(neighbors, pathMarkers[m - 1], pathMarkers[m]);
+                    AddNeighbor(neighbors, pathMarkers[m], pathMarkers[m - 1]);
+                }
+
+                if (path.loop && pathMarkers.Count > 2)
+                {
+                    AddNeighbor(neighbors, pathMarkers[0], pathMarkers[pathMarkers.Count - 1]);
+                    AddNeighbor(neighbors, pathMarkers[pathMarkers.Count - 1], pathMarkers[0]);
+                }
+            }
+        }
+
+        private static bool IsDirectAuthoringCorridorClear(
+            PopulationRouteMarker a,
+            PopulationRouteMarker b,
+            float maximumDistance)
+        {
+            Vector3 from = a.transform.position;
+            Vector3 to = b.transform.position;
+
+            if (!NavMesh.SamplePosition(from, out NavMeshHit fromHit, 1.25f, NavMesh.AllAreas) ||
+                !NavMesh.SamplePosition(to, out NavMeshHit toHit, 1.25f, NavMesh.AllAreas))
+            {
+                return false;
+            }
+
+            Vector3 navDelta = toHit.position - fromHit.position;
+            navDelta.y = 0f;
+            if (navDelta.sqrMagnitude > maximumDistance * maximumDistance)
+                return false;
+
+            if (NavMesh.Raycast(fromHit.position, toHit.position, out _, NavMesh.AllAreas))
+                return false;
+
+            // NavMesh owns walk support. A torso-height physics line adds a cheap scene-collider
+            // obstruction check without treating the floor/stair tread itself as a blocker.
+            Vector3 rayFrom = fromHit.position + Vector3.up * 1.2f;
+            Vector3 rayTo = toHit.position + Vector3.up * 1.2f;
+            if (Physics.Linecast(rayFrom, rayTo, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+            {
+                Transform hitTransform = hit.collider != null ? hit.collider.transform : null;
+                if (hitTransform != null &&
+                    hitTransform != a.transform &&
+                    hitTransform != b.transform &&
+                    !hitTransform.IsChildOf(a.transform) &&
+                    !hitTransform.IsChildOf(b.transform))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsMutualNearest(
+            PairCandidate pair,
+            Dictionary<PopulationRouteMarker, List<Candidate>> candidates,
+            int maxA,
+            int maxB)
+        {
+            return CandidateRank(pair.A, pair.B, candidates) < maxA &&
+                   CandidateRank(pair.B, pair.A, candidates) < maxB;
+        }
+
+        private static int CandidateRank(
+            PopulationRouteMarker from,
+            PopulationRouteMarker target,
+            Dictionary<PopulationRouteMarker, List<Candidate>> candidates)
+        {
+            if (!candidates.TryGetValue(from, out List<Candidate> list))
+                return int.MaxValue;
+
+            for (int i = 0; i < list.Count; ++i)
+                if (list[i].Marker == target)
+                    return i;
+            return int.MaxValue;
+        }
+
+        private static bool DirectionAllows(
+            PopulationRouteMarker from,
+            PopulationRouteMarker to,
+            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors)
+        {
+            if (!neighbors.TryGetValue(from, out HashSet<PopulationRouteMarker> existing) ||
+                existing.Count == 0)
+            {
+                return true;
+            }
+
+            Vector3 newDirection = to.transform.position - from.transform.position;
+            newDirection.y = 0f;
+            if (newDirection.sqrMagnitude <= 0.0001f)
+                return false;
+            newDirection.Normalize();
+
+            float minimumAngle = from.nodeType == Game.Shared.Population.PopulationNodeType.Intersection
+                ? 35f
+                : 100f;
+
+            foreach (PopulationRouteMarker neighbor in existing)
+            {
+                if (neighbor == null)
+                    continue;
+                Vector3 direction = neighbor.transform.position - from.transform.position;
+                direction.y = 0f;
+                if (direction.sqrMagnitude <= 0.0001f)
+                    continue;
+                direction.Normalize();
+
+                if (Vector3.Angle(newDirection, direction) < minimumAngle)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static int MaxAutomaticDegree(PopulationRouteMarker marker) =>
+            marker != null &&
+            marker.nodeType == Game.Shared.Population.PopulationNodeType.Intersection
+                ? 4
+                : 2;
+
+        private static int NeighborCount(
+            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors,
+            PopulationRouteMarker marker) =>
+            neighbors.TryGetValue(marker, out HashSet<PopulationRouteMarker> set) ? set.Count : 0;
+
+        private static bool AreAlreadyNeighbors(
+            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors,
+            PopulationRouteMarker a,
+            PopulationRouteMarker b) =>
+            neighbors.TryGetValue(a, out HashSet<PopulationRouteMarker> set) && set.Contains(b);
+
+        private static void AddNeighbor(
+            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors,
+            PopulationRouteMarker from,
+            PopulationRouteMarker to)
+        {
+            if (from == null || to == null)
+                return;
+            if (!neighbors.TryGetValue(from, out HashSet<PopulationRouteMarker> set))
+            {
+                set = new HashSet<PopulationRouteMarker>();
+                neighbors.Add(from, set);
+            }
+            set.Add(to);
         }
 
         private static PopulationRoutePath ResolveSelectedPath()

@@ -127,11 +127,27 @@ namespace Game.WorldAuthoring.Editor
 
             if (!ExportInteractables(scene, out ServerWorldInteractableDefinition[] interactables, out ServerDynamicBlocker[] blockers))
                 return false;
+
+            // Validate Population portal traversal against the exact movement/static geometry
+            // being baked. Dynamic door blockers are intentionally excluded here: the doorway
+            // traversal contract represents the passable/open state, while runtime door state
+            // remains authoritative.
+            var portalValidationWorld = new ServerCollisionWorld(new ServerMapSnapshot
+            {
+                mapId = map.MapId,
+                instanceId = map.InstanceId,
+                movementTriangles = supportTriangles,
+                collisionTriangles = triangles.ToArray(),
+                dynamicBlockers = Array.Empty<ServerDynamicBlocker>(),
+            });
+
             // Population authoring is exported before spawns so any deterministic Route Marker
             // duplicate-ID repair is complete before ServerSpawn references are converted to
             // stable route-node IDs.
             if (!ExportPopulation(
                     scene,
+                    map,
+                    portalValidationWorld,
                     out ServerPopulationRouteNode[] populationNodes,
                     out ServerPopulationRouteEdge[] populationEdges,
                     out ServerPopulationPortal[] populationPortals))
@@ -1809,6 +1825,8 @@ namespace Game.WorldAuthoring.Editor
 
         private static bool ExportPopulation(
             Scene scene,
+            ServerMap map,
+            ServerCollisionWorld portalCollision,
             out ServerPopulationRouteNode[] nodes,
             out ServerPopulationRouteEdge[] edges,
             out ServerPopulationPortal[] portals)
@@ -2033,6 +2051,55 @@ namespace Game.WorldAuthoring.Editor
                 long doorWorldObjectId = source.doorWorldObject != null
                     ? StableId(source.doorWorldObject.BakeId)
                     : 0L;
+
+                if (!TryResolvePortalBakePose(
+                        portalCollision, map, source, "Interior Spawn", source.EffectiveInterior, out ServerPose interior) ||
+                    !TryResolvePortalBakePose(
+                        portalCollision, map, source, "Approach", source.EffectiveApproach, out ServerPose approach) ||
+                    !TryResolvePortalBakePose(
+                        portalCollision, map, source, "Interaction", source.EffectiveInteraction, out ServerPose interaction) ||
+                    !TryResolvePortalBakePose(
+                        portalCollision, map, source, "Threshold", source.EffectiveThreshold, out ServerPose threshold) ||
+                    !TryResolvePortalBakePose(
+                        portalCollision, map, source, "Exterior", source.EffectiveExterior, out ServerPose exterior))
+                {
+                    nodes = Array.Empty<ServerPopulationRouteNode>();
+                    edges = Array.Empty<ServerPopulationRouteEdge>();
+                    portals = Array.Empty<ServerPopulationPortal>();
+                    return false;
+                }
+
+                bool portalSegmentsValid =
+                    ValidatePortalTraversalSegment(
+                        portalCollision, scene, source, "Interior -> Approach", interior, approach) &&
+                    ValidatePortalTraversalSegment(
+                        portalCollision, scene, source, "Approach -> Interaction", approach, interaction) &&
+                    ValidatePortalTraversalSegment(
+                        portalCollision, scene, source, "Interaction -> Threshold", interaction, threshold) &&
+                    ValidatePortalTraversalSegment(
+                        portalCollision, scene, source, "Threshold -> Exterior", threshold, exterior);
+
+                bool routeHandoffValid = PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                    portalCollision,
+                    scene,
+                    new Vector3(exterior.x, exterior.y, exterior.z),
+                    source.routeMarker.transform.position);
+
+                if (!routeHandoffValid)
+                {
+                    Debug.LogError(
+                        $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
+                        "cannot traverse from Exterior to its Route Marker on the baked movement surface.");
+                }
+
+                if (!portalSegmentsValid || !routeHandoffValid)
+                {
+                    nodes = Array.Empty<ServerPopulationRouteNode>();
+                    edges = Array.Empty<ServerPopulationRouteEdge>();
+                    portals = Array.Empty<ServerPopulationPortal>();
+                    return false;
+                }
+
                 portalOutput.Add(new ServerPopulationPortal
                 {
                     stableId = id,
@@ -2041,11 +2108,11 @@ namespace Game.WorldAuthoring.Editor
                     portalType = source.portalType,
                     tags = source.tags != PopulationDestinationTag.None ? source.tags : TagsForPopulationPortalType(source.portalType),
                     allowedNpcTypes = source.allowedNpcTypes,
-                    interiorSpawn = Pose(source.EffectiveInterior),
-                    approach = Pose(source.EffectiveApproach),
-                    interaction = Pose(source.EffectiveInteraction),
-                    threshold = Pose(source.EffectiveThreshold),
-                    exterior = Pose(source.EffectiveExterior),
+                    interiorSpawn = interior,
+                    approach = approach,
+                    interaction = interaction,
+                    threshold = threshold,
+                    exterior = exterior,
                     routeNodeId = routeNodeId,
                     doorWorldObjectId = doorWorldObjectId,
                     minimumRespawnDelay = Mathf.Max(0f, source.minimumRespawnDelay),
@@ -2067,6 +2134,68 @@ namespace Game.WorldAuthoring.Editor
             edges = edgeOutput.ToArray();
             portals = portalOutput.ToArray();
             return true;
+        }
+
+        private static bool TryResolvePortalBakePose(
+            ServerCollisionWorld collision,
+            ServerMap map,
+            PopulationPortal portal,
+            string pointName,
+            Transform authored,
+            out ServerPose resolved)
+        {
+            resolved = default;
+            if (collision == null || map == null || portal == null || authored == null)
+            {
+                Debug.LogError(
+                    $"[Server World Bake] Population Portal '{HierarchyPath(portal != null ? portal.transform : null)}' " +
+                    $"has an invalid {pointName} authoring point.");
+                return false;
+            }
+
+            float radius = Mathf.Max(0.2f, map.NavAgentRadius);
+            float height = Mathf.Max(radius * 2f, map.NavAgentHeight);
+            float snap = Mathf.Max(0.65f, map.NavAgentMaxClimb + 0.25f);
+            float slope = Mathf.Clamp(map.NavAgentMaxSlope, 0f, 89f);
+
+            if (!collision.TryValidateSpawn(
+                    Pose(authored),
+                    new ServerCapsule(radius, height),
+                    snap,
+                    slope,
+                    out resolved,
+                    out string detail))
+            {
+                Debug.LogError(
+                    $"[Server World Bake] Population Portal '{HierarchyPath(portal.transform)}' " +
+                    $"{pointName} is not a valid grounded traversal pose: {detail}");
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool ValidatePortalTraversalSegment(
+            ServerCollisionWorld collision,
+            Scene scene,
+            PopulationPortal portal,
+            string segmentName,
+            ServerPose from,
+            ServerPose to)
+        {
+            bool valid = PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                collision,
+                scene,
+                new Vector3(from.x, from.y, from.z),
+                new Vector3(to.x, to.y, to.z));
+
+            if (!valid)
+            {
+                Debug.LogError(
+                    $"[Server World Bake] Population Portal '{HierarchyPath(portal.transform)}' " +
+                    $"segment '{segmentName}' is not directly traversable on the baked movement surface.");
+            }
+            return valid;
         }
 
         private static void AddPathPopulationEdge(

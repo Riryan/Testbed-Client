@@ -14,6 +14,7 @@ namespace Game.WorldAuthoring.Editor
         private const string OutputPref = "MMO.ClientBuild.Output";
         private string outputPath;
         private bool rebuildNavMesh = true;
+        private float populationAutoLinkRadius = 8f;
         private Vector2 scroll;
 
         [MenuItem("Tools/MMO/Build Client")]
@@ -49,7 +50,34 @@ namespace Game.WorldAuthoring.Editor
             EditorGUILayout.Space(6);
             EditorGUILayout.LabelField("Population Routes", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Route walkability is validated only when requested. Scene gizmos only draw cached green/red results and never run collision traversal during repaint.",
+                "Auto-connect creates only replaceable generated links. Manual links are preserved. " +
+                "Candidates must be local, mutually near, directionally sensible, directly reachable on Unity NavMesh, and unobstructed at torso height.",
+                MessageType.None);
+
+            populationAutoLinkRadius = EditorGUILayout.Slider("Auto Link Radius", populationAutoLinkRadius, 2f, 30f);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Auto Connect Local Routes"))
+                {
+                    if (PopulationRouteAuthoringTools.AutoConnectActiveScene(
+                            populationAutoLinkRadius,
+                            out int added,
+                            out int removed))
+                    {
+                        ShowNotification(new GUIContent($"Routes: +{added}, replaced {removed} generated"));
+                    }
+                }
+
+                if (GUILayout.Button("Clean Generated Links"))
+                {
+                    int removed = PopulationRouteAuthoringTools.CleanGeneratedLinksActiveScene();
+                    ShowNotification(new GUIContent($"Removed {removed} generated route links"));
+                }
+            }
+
+            EditorGUILayout.HelpBox(
+                "Route walkability validation is explicit. Scene gizmos only draw cached green/red results and never run collision traversal during repaint.",
                 MessageType.None);
 
             if (GUILayout.Button("Validate Population Routes"))
