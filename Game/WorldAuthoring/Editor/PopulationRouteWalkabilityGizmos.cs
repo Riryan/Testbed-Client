@@ -120,33 +120,6 @@ namespace Game.WorldAuthoring.Editor
         }
 
         [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.Active | GizmoType.Pickable)]
-        private static void DrawPath(PopulationRoutePath path, GizmoType gizmoType)
-        {
-            if (path == null || !path.gameObject.activeInHierarchy || !path.connectChildrenInOrder)
-                return;
-
-            PopulationRouteMarker first = null;
-            PopulationRouteMarker previous = null;
-            for (int i = 0; i < path.transform.childCount; ++i)
-            {
-                Transform child = path.transform.GetChild(i);
-                if (child == null || !child.TryGetComponent(out PopulationRouteMarker current))
-                    continue;
-
-                if (first == null)
-                    first = current;
-
-                if (previous != null)
-                    DrawCached(path.gameObject.scene, previous.transform.position, current.transform.position, path.oneWay);
-
-                previous = current;
-            }
-
-            if (path.loop && first != null && previous != null && first != previous)
-                DrawCached(path.gameObject.scene, previous.transform.position, first.transform.position, path.oneWay);
-        }
-
-        [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.Active | GizmoType.Pickable)]
         private static void DrawPortal(PopulationPortal portal, GizmoType gizmoType)
         {
             if (portal == null || !portal.gameObject.activeInHierarchy || portal.routeMarker == null)
@@ -245,58 +218,6 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            PopulationRoutePath[] paths = UnityEngine.Object.FindObjectsByType<PopulationRoutePath>(
-                FindObjectsInactive.Exclude,
-                FindObjectsSortMode.None);
-
-            for (int i = 0; i < paths.Length; ++i)
-            {
-                PopulationRoutePath path = paths[i];
-                if (path == null ||
-                    path.gameObject.scene != scene ||
-                    !path.gameObject.activeInHierarchy ||
-                    !path.connectChildrenInOrder)
-                {
-                    continue;
-                }
-
-                PopulationRouteMarker first = null;
-                PopulationRouteMarker previous = null;
-                for (int c = 0; c < path.transform.childCount; ++c)
-                {
-                    Transform child = path.transform.GetChild(c);
-                    if (child == null || !child.TryGetComponent(out PopulationRouteMarker current))
-                        continue;
-
-                    if (first == null)
-                        first = current;
-
-                    if (previous != null)
-                    {
-                        ValidateSegment(
-                            scene,
-                            world,
-                            previous.transform.position,
-                            current.transform.position,
-                            ref validCount,
-                            ref invalidCount);
-                    }
-
-                    previous = current;
-                }
-
-                if (path.loop && first != null && previous != null && first != previous)
-                {
-                    ValidateSegment(
-                        scene,
-                        world,
-                        previous.transform.position,
-                        first.transform.position,
-                        ref validCount,
-                        ref invalidCount);
-                }
-            }
-
             PopulationPortal[] portals = UnityEngine.Object.FindObjectsByType<PopulationPortal>(
                 FindObjectsInactive.Exclude,
                 FindObjectsSortMode.None);
@@ -349,7 +270,7 @@ namespace Game.WorldAuthoring.Editor
                 invalidCount++;
         }
 
-        private static bool SegmentTraversable(
+        internal static bool SegmentTraversable(
             ServerCollisionWorld world,
             Scene scene,
             Vector3 from,

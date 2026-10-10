@@ -14,7 +14,7 @@ namespace Game.WorldAuthoring
     {
         [SerializeField, HideInInspector] private string bakeId = string.Empty;
 
-        [Header("Identity")]
+        [SerializeField, HideInInspector]
         public string label = "Population Portal";
         public PopulationPortalMode mode = PopulationPortalMode.SpawnAndDespawn;
         public PopulationPortalType portalType = PopulationPortalType.GenericBuilding;
@@ -25,17 +25,15 @@ namespace Game.WorldAuthoring
         [Tooltip("Road/sidewalk marker attached to this entrance.")]
         public PopulationRouteMarker routeMarker;
 
-        [Header("Door Sequence")]
-        [Tooltip("Off-world/interior start point. Falls back to this transform.")]
-        public Transform interiorSpawn;
-        [Tooltip("Point inside or immediately before the door interaction.")]
-        public Transform approach;
-        public Transform interaction;
-        public Transform threshold;
-        [Tooltip("Exterior point that leads onto the route network. Falls back to Route Marker or this transform.")]
-        public Transform exterior;
-        [Tooltip("Optional canonical world-interactable door. Its baked stable ID is reused by Population door sequencing.")]
-        public WorldInteractable doorWorldObject;
+        // Legacy serialized doorway-sequence authoring retained only so existing scenes
+        // deserialize safely. The current Population bake/runtime uses this component's own
+        // transform as the single authoritative spawn/despawn anchor and ignores these fields.
+        [SerializeField, HideInInspector] public Transform interiorSpawn;
+        [SerializeField, HideInInspector] public Transform approach;
+        [SerializeField, HideInInspector] public Transform interaction;
+        [SerializeField, HideInInspector] public Transform threshold;
+        [SerializeField, HideInInspector] public Transform exterior;
+        [SerializeField, HideInInspector] public WorldInteractable doorWorldObject;
 
         [Header("Lifecycle")]
         [Min(0f)] public float minimumRespawnDelay = 8f;
@@ -72,13 +70,11 @@ namespace Game.WorldAuthoring
             bakeId = Guid.NewGuid().ToString("N");
         }
 
-        public Transform EffectiveInterior => interiorSpawn != null ? interiorSpawn : transform;
-        public Transform EffectiveApproach => approach != null ? approach : transform;
-        public Transform EffectiveInteraction => interaction != null ? interaction : transform;
-        public Transform EffectiveThreshold => threshold != null ? threshold : transform;
-        public Transform EffectiveExterior => exterior != null
-            ? exterior
-            : routeMarker != null ? routeMarker.transform : transform;
+        public Transform EffectiveInterior => transform;
+        public Transform EffectiveApproach => transform;
+        public Transform EffectiveInteraction => transform;
+        public Transform EffectiveThreshold => transform;
+        public Transform EffectiveExterior => transform;
 
         private void Reset()
         {
@@ -109,21 +105,10 @@ namespace Game.WorldAuthoring
 
         private void OnDrawGizmos()
         {
-            Vector3 a = EffectiveInterior.position;
-            Vector3 b = EffectiveApproach.position;
-            Vector3 c = EffectiveInteraction.position;
-            Vector3 d = EffectiveThreshold.position;
-            Vector3 e = EffectiveExterior.position;
-
             Gizmos.color = new Color(0.75f, 0.25f, 1f, 0.9f);
-            Gizmos.DrawWireSphere(a, 0.18f);
-            Gizmos.DrawLine(a, b);
-            Gizmos.DrawLine(b, c);
-            Gizmos.DrawLine(c, d);
-            Gizmos.DrawLine(d, e);
-            Gizmos.DrawWireSphere(e, 0.24f);
+            Gizmos.DrawWireSphere(transform.position, 0.24f);
             if (routeMarker != null)
-                Gizmos.DrawLine(e, routeMarker.transform.position);
+                Gizmos.DrawLine(transform.position, routeMarker.transform.position);
         }
     }
 }

@@ -15,7 +15,7 @@ namespace Game.WorldAuthoring
     {
         [SerializeField, HideInInspector] private string bakeId = string.Empty;
 
-        [Header("Identity")]
+        [SerializeField, HideInInspector]
         public string label = "Route Marker";
 
         [Header("Connections")]
@@ -25,23 +25,29 @@ namespace Game.WorldAuthoring
         [Tooltip("Explicit one-way travel FROM this marker TO the linked marker.")]
         public List<PopulationRouteMarker> oneWayOutboundLinks = new List<PopulationRouteMarker>();
 
-        [Header("Route Shape")]
+        // Editor-owned bookkeeping for replaceable auto-generated bidirectional links.
+        // Manual links remain in 'links' without appearing here and are never removed by
+        // Clean Generated Route Links.
+        [SerializeField, HideInInspector]
+        public List<PopulationRouteMarker> generatedLinks = new List<PopulationRouteMarker>();
+
+        [Header("Route")]
         [Min(0.5f)] public float pathWidth = 2.5f;
         [Min(0.01f)] public float routeWeight = 1f;
-        public PopulationNodeType nodeType = PopulationNodeType.Regular;
+        [Tooltip("Allows this marker to form a route branch/intersection with more than two automatic neighbors. This is topology only; it is not a traffic-crossing controller.")]
+        public bool branchNode;
 
-        [Header("Destination Rules")]
-        public bool isDestination;
-        public PopulationDestinationTag destinationTags = PopulationDestinationTag.Sidewalk;
-        public string destinationGroup = string.Empty;
-        [Tooltip("Hard restricted nodes are excluded from ordinary Population wandering.")]
-        public bool hardRestricted;
-        public PopulationNpcTypeMask allowedNpcTypes = PopulationNpcTypeMask.All;
-
-        [Header("Node Action")]
-        [Min(0f)] public float minimumWaitSeconds;
-        [Min(0f)] public float maximumWaitSeconds;
-        [Range(0, 255)] public int actionId;
+        // Legacy serialized authoring retained only so existing scenes deserialize without a
+        // destructive migration. These values are intentionally ignored by the current bake.
+        [SerializeField, HideInInspector] public PopulationNodeType nodeType = PopulationNodeType.Regular;
+        [SerializeField, HideInInspector] public bool isDestination;
+        [SerializeField, HideInInspector] public PopulationDestinationTag destinationTags = PopulationDestinationTag.Sidewalk;
+        [SerializeField, HideInInspector] public string destinationGroup = string.Empty;
+        [SerializeField, HideInInspector] public bool hardRestricted;
+        [SerializeField, HideInInspector] public PopulationNpcTypeMask allowedNpcTypes = PopulationNpcTypeMask.All;
+        [SerializeField, HideInInspector] public float minimumWaitSeconds;
+        [SerializeField, HideInInspector] public float maximumWaitSeconds;
+        [SerializeField, HideInInspector] public int actionId;
 
         public string BakeId => bakeId;
 
@@ -67,10 +73,9 @@ namespace Game.WorldAuthoring
             label = string.IsNullOrWhiteSpace(label) ? gameObject.name : label.Trim();
             pathWidth = Mathf.Max(0.5f, pathWidth);
             routeWeight = Mathf.Max(0.01f, routeWeight);
-            maximumWaitSeconds = Mathf.Max(minimumWaitSeconds, maximumWaitSeconds);
-            destinationGroup = string.IsNullOrWhiteSpace(destinationGroup) ? string.Empty : destinationGroup.Trim();
             links ??= new List<PopulationRouteMarker>();
             oneWayOutboundLinks ??= new List<PopulationRouteMarker>();
+            generatedLinks ??= new List<PopulationRouteMarker>();
         }
 
         private void EnsureBakeId()
@@ -82,11 +87,9 @@ namespace Game.WorldAuthoring
         private void OnDrawGizmos()
         {
             float size = 0.18f;
-            Gizmos.color = isDestination
-                ? new Color(0.2f, 0.75f, 1f, 1f)
-                : nodeType == PopulationNodeType.Intersection
-                    ? new Color(1f, 0.75f, 0.1f, 1f)
-                    : new Color(0.15f, 0.9f, 0.3f, 1f);
+            Gizmos.color = branchNode
+                ? new Color(1f, 0.75f, 0.1f, 1f)
+                : new Color(0.15f, 0.9f, 0.3f, 1f);
             Gizmos.DrawSphere(transform.position, size);
 
             float halfWidth = Mathf.Max(0.25f, pathWidth * 0.5f);
