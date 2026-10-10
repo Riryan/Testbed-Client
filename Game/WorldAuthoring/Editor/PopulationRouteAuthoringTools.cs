@@ -178,7 +178,6 @@ namespace Game.WorldAuthoring.Editor
                 return true;
 
             var neighbors = BuildExistingNeighbors(markers);
-            AddImplicitPathNeighbors(scene, neighbors);
 
             var candidatesByMarker = new Dictionary<PopulationRouteMarker, List<Candidate>>(markers.Length);
             var pairCandidates = new List<PairCandidate>(markers.Length * 3);
@@ -456,36 +455,6 @@ namespace Game.WorldAuthoring.Editor
                     continue;
                 set.Add(to);
                 neighbors[to].Add(from);
-            }
-        }
-
-        private static void AddImplicitPathNeighbors(
-            Scene scene,
-            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors)
-        {
-            PopulationRoutePath[] paths = Object.FindObjectsByType<PopulationRoutePath>(
-                FindObjectsInactive.Exclude,
-                FindObjectsSortMode.None);
-            var pathMarkers = new List<PopulationRouteMarker>(64);
-
-            for (int i = 0; i < paths.Length; ++i)
-            {
-                PopulationRoutePath path = paths[i];
-                if (path == null || path.gameObject.scene != scene || !path.connectChildrenInOrder)
-                    continue;
-
-                path.CollectDirectMarkers(pathMarkers);
-                for (int m = 1; m < pathMarkers.Count; ++m)
-                {
-                    AddNeighbor(neighbors, pathMarkers[m - 1], pathMarkers[m]);
-                    AddNeighbor(neighbors, pathMarkers[m], pathMarkers[m - 1]);
-                }
-
-                if (path.loop && pathMarkers.Count > 2)
-                {
-                    AddNeighbor(neighbors, pathMarkers[0], pathMarkers[pathMarkers.Count - 1]);
-                    AddNeighbor(neighbors, pathMarkers[pathMarkers.Count - 1], pathMarkers[0]);
-                }
             }
         }
 
