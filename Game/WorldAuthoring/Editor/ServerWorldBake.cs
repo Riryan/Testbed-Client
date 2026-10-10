@@ -1950,24 +1950,12 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            // Route Path is the fast road/sidewalk workflow: direct child markers connect in
-            // sibling order, with optional looping and one-way flow.
-            PopulationRoutePath[] paths = Object.FindObjectsByType<PopulationRoutePath>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            var pathMarkers = new List<PopulationRouteMarker>(64);
-            for (int i = 0; i < paths.Length; ++i)
-            {
-                PopulationRoutePath path = paths[i];
-                if (path == null || path.gameObject.scene != scene || !path.gameObject.activeInHierarchy || !path.connectChildrenInOrder)
-                    continue;
-                path.CollectDirectMarkers(pathMarkers);
-                for (int m = 1; m < pathMarkers.Count; ++m)
-                    AddPathPopulationEdge(path, pathMarkers[m - 1], pathMarkers[m], markerIds, explicitOneWayPairs, edgeOutput, edgeKeys);
-                if (path.loop && pathMarkers.Count > 2)
-                    AddPathPopulationEdge(path, pathMarkers[pathMarkers.Count - 1], pathMarkers[0], markerIds, explicitOneWayPairs, edgeOutput, edgeKeys);
-            }
+            // PopulationRoutePath is organizational only. Route topology is emitted solely
+            // from explicit marker Links / One Way Outbound Links so the Inspector is the
+            // authoritative source of visible route connections.
 
             // Explicit one-way links are applied last and intentionally override bidirectional
-            // auto/path links for that pair.
+            // marker links for that pair.
             for (int i = 0; i < markers.Length; ++i)
             {
                 PopulationRouteMarker marker = markers[i];
