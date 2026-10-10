@@ -1889,15 +1889,20 @@ namespace Game.WorldAuthoring.Editor
                     pose = Pose(marker.transform),
                     pathWidth = Mathf.Max(0.5f, marker.pathWidth),
                     routeWeight = Mathf.Max(0.01f, marker.routeWeight),
-                    nodeType = marker.nodeType,
-                    isDestination = marker.isDestination,
-                    destinationTags = marker.destinationTags,
-                    destinationGroup = marker.destinationGroup ?? string.Empty,
-                    hardRestricted = marker.hardRestricted,
-                    allowedNpcTypes = marker.allowedNpcTypes,
-                    minimumWaitSeconds = Mathf.Max(0f, marker.minimumWaitSeconds),
-                    maximumWaitSeconds = Mathf.Max(marker.minimumWaitSeconds, marker.maximumWaitSeconds),
-                    actionId = (byte)Mathf.Clamp(marker.actionId, 0, 255),
+                    nodeType = marker.branchNode
+                        ? PopulationNodeType.Intersection
+                        : PopulationNodeType.Regular,
+                    // Route markers are navigation topology only. Destination, restriction,
+                    // wait/action and traffic-control semantics live in dedicated authoring
+                    // systems rather than overloading the route node contract.
+                    isDestination = false,
+                    destinationTags = PopulationDestinationTag.None,
+                    destinationGroup = string.Empty,
+                    hardRestricted = false,
+                    allowedNpcTypes = PopulationNpcTypeMask.All,
+                    minimumWaitSeconds = 0f,
+                    maximumWaitSeconds = 0f,
+                    actionId = 0,
                 });
             }
 
