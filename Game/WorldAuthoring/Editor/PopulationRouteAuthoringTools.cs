@@ -288,16 +288,12 @@ namespace Game.WorldAuthoring.Editor
                 return true;
 
             var neighbors = BuildExistingNeighbors(markers);
-
-            var candidatesByMarker = new Dictionary<PopulationRouteMarker, List<Candidate>>(markers.Length);
-            var pairCandidates = new List<PairCandidate>(markers.Length * 3);
+            var candidates = new List<PairCandidate>(markers.Length * 4);
+            float maxSq = maximumDistance * maximumDistance;
 
             for (int i = 0; i < markers.Length; ++i)
             {
                 PopulationRouteMarker a = markers[i];
-                var list = new List<Candidate>(8);
-                candidatesByMarker[a] = list;
-
                 for (int j = i + 1; j < markers.Length; ++j)
                 {
                     PopulationRouteMarker b = markers[j];
@@ -306,45 +302,25 @@ namespace Game.WorldAuthoring.Editor
 
                     Vector3 delta = b.transform.position - a.transform.position;
                     float horizontalSq = delta.x * delta.x + delta.z * delta.z;
-                    if (horizontalSq > maximumDistance * maximumDistance || horizontalSq < 0.04f)
+                    if (horizontalSq > maxSq || horizontalSq < 0.04f)
                         continue;
 
-                    float distance = Mathf.Sqrt(horizontalSq);
-                    if (!IsDirectAuthoringCorridorClear(a, b, maximumDistance))
+                    if (!HasRouteMarkerLineOfSight(a, b))
                         continue;
 
-                    list.Add(new Candidate(b, distance));
-                    if (!candidatesByMarker.TryGetValue(b, out List<Candidate> reverse))
-                    {
-                        reverse = new List<Candidate>(8);
-                        candidatesByMarker[b] = reverse;
-                    }
-                    reverse.Add(new Candidate(a, distance));
-                    pairCandidates.Add(new PairCandidate(a, b, distance));
+                    candidates.Add(new PairCandidate(a, b, Mathf.Sqrt(horizontalSq)));
                 }
             }
 
-            foreach (List<Candidate> list in candidatesByMarker.Values)
-                list.Sort((x, y) => x.Distance.CompareTo(y.Distance));
-            pairCandidates.Sort((x, y) => x.Distance.CompareTo(y.Distance));
+            // Closest visible pairs claim degree slots first. No portal/spawner data,
+            // NavMesh query, mutual-nearest rule, or directional-angle heuristic participates.
+            candidates.Sort((x, y) => x.Distance.CompareTo(y.Distance));
 
-            for (int i = 0; i < pairCandidates.Count; ++i)
+            for (int i = 0; i < candidates.Count; ++i)
             {
-                PairCandidate pair = pairCandidates[i];
-                int maxA = MaxAutomaticDegree(pair.A);
-                int maxB = MaxAutomaticDegree(pair.B);
-
-                if (NeighborCount(neighbors, pair.A) >= maxA ||
-                    NeighborCount(neighbors, pair.B) >= maxB)
-                {
-                    continue;
-                }
-
-                if (!IsMutualNearest(pair, candidatesByMarker, maxA, maxB))
-                    continue;
-
-                if (!DirectionAllows(pair.A, pair.B, neighbors) ||
-                    !DirectionAllows(pair.B, pair.A, neighbors))
+                PairCandidate pair = candidates[i];
+                if (NeighborCount(neighbors, pair.A) >= MaxAutomaticDegree(pair.A) ||
+                    NeighborCount(neighbors, pair.B) >= MaxAutomaticDegree(pair.B))
                 {
                     continue;
                 }
@@ -358,11 +334,12 @@ namespace Game.WorldAuthoring.Editor
                 Undo.RecordObject(owner, "Auto Connect Population Routes");
                 if (!owner.links.Contains(target))
                     owner.links.Add(target);
+
                 owner.generatedLinks ??= new List<PopulationRouteMarker>();
                 if (!owner.generatedLinks.Contains(target))
                     owner.generatedLinks.Add(target);
-                EditorUtility.SetDirty(owner);
 
+                EditorUtility.SetDirty(owner);
                 AddNeighbor(neighbors, pair.A, pair.B);
                 AddNeighbor(neighbors, pair.B, pair.A);
                 added++;
@@ -374,9 +351,29 @@ namespace Game.WorldAuthoring.Editor
             PopulationSpawnAuthoringSummary.MarkDirty();
             SceneView.RepaintAll();
             Debug.Log(
-                $"[Population Authoring] Local auto-connect complete: added={added}, " +
+                $"[Population Authoring] LOS auto-connect complete: added={added}, " +
                 $"replacedGenerated={removed}, radius={maximumDistance:0.##}m.");
             return true;
+        }
+
+        private static bool HasRouteMarkerLineOfSight(
+            PopulationRouteMarker a,
+            PopulationRouteMarker b)
+        {
+            Vector3 from = a.transform.position + Vector3.up * 1.2f;
+            Vector3 to = b.transform.position + Vector3.up * 1.2f;
+
+            if (!Physics.Linecast(from, to, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+                return true;
+
+            Transform hitTransform = hit.collider != null ? hit.collider.transform : null;
+            if (hitTransform == null)
+                return true;
+
+            return hitTransform == a.transform ||
+                   hitTransform == b.transform ||
+                   hitTransform.IsChildOf(a.transform) ||
+                   hitTransform.IsChildOf(b.transform);
         }
 
         public static int CleanGeneratedLinksActiveScene()
@@ -615,68 +612,6 @@ namespace Game.WorldAuthoring.Editor
                 {
                     return false;
                 }
-            }
-
-            return true;
-        }
-
-        private static bool IsMutualNearest(
-            PairCandidate pair,
-            Dictionary<PopulationRouteMarker, List<Candidate>> candidates,
-            int maxA,
-            int maxB)
-        {
-            return CandidateRank(pair.A, pair.B, candidates) < maxA &&
-                   CandidateRank(pair.B, pair.A, candidates) < maxB;
-        }
-
-        private static int CandidateRank(
-            PopulationRouteMarker from,
-            PopulationRouteMarker target,
-            Dictionary<PopulationRouteMarker, List<Candidate>> candidates)
-        {
-            if (!candidates.TryGetValue(from, out List<Candidate> list))
-                return int.MaxValue;
-
-            for (int i = 0; i < list.Count; ++i)
-                if (list[i].Marker == target)
-                    return i;
-            return int.MaxValue;
-        }
-
-        private static bool DirectionAllows(
-            PopulationRouteMarker from,
-            PopulationRouteMarker to,
-            Dictionary<PopulationRouteMarker, HashSet<PopulationRouteMarker>> neighbors)
-        {
-            if (!neighbors.TryGetValue(from, out HashSet<PopulationRouteMarker> existing) ||
-                existing.Count == 0)
-            {
-                return true;
-            }
-
-            Vector3 newDirection = to.transform.position - from.transform.position;
-            newDirection.y = 0f;
-            if (newDirection.sqrMagnitude <= 0.0001f)
-                return false;
-            newDirection.Normalize();
-
-            float minimumAngle = from.branchNode
-                ? 35f
-                : 100f;
-
-            foreach (PopulationRouteMarker neighbor in existing)
-            {
-                if (neighbor == null)
-                    continue;
-                Vector3 direction = neighbor.transform.position - from.transform.position;
-                direction.y = 0f;
-                if (direction.sqrMagnitude <= 0.0001f)
-                    continue;
-                direction.Normalize();
-
-                if (Vector3.Angle(newDirection, direction) < minimumAngle)
-                    return false;
             }
 
             return true;
