@@ -2025,68 +2025,101 @@ namespace Game.WorldAuthoring.Editor
                     Debug.LogWarning(
                         $"[Server World Bake] Repaired duplicated Population Portal stable ID {duplicateId} at '{HierarchyPath(source.transform)}'; new stable ID is {id}. Save the scene to persist the repaired authoring ID.");
                 }
-                if (source.routeMarker == null || !markerIds.TryGetValue(source.routeMarker, out long routeNodeId))
+                PopulationRouteMarker resolvedRouteMarker = null;
+                long routeNodeId = 0L;
+
+                if (source.routeMarker != null)
                 {
-                    Debug.LogError($"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' requires a Route Marker from the same scene.");
-                    nodes = Array.Empty<ServerPopulationRouteNode>();
-                    edges = Array.Empty<ServerPopulationRouteEdge>();
-                    portals = Array.Empty<ServerPopulationPortal>();
-                    return false;
+                    if (!markerIds.TryGetValue(source.routeMarker, out routeNodeId) ||
+                        source.routeMarker.gameObject.scene != scene)
+                    {
+                        Debug.LogError(
+                            $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
+                            "references a Route Marker outside the current scene.");
+                        nodes = Array.Empty<ServerPopulationRouteNode>();
+                        edges = Array.Empty<ServerPopulationRouteEdge>();
+                        portals = Array.Empty<ServerPopulationPortal>();
+                        return false;
+                    }
+
+                    resolvedRouteMarker = source.routeMarker;
+                    if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                            portalCollision,
+                            scene,
+                            source.transform.position,
+                            resolvedRouteMarker.transform.position))
+                    {
+                        Debug.LogError(
+                            $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
+                            "cannot reach its authored Route Marker on the baked movement surface.");
+                        nodes = Array.Empty<ServerPopulationRouteNode>();
+                        edges = Array.Empty<ServerPopulationRouteEdge>();
+                        portals = Array.Empty<ServerPopulationPortal>();
+                        return false;
+                    }
                 }
+                else
+                {
+                    float bestSq = float.PositiveInfinity;
+                    for (int m = 0; m < markers.Length; ++m)
+                    {
+                        PopulationRouteMarker candidate = markers[m];
+                        if (candidate == null ||
+                            !markerIds.TryGetValue(candidate, out long candidateId) ||
+                            portalRouteNodes.Contains(candidateId))
+                        {
+                            continue;
+                        }
+
+                        Vector3 delta = candidate.transform.position - source.transform.position;
+                        float horizontalSq = delta.x * delta.x + delta.z * delta.z;
+                        if (horizontalSq >= bestSq)
+                            continue;
+
+                        if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                                portalCollision,
+                                scene,
+                                source.transform.position,
+                                candidate.transform.position))
+                        {
+                            continue;
+                        }
+
+                        bestSq = horizontalSq;
+                        resolvedRouteMarker = candidate;
+                        routeNodeId = candidateId;
+                    }
+
+                    if (resolvedRouteMarker == null || routeNodeId <= 0)
+                    {
+                        Debug.LogError(
+                            $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
+                            "has no authored Route Marker and no traversable route node could be resolved automatically.");
+                        nodes = Array.Empty<ServerPopulationRouteNode>();
+                        edges = Array.Empty<ServerPopulationRouteEdge>();
+                        portals = Array.Empty<ServerPopulationPortal>();
+                        return false;
+                    }
+                }
+
                 if (!portalRouteNodes.Add(routeNodeId))
                 {
-                    Debug.LogError($"[Server World Bake] Multiple Population Portals reference route node {routeNodeId}. Use one doorway portal per route marker.");
+                    Debug.LogError(
+                        $"[Server World Bake] Multiple Population Portals resolve to route node {routeNodeId}. " +
+                        "Assign one portal to a different nearby Route Marker.");
                     nodes = Array.Empty<ServerPopulationRouteNode>();
                     edges = Array.Empty<ServerPopulationRouteEdge>();
                     portals = Array.Empty<ServerPopulationPortal>();
                     return false;
                 }
-
-                long doorWorldObjectId = source.doorWorldObject != null
-                    ? StableId(source.doorWorldObject.BakeId)
-                    : 0L;
 
                 if (!TryResolvePortalBakePose(
-                        portalCollision, map, source, "Interior Spawn", source.EffectiveInterior, out ServerPose interior) ||
-                    !TryResolvePortalBakePose(
-                        portalCollision, map, source, "Approach", source.EffectiveApproach, out ServerPose approach) ||
-                    !TryResolvePortalBakePose(
-                        portalCollision, map, source, "Interaction", source.EffectiveInteraction, out ServerPose interaction) ||
-                    !TryResolvePortalBakePose(
-                        portalCollision, map, source, "Threshold", source.EffectiveThreshold, out ServerPose threshold) ||
-                    !TryResolvePortalBakePose(
-                        portalCollision, map, source, "Exterior", source.EffectiveExterior, out ServerPose exterior))
-                {
-                    nodes = Array.Empty<ServerPopulationRouteNode>();
-                    edges = Array.Empty<ServerPopulationRouteEdge>();
-                    portals = Array.Empty<ServerPopulationPortal>();
-                    return false;
-                }
-
-                bool portalSegmentsValid =
-                    ValidatePortalTraversalSegment(
-                        portalCollision, scene, source, "Interior -> Approach", interior, approach) &&
-                    ValidatePortalTraversalSegment(
-                        portalCollision, scene, source, "Approach -> Interaction", approach, interaction) &&
-                    ValidatePortalTraversalSegment(
-                        portalCollision, scene, source, "Interaction -> Threshold", interaction, threshold) &&
-                    ValidatePortalTraversalSegment(
-                        portalCollision, scene, source, "Threshold -> Exterior", threshold, exterior);
-
-                bool routeHandoffValid = PopulationRouteWalkabilityGizmos.SegmentTraversable(
-                    portalCollision,
-                    scene,
-                    new Vector3(exterior.x, exterior.y, exterior.z),
-                    source.routeMarker.transform.position);
-
-                if (!routeHandoffValid)
-                {
-                    Debug.LogError(
-                        $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
-                        "cannot traverse from Exterior to its Route Marker on the baked movement surface.");
-                }
-
-                if (!portalSegmentsValid || !routeHandoffValid)
+                        portalCollision,
+                        map,
+                        source,
+                        "Portal Anchor",
+                        source.transform,
+                        out ServerPose anchor))
                 {
                     nodes = Array.Empty<ServerPopulationRouteNode>();
                     edges = Array.Empty<ServerPopulationRouteEdge>();
@@ -2102,13 +2135,15 @@ namespace Game.WorldAuthoring.Editor
                     portalType = source.portalType,
                     tags = source.tags != PopulationDestinationTag.None ? source.tags : TagsForPopulationPortalType(source.portalType),
                     allowedNpcTypes = source.allowedNpcTypes,
-                    interiorSpawn = interior,
-                    approach = approach,
-                    interaction = interaction,
-                    threshold = threshold,
-                    exterior = exterior,
+                    // Legacy fields intentionally carry the same single validated anchor.
+                    // Runtime does not execute the old multi-point doorway sequence anymore.
+                    interiorSpawn = anchor,
+                    approach = anchor,
+                    interaction = anchor,
+                    threshold = anchor,
+                    exterior = anchor,
                     routeNodeId = routeNodeId,
-                    doorWorldObjectId = doorWorldObjectId,
+                    doorWorldObjectId = 0L,
                     minimumRespawnDelay = Mathf.Max(0f, source.minimumRespawnDelay),
                     maximumRespawnDelay = Mathf.Max(source.minimumRespawnDelay, source.maximumRespawnDelay),
                     blockedRetryDelay = Mathf.Max(0.1f, source.blockedRetryDelay),
