@@ -15,6 +15,7 @@ namespace Game.WorldAuthoring.Editor
         private string outputPath;
         private bool rebuildNavMesh = true;
         private float populationAutoLinkRadius = 8f;
+        private float populationPortalMarkerRadius = 12f;
         private Vector2 scroll;
 
         [MenuItem("Tools/MMO/Build Client")]
@@ -53,6 +54,24 @@ namespace Game.WorldAuthoring.Editor
                 "Auto-connect creates only replaceable generated links. Manual links are preserved. " +
                 "Candidates must be local, mutually near, directionally sensible, directly reachable on Unity NavMesh, and unobstructed at torso height.",
                 MessageType.None);
+
+            populationPortalMarkerRadius = EditorGUILayout.Slider(
+                "Portal Marker Radius",
+                populationPortalMarkerRadius,
+                1f,
+                50f);
+
+            if (GUILayout.Button("Find Nearby Portal Markers"))
+            {
+                if (PopulationRouteAuthoringTools.AssignNearbyPortalMarkersActiveScene(
+                        populationPortalMarkerRadius,
+                        out int assigned,
+                        out int unresolved))
+                {
+                    ShowNotification(new GUIContent(
+                        $"Portals: {assigned} assigned, {unresolved} unresolved"));
+                }
+            }
 
             populationAutoLinkRadius = EditorGUILayout.Slider("Auto Link Radius", populationAutoLinkRadius, 2f, 30f);
 
