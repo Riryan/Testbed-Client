@@ -209,16 +209,10 @@ namespace Game.WorldAuthoring.Editor
                     if (horizontalSq > maxSq || horizontalSq >= bestSq)
                         continue;
 
-                    if (!IsDirectAuthoringCorridorClear(
-                            from,
-                            marker.transform.position,
-                            maximumDistance,
-                            portal.transform,
-                            marker.transform))
-                    {
-                        continue;
-                    }
-
+                    // Portal marker discovery is intentionally geometric only.
+                    // Doorways often have a door/wall collider between the portal anchor and
+                    // the sidewalk marker, so route-style NavMesh/corridor rejection is too
+                    // strict here. Authoritative walkability is validated by Server World Bake.
                     best = marker;
                     bestSq = horizontalSq;
                 }
