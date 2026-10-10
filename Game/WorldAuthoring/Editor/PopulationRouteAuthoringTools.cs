@@ -572,7 +572,7 @@ namespace Game.WorldAuthoring.Editor
                 return false;
             newDirection.Normalize();
 
-            float minimumAngle = from.nodeType == Game.Shared.Population.PopulationNodeType.Intersection
+            float minimumAngle = from.branchNode
                 ? 35f
                 : 100f;
 
@@ -594,8 +594,7 @@ namespace Game.WorldAuthoring.Editor
         }
 
         private static int MaxAutomaticDegree(PopulationRouteMarker marker) =>
-            marker != null &&
-            marker.nodeType == Game.Shared.Population.PopulationNodeType.Intersection
+            marker != null && marker.branchNode
                 ? 4
                 : 2;
 
