@@ -40,35 +40,7 @@ namespace Game.WorldAuthoring
 
         private void OnDrawGizmos()
         {
-            if (!connectChildrenInOrder)
-                return;
-
-            PopulationRouteMarker previous = null;
-            PopulationRouteMarker first = null;
-            for (int i = 0; i < transform.childCount; ++i)
-            {
-                Transform child = transform.GetChild(i);
-                if (child == null || !child.TryGetComponent(out PopulationRouteMarker current))
-                    continue;
-                if (first == null)
-                    first = current;
-                if (previous != null)
-                {
-                    Gizmos.color = oneWay
-                        ? new Color(1f, 0.5f, 0.05f, 0.55f)
-                        : new Color(0.1f, 0.75f, 1f, 0.55f);
-                    Gizmos.DrawLine(previous.transform.position, current.transform.position);
-                }
-                previous = current;
-            }
-
-            if (loop && first != null && previous != null && first != previous)
-            {
-                Gizmos.color = oneWay
-                    ? new Color(1f, 0.5f, 0.05f, 0.55f)
-                    : new Color(0.1f, 0.75f, 1f, 0.55f);
-                Gizmos.DrawLine(previous.transform.position, first.transform.position);
-            }
+            // Editor-only baked-server route validation owns connection rendering.
         }
     }
 }

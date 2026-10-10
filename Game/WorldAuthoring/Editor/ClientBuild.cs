@@ -43,6 +43,22 @@ namespace Game.WorldAuthoring.Editor
             rebuildNavMesh = EditorGUILayout.ToggleLeft("Rebuild authored Unity NavMesh too (optional preview/client use)", rebuildNavMesh);
             EditorGUILayout.LabelField("Server Maps", ServerWorldBake.ServerMapsFolder, EditorStyles.wordWrappedMiniLabel);
 
+            EditorGUILayout.Space(6);
+            DrawPopulationSpawnSummary();
+
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("Population Routes", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Route walkability is validated only when requested. Scene gizmos only draw cached green/red results and never run collision traversal during repaint.",
+                MessageType.None);
+
+            if (GUILayout.Button("Validate Population Routes"))
+            {
+                if (PopulationRouteWalkabilityGizmos.ValidateActiveScene(out int valid, out int invalid))
+                    ShowNotification(new GUIContent($"Population routes: {valid} valid, {invalid} invalid"));
+            }
+
+            EditorGUILayout.Space(6);
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Bake Current Scene"))
@@ -85,6 +101,41 @@ namespace Game.WorldAuthoring.Editor
                 MessageType.None);
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawPopulationSpawnSummary()
+        {
+            Scene scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded)
+                return;
+
+            EditorGUILayout.LabelField("Population Spawn Summary", EditorStyles.boldLabel);
+
+            if (!PopulationSpawnAuthoringSummary.TryGetSceneSummary(
+                    scene,
+                    out PopulationSpawnAuthoringSummary.SceneSummary summary))
+            {
+                EditorGUILayout.HelpBox(
+                    "Population summary is not available for the current scene.",
+                    MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Spawn Sources", summary.SpawnSources.ToString("n0"));
+            EditorGUILayout.LabelField("Total Population Actors", summary.TotalActors.ToString("n0"));
+            EditorGUILayout.LabelField("Portal-backed Actors", summary.PortalBackedActors.ToString("n0"));
+            EditorGUILayout.LabelField("Direct-route Actors", summary.DirectActors.ToString("n0"));
+            EditorGUILayout.LabelField("Active Population Portals", summary.ActivePortals.ToString("n0"));
+
+            if (GUILayout.Button("Refresh Population Counts"))
+                PopulationSpawnAuthoringSummary.RefreshNow();
+
+            if (summary.TotalActors == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "No active, server-enabled Population spawns are authored in the current scene.",
+                    MessageType.Info);
+            }
         }
 
         private static void DrawCurrentScene()

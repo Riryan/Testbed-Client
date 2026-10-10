@@ -8,19 +8,16 @@ namespace Game.Tests.Editor
     public sealed class ServerMovementFoundationTests
     {
         [Test]
-        public void GroundedMotor_FollowsWalkableSlopeWithoutJumping()
+        public void GroundedMotor_FollowsBakedMovementSlopeWithoutJumping()
         {
-            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            ServerCollisionTriangle[] movement =
             {
-                mapId = "movement_test",
-                collisionTriangles = new[]
-                {
-                    Triangle(-3f, 0f, -2f, 0f, 0f, -2f, 0f, 0f, 2f, true),
-                    Triangle(-3f, 0f, -2f, 0f, 0f, 2f, -3f, 0f, 2f, true),
-                    Triangle(0f, 0f, -2f, 3f, 1f, -2f, 3f, 1f, 2f, true),
-                    Triangle(0f, 0f, -2f, 3f, 1f, 2f, 0f, 0f, 2f, true),
-                }
-            });
+                Triangle(-3f, 0f, -2f, 0f, 0f, -2f, 0f, 0f, 2f, true),
+                Triangle(-3f, 0f, -2f, 0f, 0f, 2f, -3f, 0f, 2f, true),
+                Triangle(0f, 0f, -2f, 3f, 1f, -2f, 3f, 1f, 2f, true),
+                Triangle(0f, 0f, -2f, 3f, 1f, 2f, 0f, 0f, 2f, true),
+            };
+            var world = World("movement_test", movement, movement);
 
             var motor = new ServerCharacterMotor();
             var state = new CharacterMotorState(new WorldPosition(-1f, 0f, 0f));
@@ -34,19 +31,21 @@ namespace Game.Tests.Editor
         }
 
         [Test]
-        public void GroundedMotor_StopsAtWalkSurfaceEdge()
+        public void GroundedMotor_StopsAtBakedMovementSurfaceEdge()
         {
-            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            ServerCollisionTriangle[] movement =
             {
-                mapId = "edge_test",
-                collisionTriangles = new[]
-                {
-                    Triangle(-3f, 0f, -2f, 0.5f, 0f, -2f, 0.5f, 0f, 2f, true),
-                    Triangle(-3f, 0f, -2f, 0.5f, 0f, 2f, -3f, 0f, 2f, true),
-                    Triangle(0.5f, 0f, -2f, 3f, 0f, -2f, 3f, 0f, 2f, false),
-                    Triangle(0.5f, 0f, -2f, 3f, 0f, 2f, 0.5f, 0f, 2f, false),
-                }
-            });
+                Triangle(-3f, 0f, -2f, 0.5f, 0f, -2f, 0.5f, 0f, 2f, true),
+                Triangle(-3f, 0f, -2f, 0.5f, 0f, 2f, -3f, 0f, 2f, true),
+            };
+            ServerCollisionTriangle[] collision =
+            {
+                movement[0],
+                movement[1],
+                Triangle(0.5f, 0f, -2f, 3f, 0f, -2f, 3f, 0f, 2f, false),
+                Triangle(0.5f, 0f, -2f, 3f, 0f, 2f, 0.5f, 0f, 2f, false),
+            };
+            var world = World("edge_test", movement, collision);
 
             var motor = new ServerCharacterMotor();
             var state = new CharacterMotorState(new WorldPosition(-0.5f, 0f, 0f));
@@ -60,26 +59,25 @@ namespace Game.Tests.Editor
         }
 
         [Test]
-        public void GroundedMotor_TraversesWalkSurfaceOverCoveredStairRisers()
+        public void GroundedMotor_TraversesBakedStairRampWhileRawRisersRemainCollision()
         {
-            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            ServerCollisionTriangle[] movement =
             {
-                mapId = "stair_riser_test",
-                collisionTriangles = new[]
-                {
-                    // Canonical walk surface: a smooth 0.4 m rise over 2 m.
-                    Triangle(0f, 0f, -1f, 2f, 0.4f, -1f, 2f, 0.4f, 1f, true),
-                    Triangle(0f, 0f, -1f, 2f, 0.4f, 1f, 0f, 0f, 1f, true),
-
-                    // Raw static stair risers underneath that walk surface.
-                    Triangle(0.5f, 0f, -1f, 0.5f, 0.1f, -1f, 0.5f, 0.1f, 1f, false),
-                    Triangle(0.5f, 0f, -1f, 0.5f, 0.1f, 1f, 0.5f, 0f, 1f, false),
-                    Triangle(1.0f, 0.1f, -1f, 1.0f, 0.2f, -1f, 1.0f, 0.2f, 1f, false),
-                    Triangle(1.0f, 0.1f, -1f, 1.0f, 0.2f, 1f, 1.0f, 0.1f, 1f, false),
-                    Triangle(1.5f, 0.2f, -1f, 1.5f, 0.3f, -1f, 1.5f, 0.3f, 1f, false),
-                    Triangle(1.5f, 0.2f, -1f, 1.5f, 0.3f, 1f, 1.5f, 0.2f, 1f, false),
-                }
-            });
+                Triangle(0f, 0f, -1f, 2f, 0.4f, -1f, 2f, 0.4f, 1f, true),
+                Triangle(0f, 0f, -1f, 2f, 0.4f, 1f, 0f, 0f, 1f, true),
+            };
+            ServerCollisionTriangle[] collision =
+            {
+                movement[0],
+                movement[1],
+                Triangle(0.5f, 0f, -1f, 0.5f, 0.1f, -1f, 0.5f, 0.1f, 1f, false),
+                Triangle(0.5f, 0f, -1f, 0.5f, 0.1f, 1f, 0.5f, 0f, 1f, false),
+                Triangle(1.0f, 0.1f, -1f, 1.0f, 0.2f, -1f, 1.0f, 0.2f, 1f, false),
+                Triangle(1.0f, 0.1f, -1f, 1.0f, 0.2f, 1f, 1.0f, 0.1f, 1f, false),
+                Triangle(1.5f, 0.2f, -1f, 1.5f, 0.3f, -1f, 1.5f, 0.3f, 1f, false),
+                Triangle(1.5f, 0.2f, -1f, 1.5f, 0.3f, 1f, 1.5f, 0.2f, 1f, false),
+            };
+            var world = World("stair_riser_test", movement, collision);
 
             var motor = new ServerCharacterMotor();
             var state = new CharacterMotorState(new WorldPosition(0.1f, 0.02f, 0f));
@@ -93,19 +91,23 @@ namespace Game.Tests.Editor
         }
 
         [Test]
-        public void GroundedMotor_CoveredDetailRuleDoesNotIgnoreTallWall()
+        public void GroundedMotor_DoesNotCrossGapRemovedByMovementBake()
         {
-            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            ServerCollisionTriangle[] movement =
             {
-                mapId = "tall_wall_test",
-                collisionTriangles = new[]
-                {
-                    Triangle(-2f, 0f, -1f, 2f, 0f, -1f, 2f, 0f, 1f, true),
-                    Triangle(-2f, 0f, -1f, 2f, 0f, 1f, -2f, 0f, 1f, true),
-                    Triangle(0.5f, 0f, -1f, 0.5f, 1.5f, -1f, 0.5f, 1.5f, 1f, false),
-                    Triangle(0.5f, 0f, -1f, 0.5f, 1.5f, 1f, 0.5f, 0f, 1f, false),
-                }
-            });
+                Triangle(-2f, 0f, -1f, 0f, 0f, -1f, 0f, 0f, 1f, true),
+                Triangle(-2f, 0f, -1f, 0f, 0f, 1f, -2f, 0f, 1f, true),
+                Triangle(1f, 0f, -1f, 2f, 0f, -1f, 2f, 0f, 1f, true),
+                Triangle(1f, 0f, -1f, 2f, 0f, 1f, 1f, 0f, 1f, true),
+            };
+            ServerCollisionTriangle[] collision =
+            {
+                Triangle(-2f, 0f, -1f, 2f, 0f, -1f, 2f, 0f, 1f, true),
+                Triangle(-2f, 0f, -1f, 2f, 0f, 1f, -2f, 0f, 1f, true),
+                Triangle(0.5f, 0f, -1f, 0.5f, 1.5f, -1f, 0.5f, 1.5f, 1f, false),
+                Triangle(0.5f, 0f, -1f, 0.5f, 1.5f, 1f, 0.5f, 0f, 1f, false),
+            };
+            var world = World("wall_gap_test", movement, collision);
 
             var motor = new ServerCharacterMotor();
             var state = new CharacterMotorState(new WorldPosition(-0.5f, 0f, 0f));
@@ -113,22 +115,24 @@ namespace Game.Tests.Editor
             for (int i = 0; i < 20; ++i)
                 motor.Tick(state, new CharacterMovementIntent(1f, 0f), 0.05f, world);
 
-            Assert.That(state.Position.X, Is.LessThan(0.25f));
+            Assert.That(state.Position.X, Is.LessThan(0.2f));
             Assert.That(state.Grounded, Is.True);
         }
 
         [Test]
-        public void FallingMotor_DoesNotTunnelThroughSolidNonWalkableFloor()
+        public void FallingMotor_StillUsesRawCollision()
         {
-            var world = new ServerCollisionWorld(new ServerMapSnapshot
+            ServerCollisionTriangle[] movement =
             {
-                mapId = "solid_floor_test",
-                collisionTriangles = new[]
-                {
-                    Triangle(-3f, 0f, -3f, 3f, 0f, -3f, 3f, 0f, 3f, false),
-                    Triangle(-3f, 0f, -3f, 3f, 0f, 3f, -3f, 0f, 3f, false),
-                }
-            });
+                Triangle(10f, 0f, 10f, 12f, 0f, 10f, 12f, 0f, 12f, true),
+                Triangle(10f, 0f, 10f, 12f, 0f, 12f, 10f, 0f, 12f, true),
+            };
+            ServerCollisionTriangle[] collision =
+            {
+                Triangle(-3f, 0f, -3f, 3f, 0f, -3f, 3f, 0f, 3f, false),
+                Triangle(-3f, 0f, -3f, 3f, 0f, 3f, -3f, 0f, 3f, false),
+            };
+            var world = World("solid_floor_test", movement, collision);
 
             var motor = new ServerCharacterMotor();
             var state = new CharacterMotorState(new WorldPosition(0f, 2f, 0f))
@@ -143,6 +147,19 @@ namespace Game.Tests.Editor
 
             Assert.That(state.Position.Y, Is.EqualTo(0f).Within(0.03f));
             Assert.That(state.Grounded, Is.True);
+        }
+
+        private static ServerCollisionWorld World(
+            string mapId,
+            ServerCollisionTriangle[] movement,
+            ServerCollisionTriangle[] collision)
+        {
+            return new ServerCollisionWorld(new ServerMapSnapshot
+            {
+                mapId = mapId,
+                movementTriangles = movement,
+                collisionTriangles = collision,
+            });
         }
 
         private static ServerCollisionTriangle Triangle(

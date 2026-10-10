@@ -40,7 +40,9 @@ namespace Game.WorldAuthoring.Editor
             if (advanced)
                 DrawAdvanced(kind, actorKind);
 
-            serializedObject.ApplyModifiedProperties();
+            bool changed = serializedObject.ApplyModifiedProperties();
+            if (changed)
+                PopulationSpawnAuthoringSummary.MarkDirty();
 
             if (targets == null || targets.Length != 1)
                 return;
@@ -139,12 +141,63 @@ namespace Game.WorldAuthoring.Editor
             if (!spawn.enabledForServer)
                 EditorGUILayout.HelpBox("This spawn is authored with enabled=false; the server will not activate it as a normal spawn.", MessageType.Info);
 
+            DrawPopulationSpawnSummary(spawn, scene);
             DrawMovementStatus(spawn, scene);
             DrawPortalStatus(spawn, scene);
 
             EditorGUILayout.Space();
             if (GUILayout.Button("Validate Scene ServerSpawns"))
                 ServerWorldBake.ValidateSpawnAuthoring(scene, repairDuplicateIds: true, logSuccess: true);
+        }
+
+        private static void DrawPopulationSpawnSummary(ServerSpawn spawn, Scene scene)
+        {
+            if (spawn.kind != ServerSpawnKind.Population)
+                return;
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Population Spawn Summary", EditorStyles.boldLabel);
+
+            PopulationPortal portal = ResolvePortal(spawn, scene);
+            if (portal != null && portal.mode != Game.Shared.Population.PopulationPortalMode.DespawnOnly)
+            {
+                EditorGUILayout.HelpBox(
+                    "Portal-backed Population uses the portal as the active-cap owner. This ServerSpawn is an optional archetype/capsule template; its Count does not control portal capacity.",
+                    MessageType.Info);
+                EditorGUILayout.LabelField(
+                    "Portal Max Active In World",
+                    Mathf.Max(1, portal.maximumActiveInWorld).ToString("n0"));
+                EditorGUILayout.LabelField(
+                    "Maximum Active Nearby",
+                    $"{Mathf.Max(1, portal.maximumActiveNearby)} within {Mathf.Max(0.5f, portal.activeNearbyRadius):0.##} m");
+                EditorGUILayout.LabelField(
+                    "Release",
+                    $"{Mathf.Max(1, portal.spawnBurstLimit)} every {Mathf.Max(0f, portal.minimumSpawnInterval):0.##}–{Mathf.Max(portal.minimumSpawnInterval, portal.maximumSpawnInterval):0.##} sec");
+                return;
+            }
+
+            int count = Mathf.Max(1, spawn.populationCount);
+            EditorGUILayout.HelpBox(
+                $"Direct Population Spawn: {count:n0} actor{(count == 1 ? string.Empty : "s")}",
+                MessageType.Info);
+        }
+
+        private static PopulationPortal ResolvePortal(ServerSpawn spawn, Scene scene)
+        {
+            if (spawn.populationPortal != null)
+                return spawn.populationPortal;
+
+            if (spawn.portalId <= 0)
+                return null;
+
+            return Object.FindObjectsByType<PopulationPortal>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None)
+                .FirstOrDefault(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy &&
+                    ServerWorldBake.StableAuthoringId(x.BakeId) == spawn.portalId);
         }
 
         private static void DrawMovementStatus(ServerSpawn spawn, Scene scene)

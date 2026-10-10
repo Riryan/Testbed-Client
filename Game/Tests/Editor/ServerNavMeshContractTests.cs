@@ -6,9 +6,9 @@ namespace Game.Tests.Editor
     public sealed class ServerNavMeshContractTests
     {
         [Test]
-        public void ServerMapFormat_IsVersion5_WithDetourAndSharedWorldManifests()
+        public void ServerMapFormat_IsVersion6_WithMovementSurfaceAndDetourManifests()
         {
-            Assert.That(ServerMapFormat.Version, Is.EqualTo(5));
+            Assert.That(ServerMapFormat.Version, Is.EqualTo(6));
 
             var nav = new ServerNavMeshInfo();
             Assert.That(nav.formatVersion, Is.EqualTo(ServerNavMeshInfo.CurrentFormatVersion));
@@ -17,6 +17,9 @@ namespace Game.Tests.Editor
             Assert.That(nav.agentHeight, Is.EqualTo(1.80f).Within(0.0001f));
             Assert.That(nav.agentMaxClimb, Is.EqualTo(0.40f).Within(0.0001f));
             Assert.That(nav.agentMaxSlope, Is.EqualTo(50f).Within(0.0001f));
+
+            var snapshot = new ServerMapSnapshot();
+            Assert.That(snapshot.movementTriangles, Is.Not.Null);
 
             var shared = new ServerSharedWorldInfo();
             Assert.That(shared.formatVersion, Is.EqualTo(SharedWorldFormat.Version));
