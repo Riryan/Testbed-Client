@@ -330,22 +330,6 @@ namespace Game.Client.Presentation.Characters
                     continue;
                 }
 
-                // Test nude donor: existing persisted recipes may explicitly select the
-                // original Human Base even after the catalog default changes. When the
-                // authored nude option is installed, replace only that base selection.
-                // Equipment still overrides the region normally after this base pass.
-                if ((slot.slotId == 10 || slot.slotId == 17) &&
-                    _profile.TryGetOption(slot.slotId, selected, out CharacterVisualOptionDefinition baseOption) &&
-                    baseOption != null &&
-                    !string.IsNullOrEmpty(baseOption.rendererPath) &&
-                    baseOption.rendererPath.IndexOf("_HUMN_BASE_", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    ushort nudeId = slot.slotId == 10 ? (ushort)65010 : (ushort)65017;
-                    if (_profile.TryGetOption(slot.slotId, nudeId, out CharacterVisualOptionDefinition nudeOption) &&
-                        nudeOption != null && nudeOption.mesh != null)
-                        selected = nudeId;
-                }
-
                 if (!_profile.TryGetOption(slot.slotId, selected, out CharacterVisualOptionDefinition option) ||
                     option == null || option.mesh == null)
                 {
