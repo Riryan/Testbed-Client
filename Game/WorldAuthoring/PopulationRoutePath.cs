@@ -4,9 +4,9 @@ using UnityEngine;
 namespace Game.WorldAuthoring
 {
     /// <summary>
-    /// Optional authoring helper. Direct child Route Markers are connected in sibling order
-    /// during ServerWorldBake. This keeps long road/sidewalk routes fast to author without
-    /// creating a runtime route component on the standalone server.
+    /// Canonical ordered authoring: consecutive active direct child markers connect
+    /// at bake time. Normal links are bidirectional. Junctions can be linked manually;
+    /// there is no requirement to materialize path links beforehand.
     /// </summary>
     [AddComponentMenu("MMO/Population/Route Path")]
     [DisallowMultipleComponent]
@@ -26,7 +26,8 @@ namespace Game.WorldAuthoring
             for (int i = 0; i < transform.childCount; ++i)
             {
                 Transform child = transform.GetChild(i);
-                if (child != null && child.TryGetComponent(out PopulationRouteMarker marker))
+                if (child != null && child.gameObject.activeInHierarchy &&
+                    child.TryGetComponent(out PopulationRouteMarker marker))
                     destination.Add(marker);
             }
         }

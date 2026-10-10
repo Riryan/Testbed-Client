@@ -1921,6 +1921,24 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
+            PopulationRoutePath[] routePaths = Object.FindObjectsByType<PopulationRoutePath>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Where(x => x != null && x.gameObject.scene == scene && x.gameObject.activeInHierarchy)
+                .OrderBy(x => HierarchyPath(x.transform), StringComparer.Ordinal)
+                .ToArray();
+            var pathMarkers = new List<PopulationRouteMarker>();
+            var pathDirectedPairs = new HashSet<string>(StringComparer.Ordinal);
+            foreach (PopulationRoutePath path in routePaths)
+            {
+                if (!path.connectChildrenInOrder || !path.oneWay) continue;
+                path.CollectDirectMarkers(pathMarkers);
+                for (int i = 1; i < pathMarkers.Count; ++i)
+                    if (TryPopulationMarkerId(scene, markerIds, pathMarkers[i-1], pathMarkers[i], out long a, out long c))
+                        pathDirectedPairs.Add(UndirectedPopulationPair(a,c));
+                if (path.loop && pathMarkers.Count > 2 &&
+                    TryPopulationMarkerId(scene, markerIds, pathMarkers[pathMarkers.Count-1], pathMarkers[0], out long end, out long start))
+                    pathDirectedPairs.Add(UndirectedPopulationPair(end,start));
+            }
             var edgeOutput = new List<ServerPopulationRouteEdge>(Math.Max(16, markers.Length * 2));
             var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
 
@@ -1936,7 +1954,12 @@ namespace Game.WorldAuthoring.Editor
                     PopulationRouteMarker target = marker.links[l];
                     if (!TryPopulationMarkerId(scene, markerIds, marker, target, out long fromId, out long toId))
                         continue;
-                    if (explicitOneWayPairs.Contains(UndirectedPopulationPair(fromId, toId)))
+                    // Previously materialized links are editor bookkeeping, not durable
+                    // topology. They can be stale after sibling reordering.
+                    if ((marker.generatedLinks != null && marker.generatedLinks.Contains(target)) ||
+                        (target.generatedLinks != null && target.generatedLinks.Contains(marker)) ||
+                        explicitOneWayPairs.Contains(UndirectedPopulationPair(fromId, toId)) ||
+                        pathDirectedPairs.Contains(UndirectedPopulationPair(fromId, toId)))
                         continue;
                     AddPopulationEdge(
                         edgeOutput,
@@ -1950,9 +1973,29 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            // PopulationRoutePath is organizational only. Route topology is emitted solely
-            // from explicit marker Links / One Way Outbound Links so the Inspector is the
-            // authoritative source of visible route connections.
+            // Ordered children are authoritative at bake time. Manual marker links
+            // still join separate paths; no materialization action is required.
+            int automaticEdges = 0;
+            foreach (PopulationRoutePath path in routePaths)
+            {
+                if (!path.connectChildrenInOrder) continue;
+                path.CollectDirectMarkers(pathMarkers);
+                int count = pathMarkers.Count;
+                int segmentCount = count > 1 ? count - 1 + (path.loop && count > 2 ? 1 : 0) : 0;
+                for (int j = 0; j < segmentCount; ++j)
+                {
+                    PopulationRouteMarker from = pathMarkers[j % count];
+                    PopulationRouteMarker to = pathMarkers[(j + 1) % count];
+                    if (from == null || to == null || !from.gameObject.activeInHierarchy || !to.gameObject.activeInHierarchy ||
+                        !TryPopulationMarkerId(scene, markerIds, from, to, out long a, out long c) ||
+                        explicitOneWayPairs.Contains(UndirectedPopulationPair(a,c)))
+                        continue;
+                    int before = edgeOutput.Count;
+                    AddPathPopulationEdge(path, from, to, markerIds, explicitOneWayPairs, edgeOutput, edgeKeys);
+                    automaticEdges += edgeOutput.Count - before;
+                }
+            }
+            Debug.Log($"[Server World Bake] Population ordered paths={routePaths.Length}, auto edges={automaticEdges}, total edges={edgeOutput.Count} before explicit one-way links.");
 
             // Explicit one-way links are applied last and intentionally override bidirectional
             // marker links for that pair.
@@ -2390,7 +2433,7 @@ namespace Game.WorldAuthoring.Editor
                     $"[Server World Bake] Population entry route is orphaned: {entry.Value}. " +
                     $"Baked nodeId={entry.Key}, outgoingDegree={degree}. " +
                     "The actor can reach this first node but has no usable baked edge to continue on. " +
-                    "Run Auto Connect Local Routes or add a Link/One Way Outbound Link, then rebake.");
+                    "Check ordered Route Path children or add an explicit junction Link, then rebake.");
                 valid = false;
             }
 
