@@ -149,6 +149,105 @@ namespace Game.WorldAuthoring.Editor
             Selection.activeGameObject = go;
         }
 
+        public static bool AssignNearbyPortalMarkersActiveScene(
+            float maximumDistance,
+            out int assigned,
+            out int unresolved)
+        {
+            assigned = 0;
+            unresolved = 0;
+
+            Scene scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                Debug.LogWarning("[Population Authoring] Active scene is not loaded.");
+                return false;
+            }
+
+            maximumDistance = Mathf.Clamp(maximumDistance, 1f, 50f);
+
+            PopulationRouteMarker[] markers = Object.FindObjectsByType<PopulationRouteMarker>(
+                    FindObjectsInactive.Exclude,
+                    FindObjectsSortMode.None)
+                .Where(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy)
+                .ToArray();
+
+            PopulationPortal[] portals = Object.FindObjectsByType<PopulationPortal>(
+                    FindObjectsInactive.Exclude,
+                    FindObjectsSortMode.None)
+                .Where(x =>
+                    x != null &&
+                    x.gameObject.scene == scene &&
+                    x.gameObject.activeInHierarchy)
+                .ToArray();
+
+            if (portals.Length == 0)
+                return true;
+
+            float maxSq = maximumDistance * maximumDistance;
+            for (int p = 0; p < portals.Length; ++p)
+            {
+                PopulationPortal portal = portals[p];
+                if (portal.routeMarker != null)
+                    continue;
+
+                PopulationRouteMarker best = null;
+                float bestSq = float.PositiveInfinity;
+                Vector3 from = portal.transform.position;
+
+                for (int m = 0; m < markers.Length; ++m)
+                {
+                    PopulationRouteMarker marker = markers[m];
+                    if (marker == null)
+                        continue;
+
+                    Vector3 delta = marker.transform.position - from;
+                    float horizontalSq = delta.x * delta.x + delta.z * delta.z;
+                    if (horizontalSq > maxSq || horizontalSq >= bestSq)
+                        continue;
+
+                    if (!IsDirectAuthoringCorridorClear(
+                            from,
+                            marker.transform.position,
+                            maximumDistance,
+                            portal.transform,
+                            marker.transform))
+                    {
+                        continue;
+                    }
+
+                    best = marker;
+                    bestSq = horizontalSq;
+                }
+
+                if (best == null)
+                {
+                    unresolved++;
+                    continue;
+                }
+
+                Undo.RecordObject(portal, "Assign Population Portal Route Marker");
+                portal.routeMarker = best;
+                EditorUtility.SetDirty(portal);
+                assigned++;
+            }
+
+            if (assigned > 0)
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+
+            PopulationSpawnAuthoringSummary.MarkDirty();
+            SceneView.RepaintAll();
+
+            Debug.Log(
+                $"[Population Authoring] Portal route-marker scan complete: assigned={assigned}, " +
+                $"unresolved={unresolved}, radius={maximumDistance:0.##}m.");
+
+            return true;
+        }
+
         public static bool AutoConnectActiveScene(
             float maximumDistance,
             out int added,
@@ -461,11 +560,21 @@ namespace Game.WorldAuthoring.Editor
         private static bool IsDirectAuthoringCorridorClear(
             PopulationRouteMarker a,
             PopulationRouteMarker b,
-            float maximumDistance)
-        {
-            Vector3 from = a.transform.position;
-            Vector3 to = b.transform.position;
+            float maximumDistance) =>
+            IsDirectAuthoringCorridorClear(
+                a.transform.position,
+                b.transform.position,
+                maximumDistance,
+                a.transform,
+                b.transform);
 
+        private static bool IsDirectAuthoringCorridorClear(
+            Vector3 from,
+            Vector3 to,
+            float maximumDistance,
+            Transform sourceTransform,
+            Transform targetTransform)
+        {
             if (!NavMesh.SamplePosition(from, out NavMeshHit fromHit, 1.25f, NavMesh.AllAreas) ||
                 !NavMesh.SamplePosition(to, out NavMeshHit toHit, 1.25f, NavMesh.AllAreas))
             {
@@ -488,10 +597,10 @@ namespace Game.WorldAuthoring.Editor
             {
                 Transform hitTransform = hit.collider != null ? hit.collider.transform : null;
                 if (hitTransform != null &&
-                    hitTransform != a.transform &&
-                    hitTransform != b.transform &&
-                    !hitTransform.IsChildOf(a.transform) &&
-                    !hitTransform.IsChildOf(b.transform))
+                    hitTransform != sourceTransform &&
+                    hitTransform != targetTransform &&
+                    !hitTransform.IsChildOf(sourceTransform) &&
+                    !hitTransform.IsChildOf(targetTransform))
                 {
                     return false;
                 }
