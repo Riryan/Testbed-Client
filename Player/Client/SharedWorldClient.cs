@@ -80,6 +80,12 @@ namespace Player.Client
                 return true;
             }
 
+            // Same movement dimensions and walkability limit as the authoritative
+            // CharacterMotorSettings. This client assembly cannot depend on Game.Server.
+            private const float CapsuleHeight = 1.8f;
+            private const float DefaultCapsuleRadius = 0.35f;
+            private const float MaximumSlopeDegrees = 50f;
+
             public bool TryResolveGroundedMove(
                 Vector3 start,
                 Vector3 desiredDelta,
@@ -91,207 +97,309 @@ namespace Player.Client
             {
                 resolved = start;
                 blocked = false;
-
                 desiredDelta.y = 0f;
-                if (desiredDelta.sqrMagnitude <= 0.0000001f)
+                float length = desiredDelta.magnitude;
+                if (length <= 0.000001f)
                     return true;
 
+                // Match the authoritative horizontal motor's bounded substeps and
+                // its X/Z soft-slide decision rather than evaluating one full delta.
                 float safeRadius = Mathf.Max(0.05f, radius);
                 float stepUp = Mathf.Max(0.01f, maximumStepUp);
                 float snapDown = Mathf.Max(0.01f, maximumSnapDown);
-
-                if (TryGroundedCandidate(start, desiredDelta, safeRadius, stepUp, snapDown, out resolved))
-                    return true;
-
-                // Match the server motor's basic soft-slide behavior. A diagonal input that
-                // can legitimately slide along a wall/ledge is still useful intent and must
-                // not be suppressed merely because the full diagonal candidate was blocked.
-                Vector3 xOnly = start;
-                Vector3 zOnly = start;
-                bool canX = Mathf.Abs(desiredDelta.x) > Epsilon &&
-                    TryGroundedCandidate(
-                        start, new Vector3(desiredDelta.x, 0f, 0f), safeRadius, stepUp, snapDown, out xOnly);
-                bool canZ = Mathf.Abs(desiredDelta.z) > Epsilon &&
-                    TryGroundedCandidate(
-                        start, new Vector3(0f, 0f, desiredDelta.z), safeRadius, stepUp, snapDown, out zOnly);
-
-                if (canX && (!canZ || Mathf.Abs(desiredDelta.x) >= Mathf.Abs(desiredDelta.z)))
+                float maxSubstep = Mathf.Max(0.05f, safeRadius * 0.5f);
+                int steps = Mathf.Clamp(Mathf.CeilToInt(length / maxSubstep), 1, 16);
+                float sx = desiredDelta.x / steps;
+                float sz = desiredDelta.z / steps;
+                Vector3 current = start;
+                for (int i = 0; i < steps; ++i)
                 {
-                    resolved = xOnly;
-                    return true;
-                }
-                if (canZ)
-                {
-                    resolved = zOnly;
-                    return true;
+                    if (TryGroundedCandidate(current, sx, sz, safeRadius, stepUp, snapDown,
+                            out Vector3 candidate))
+                    {
+                        current = candidate;
+                        continue;
+                    }
+
+                    bool canX = TryGroundedCandidate(current, sx, 0f, safeRadius, stepUp,
+                        snapDown, out Vector3 xOnly);
+                    bool canZ = TryGroundedCandidate(current, 0f, sz, safeRadius, stepUp,
+                        snapDown, out Vector3 zOnly);
+                    if (canX && (!canZ || Mathf.Abs(sx) >= Mathf.Abs(sz)))
+                        current = xOnly;
+                    else if (canZ)
+                        current = zOnly;
+                    else
+                        blocked = true;
                 }
 
-                // No supported axis can advance: a good client can suppress this held intent.
-                blocked = true;
+                resolved = current;
                 return true;
             }
 
             private bool TryGroundedCandidate(
-                Vector3 start,
-                Vector3 desiredDelta,
-                float radius,
-                float maximumStepUp,
-                float maximumSnapDown,
+                Vector3 start, float deltaX, float deltaZ,
+                float radius, float stepHeight, float groundSnapDistance,
                 out Vector3 resolved)
             {
                 resolved = start;
-                Vector3 target = start + desiredDelta;
-                if (IsHorizontalPathBlocked(start, target, radius))
+                if (Mathf.Abs(deltaX) <= 0.000001f && Mathf.Abs(deltaZ) <= 0.000001f)
                     return false;
 
-                if (!TryFindSupportHeight(
-                        target.x,
-                        target.z,
-                        start.y,
-                        maximumStepUp,
-                        maximumSnapDown,
-                        out float supportY))
-                {
+                Vector3 target = new Vector3(start.x + deltaX, start.y, start.z + deltaZ);
+                if (!TryFindGroundFootprint(target.x, target.z, start.y, radius,
+                        Mathf.Max(0.05f, stepHeight + 0.05f),
+                        Mathf.Max(0.05f, groundSnapDistance), out float groundY))
                     return false;
-                }
 
-                resolved = new Vector3(target.x, supportY, target.z);
+                float verticalDelta = groundY - start.y;
+                if (verticalDelta > stepHeight + 0.05f ||
+                    verticalDelta < -groundSnapDistance - 0.05f)
+                    return false;
+
+                target.y = groundY;
+                if (!IsStandingCapsuleClear(target, radius))
+                    return false;
+
+                resolved = target;
                 return true;
             }
 
-            private bool IsHorizontalPathBlocked(Vector3 start, Vector3 target, float radius)
-            {
-                Vector3 planar = target - start;
-                planar.y = 0f;
-                float length = planar.magnitude;
-                if (length <= Epsilon)
-                    return false;
-
-                Vector3 direction = planar / length;
-                Vector3 side = new Vector3(-direction.z, 0f, direction.x) * radius;
-                const float bodyProbeHeight = 0.90f;
-
-                Vector3 a0 = start + Vector3.up * bodyProbeHeight;
-                Vector3 b0 = target + Vector3.up * bodyProbeHeight;
-                if (SegmentHitsCollision(a0, b0))
-                    return true;
-                if (SegmentHitsCollision(a0 + side, b0 + side))
-                    return true;
-                if (SegmentHitsCollision(a0 - side, b0 - side))
-                    return true;
-                return false;
-            }
-
-            private bool SegmentHitsCollision(Vector3 from, Vector3 to)
-            {
-                float minX = Mathf.Min(from.x, to.x) - 0.05f;
-                float maxX = Mathf.Max(from.x, to.x) + 0.05f;
-                float minZ = Mathf.Min(from.z, to.z) - 0.05f;
-                float maxZ = Mathf.Max(from.z, to.z) + 0.05f;
-                Query(_collisionGrid, minX, minZ, maxX, maxZ);
-
-                foreach (int index in _scratch)
-                {
-                    if (SegmentIntersectsTriangle(from, to, _collision[index]))
-                        return true;
-                }
-
-                QueryDynamicBlockers(minX, minZ, maxX, maxZ);
-                foreach (long stableId in _dynamicBlockerScratch)
-                {
-                    if (_dynamicBlockers.TryGetValue(stableId, out DynamicBlockerState state) &&
-                        state.Enabled &&
-                        SegmentIntersectsOrientedBox(from, to, state.Definition))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
             public bool TryFindSupportHeight(
-                float x,
-                float z,
-                float referenceY,
-                float probeUp,
-                float probeDown,
-                out float y)
+                float x, float z, float referenceY,
+                float probeUp, float probeDown, out float y)
             {
-                y = 0f;
-                Query(_supportGrid, x - 0.01f, z - 0.01f, x + 0.01f, z + 0.01f);
+                // Also used by owner presentation without a movement delta.
+                // Use the same five-point footprint and slope constraints.
+                return TryFindGroundFootprint(x, z, referenceY,
+                    DefaultCapsuleRadius, probeUp, probeDown, out y);
+            }
 
+            private bool TryFindGroundFootprint(
+                float x, float z, float feetY, float radius,
+                float probeUp, float probeDown, out float groundY)
+            {
+                groundY = feetY;
+                float ring = Mathf.Max(0f, radius) * 0.6f;
+                float minNormalY = Mathf.Cos(MaximumSlopeDegrees * Mathf.Deg2Rad);
+                float extent = ring + 0.01f;
+                Query(_supportGrid, x - extent, z - extent, x + extent, z + extent);
+
+                bool centerSupported = false;
+                float centerY = float.NegativeInfinity;
+                int supportCount = 0;
+                float bestY = float.NegativeInfinity;
+                for (int sample = 0; sample < 5; ++sample)
+                {
+                    float px = x + (sample == 1 ? ring : sample == 2 ? -ring : 0f);
+                    float pz = z + (sample == 3 ? ring : sample == 4 ? -ring : 0f);
+                    if (!TryGroundAtPointFromCandidates(px, pz, feetY,
+                            probeUp, probeDown, minNormalY, out float candidateY))
+                        continue;
+                    supportCount++;
+                    if (sample == 0)
+                    {
+                        centerSupported = true;
+                        centerY = candidateY;
+                    }
+                    if (candidateY > bestY)
+                        bestY = candidateY;
+                }
+
+                if (!centerSupported && supportCount < 2)
+                    return false;
+                groundY = centerSupported ? centerY : bestY;
+                return true;
+            }
+
+            private bool TryGroundAtPointFromCandidates(
+                float x, float z, float feetY,
+                float probeUp, float probeDown, float minNormalY, out float bestY)
+            {
+                bestY = float.NegativeInfinity;
                 bool found = false;
-                float bestDelta = float.PositiveInfinity;
                 foreach (int index in _scratch)
                 {
                     ServerCollisionTriangle t = _support[index];
-                    if (!TryHeightAtXZ(t, x, z, out float candidate))
+                    if (t.normalY < minNormalY ||
+                        !TryHeightAtXZ(t, x, z, out float candidate))
                         continue;
-                    if (candidate > referenceY + probeUp || candidate < referenceY - probeDown)
+                    if (candidate > feetY + Mathf.Max(0f, probeUp) ||
+                        candidate < feetY - Mathf.Max(0f, probeDown))
                         continue;
-
-                    float delta = Mathf.Abs(candidate - referenceY);
-                    if (delta >= bestDelta)
-                        continue;
-
-                    bestDelta = delta;
-                    y = candidate;
-                    found = true;
+                    if (!found || candidate > bestY)
+                    {
+                        found = true;
+                        bestY = candidate;
+                    }
                 }
                 return found;
             }
 
-            private static bool TryHeightAtXZ(ServerCollisionTriangle t, float x, float z, out float y)
+            private bool IsStandingCapsuleClear(Vector3 feet, float radius)
             {
-                y = 0f;
-                float ax = t.ax;
-                float az = t.az;
-                float bx = t.bx;
-                float bz = t.bz;
-                float cx = t.cx;
-                float cz = t.cz;
+                // This matches the server's standing clearance check, including
+                // skipping only the low supporting floor (not walls or ceilings).
+                float bottomY = feet.y + radius;
+                float topY = feet.y + Mathf.Max(radius * 2f, CapsuleHeight) - radius;
+                float floorNormalY = Mathf.Cos(MaximumSlopeDegrees * Mathf.Deg2Rad);
+                Query(_collisionGrid, feet.x - radius, feet.z - radius,
+                    feet.x + radius, feet.z + radius);
+                foreach (int index in _scratch)
+                {
+                    ServerCollisionTriangle t = _collision[index];
+                    if (t.normalY >= floorNormalY &&
+                        Mathf.Max(t.ay, Mathf.Max(t.by, t.cy)) <= feet.y + radius * 1.5f)
+                        continue;
+                    float distanceSquared = SegmentTriangleDistanceSquared(
+                        feet.x, bottomY, feet.z, feet.x, topY, feet.z, t);
+                    if (distanceSquared < radius * radius - 0.000001f)
+                        return false;
+                }
 
-                float denominator = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
-                if (Mathf.Abs(denominator) <= 0.0000001f)
-                    return false;
-
-                float u = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / denominator;
-                float v = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / denominator;
-                float w = 1f - u - v;
-                const float edgeTolerance = -0.0005f;
-                if (u < edgeTolerance || v < edgeTolerance || w < edgeTolerance)
-                    return false;
-
-                y = u * t.ay + v * t.by + w * t.cy;
+                QueryDynamicBlockers(feet.x - radius, feet.z - radius,
+                    feet.x + radius, feet.z + radius);
+                foreach (long stableId in _dynamicBlockerScratch)
+                {
+                    if (_dynamicBlockers.TryGetValue(stableId, out DynamicBlockerState state) &&
+                        state.Enabled && CapsuleOverlapsOrientedBox(feet, radius, state.Definition))
+                        return false;
+                }
                 return true;
             }
 
-            private static bool SegmentIntersectsTriangle(Vector3 from, Vector3 to, ServerCollisionTriangle t)
+            private static bool CapsuleOverlapsOrientedBox(
+                Vector3 feet, float radius, ServerDynamicBlocker box)
             {
-                Vector3 a = new Vector3(t.ax, t.ay, t.az);
-                Vector3 b = new Vector3(t.bx, t.by, t.bz);
-                Vector3 c = new Vector3(t.cx, t.cy, t.cz);
-                Vector3 direction = to - from;
-                Vector3 edge1 = b - a;
-                Vector3 edge2 = c - a;
-                Vector3 p = Vector3.Cross(direction, edge2);
-                float determinant = Vector3.Dot(edge1, p);
-                if (Mathf.Abs(determinant) < 0.000001f)
+                float yaw = -box.pose.yaw * Mathf.Deg2Rad;
+                float cos = Mathf.Cos(yaw), sin = Mathf.Sin(yaw);
+                float dx = feet.x - box.pose.x, dz = feet.z - box.pose.z;
+                float localX = dx * cos - dz * sin;
+                float localZ = dx * sin + dz * cos;
+                float halfX = Mathf.Max(0.01f, box.sizeX * 0.5f);
+                float halfY = Mathf.Max(0.01f, box.sizeY * 0.5f);
+                float halfZ = Mathf.Max(0.01f, box.sizeZ * 0.5f);
+                float nearestX = Mathf.Clamp(localX, -halfX, halfX);
+                float nearestZ = Mathf.Clamp(localZ, -halfZ, halfZ);
+                float horizontalDx = localX - nearestX;
+                float horizontalDz = localZ - nearestZ;
+                if (horizontalDx * horizontalDx + horizontalDz * horizontalDz >= radius * radius)
                     return false;
+                float capsuleHeight = Mathf.Max(radius * 2f, CapsuleHeight);
+                return feet.y + capsuleHeight > box.pose.y - halfY &&
+                       feet.y < box.pose.y + halfY;
+            }
 
-                float inv = 1f / determinant;
-                Vector3 s = from - a;
-                float u = Vector3.Dot(s, p) * inv;
-                if (u < 0f || u > 1f)
+            private static float SegmentTriangleDistanceSquared(
+                float p0x, float p0y, float p0z,
+                float p1x, float p1y, float p1z,
+                ServerCollisionTriangle t)
+            {
+                if (SegmentIntersectsTriangle(p0x, p0y, p0z, p1x, p1y, p1z, t))
+                    return 0f;
+
+                float best = PointTriangleDistanceSquared(p0x, p0y, p0z, t);
+                best = Math.Min(best, PointTriangleDistanceSquared(p1x, p1y, p1z, t));
+                best = Math.Min(best, SegmentSegmentDistanceSquared(p0x, p0y, p0z, p1x, p1y, p1z, t.ax, t.ay, t.az, t.bx, t.by, t.bz));
+                best = Math.Min(best, SegmentSegmentDistanceSquared(p0x, p0y, p0z, p1x, p1y, p1z, t.bx, t.by, t.bz, t.cx, t.cy, t.cz));
+                best = Math.Min(best, SegmentSegmentDistanceSquared(p0x, p0y, p0z, p1x, p1y, p1z, t.cx, t.cy, t.cz, t.ax, t.ay, t.az));
+                return best;
+            }
+
+            private static bool SegmentIntersectsTriangle(float p0x, float p0y, float p0z, float p1x, float p1y, float p1z, ServerCollisionTriangle t)
+            {
+                float dx = p1x - p0x, dy = p1y - p0y, dz = p1z - p0z;
+                float e1x = t.bx - t.ax, e1y = t.by - t.ay, e1z = t.bz - t.az;
+                float e2x = t.cx - t.ax, e2y = t.cy - t.ay, e2z = t.cz - t.az;
+                float hx = dy * e2z - dz * e2y;
+                float hy = dz * e2x - dx * e2z;
+                float hz = dx * e2y - dy * e2x;
+                float a = e1x * hx + e1y * hy + e1z * hz;
+                if (Math.Abs(a) < 0.0000001f) return false;
+                float f = 1f / a;
+                float sx = p0x - t.ax, sy = p0y - t.ay, sz = p0z - t.az;
+                float u = f * (sx * hx + sy * hy + sz * hz);
+                if (u < 0f || u > 1f) return false;
+                float qx = sy * e1z - sz * e1y;
+                float qy = sz * e1x - sx * e1z;
+                float qz = sx * e1y - sy * e1x;
+                float v = f * (dx * qx + dy * qy + dz * qz);
+                if (v < 0f || u + v > 1f) return false;
+                float along = f * (e2x * qx + e2y * qy + e2z * qz);
+                return along >= 0f && along <= 1f;
+            }
+
+            // Ericson, Real-Time Collision Detection: closest point on triangle.
+            private static float PointTriangleDistanceSquared(float px, float py, float pz, ServerCollisionTriangle t)
+            {
+                float ax=t.ax, ay=t.ay, az=t.az, bx=t.bx, by=t.by, bz=t.bz, cx=t.cx, cy=t.cy, cz=t.cz;
+                float abx=bx-ax, aby=by-ay, abz=bz-az, acx=cx-ax, acy=cy-ay, acz=cz-az, apx=px-ax, apy=py-ay, apz=pz-az;
+                float d1=abx*apx+aby*apy+abz*apz, d2=acx*apx+acy*apy+acz*apz;
+                if (d1<=0f && d2<=0f) return DistSq(px,py,pz,ax,ay,az);
+                float bpx=px-bx,bpy=py-by,bpz=pz-bz, d3=abx*bpx+aby*bpy+abz*bpz, d4=acx*bpx+acy*bpy+acz*bpz;
+                if (d3>=0f && d4<=d3) return DistSq(px,py,pz,bx,by,bz);
+                float vc=d1*d4-d3*d2;
+                if (vc<=0f && d1>=0f && d3<=0f) { float v=d1/(d1-d3); return DistSq(px,py,pz,ax+v*abx,ay+v*aby,az+v*abz); }
+                float cpx=px-cx,cpy=py-cy,cpz=pz-cz, d5=abx*cpx+aby*cpy+abz*cpz, d6=acx*cpx+acy*cpy+acz*cpz;
+                if (d6>=0f && d5<=d6) return DistSq(px,py,pz,cx,cy,cz);
+                float vb=d5*d2-d1*d6;
+                if (vb<=0f && d2>=0f && d6<=0f) { float w=d2/(d2-d6); return DistSq(px,py,pz,ax+w*acx,ay+w*acy,az+w*acz); }
+                float va=d3*d6-d5*d4;
+                if (va<=0f && (d4-d3)>=0f && (d5-d6)>=0f) { float w=(d4-d3)/((d4-d3)+(d5-d6)); return DistSq(px,py,pz,bx+w*(cx-bx),by+w*(cy-by),bz+w*(cz-bz)); }
+                float denom=1f/(va+vb+vc); float v2=vb*denom,w2=vc*denom;
+                return DistSq(px,py,pz,ax+abx*v2+acx*w2,ay+aby*v2+acy*w2,az+abz*v2+acz*w2);
+            }
+
+            private static float SegmentSegmentDistanceSquared(
+                float p1x,float p1y,float p1z,float q1x,float q1y,float q1z,
+                float p2x,float p2y,float p2z,float q2x,float q2y,float q2z)
+            {
+                float d1x=q1x-p1x,d1y=q1y-p1y,d1z=q1z-p1z,d2x=q2x-p2x,d2y=q2y-p2y,d2z=q2z-p2z,rx=p1x-p2x,ry=p1y-p2y,rz=p1z-p2z;
+                float a=d1x*d1x+d1y*d1y+d1z*d1z,e=d2x*d2x+d2y*d2y+d2z*d2z,f=d2x*rx+d2y*ry+d2z*rz;
+                float s,t;
+                if (a<=0.0000001f && e<=0.0000001f) return DistSq(p1x,p1y,p1z,p2x,p2y,p2z);
+                if (a<=0.0000001f) { s=0f; t=Mathf.Clamp(f/e,0f,1f); }
+                else
+                {
+                    float c=d1x*rx+d1y*ry+d1z*rz;
+                    if (e<=0.0000001f) { t=0f; s=Mathf.Clamp(-c/a,0f,1f); }
+                    else
+                    {
+                        float b=d1x*d2x+d1y*d2y+d1z*d2z,den=a*e-b*b;
+                        s=den!=0f?Mathf.Clamp((b*f-c*e)/den,0f,1f):0f;
+                        t=(b*s+f)/e;
+                        if (t<0f) { t=0f; s=Mathf.Clamp(-c/a,0f,1f); }
+                        else if (t>1f) { t=1f; s=Mathf.Clamp((b-c)/a,0f,1f); }
+                    }
+                }
+                float c1x=p1x+d1x*s,c1y=p1y+d1y*s,c1z=p1z+d1z*s,c2x=p2x+d2x*t,c2y=p2y+d2y*t,c2z=p2z+d2z*t;
+                return DistSq(c1x,c1y,c1z,c2x,c2y,c2z);
+            }
+
+            private static float DistSq(float ax,float ay,float az,float bx,float by,float bz)
+            { float x=ax-bx,y=ay-by,z=az-bz; return x*x+y*y+z*z; }
+            private static bool TryHeightAtXZ(ServerCollisionTriangle t, float x, float z, out float y)
+            {
+                float v0x = t.bx - t.ax, v0z = t.bz - t.az;
+                float v1x = t.cx - t.ax, v1z = t.cz - t.az;
+                float v2x = x - t.ax, v2z = z - t.az;
+                float den = v0x * v1z - v1x * v0z;
+                if (Mathf.Abs(den) <= 0.0000001f)
+                {
+                    y = 0f;
                     return false;
-
-                Vector3 q = Vector3.Cross(s, edge1);
-                float v = Vector3.Dot(direction, q) * inv;
-                if (v < 0f || u + v > 1f)
+                }
+                float inv = 1f / den;
+                float u = (v2x * v1z - v1x * v2z) * inv;
+                float v = (v0x * v2z - v2x * v0z) * inv;
+                const float epsilon = 0.0005f;
+                if (u < -epsilon || v < -epsilon || u + v > 1f + epsilon)
+                {
+                    y = 0f;
                     return false;
-
-                float distance = Vector3.Dot(edge2, q) * inv;
-                return distance >= 0f && distance <= 1f;
+                }
+                y = t.ay + u * (t.by - t.ay) + v * (t.cy - t.ay);
+                return !float.IsNaN(y) && !float.IsInfinity(y);
             }
 
             private void IndexDynamicBlocker(ServerDynamicBlocker blocker)
@@ -340,63 +448,6 @@ namespace Player.Client
                             _dynamicBlockerScratch.Add(list[i]);
                     }
                 }
-            }
-
-            private static bool SegmentIntersectsOrientedBox(
-                Vector3 from,
-                Vector3 to,
-                ServerDynamicBlocker box)
-            {
-                float yaw = -box.pose.yaw * Mathf.Deg2Rad;
-                float cos = Mathf.Cos(yaw);
-                float sin = Mathf.Sin(yaw);
-
-                static Vector3 ToLocal(Vector3 p, ServerDynamicBlocker b, float c, float si)
-                {
-                    float dx = p.x - b.pose.x;
-                    float dz = p.z - b.pose.z;
-                    return new Vector3(
-                        dx * c - dz * si,
-                        p.y - b.pose.y,
-                        dx * si + dz * c);
-                }
-
-                Vector3 f = ToLocal(from, box, cos, sin);
-                Vector3 t = ToLocal(to, box, cos, sin);
-                Vector3 d = t - f;
-                float hx = Mathf.Max(0.01f, box.sizeX * 0.5f);
-                float hy = Mathf.Max(0.01f, box.sizeY * 0.5f);
-                float hz = Mathf.Max(0.01f, box.sizeZ * 0.5f);
-                float enter = 0f;
-                float exit = 1f;
-
-                if (!Slab(f.x, d.x, -hx, hx, ref enter, ref exit)) return false;
-                if (!Slab(f.y, d.y, -hy, hy, ref enter, ref exit)) return false;
-                return Slab(f.z, d.z, -hz, hz, ref enter, ref exit);
-            }
-
-            private static bool Slab(
-                float origin,
-                float direction,
-                float min,
-                float max,
-                ref float enter,
-                ref float exit)
-            {
-                if (Mathf.Abs(direction) < 0.0000001f)
-                    return origin >= min && origin <= max;
-                float inv = 1f / direction;
-                float a = (min - origin) * inv;
-                float b = (max - origin) * inv;
-                if (a > b)
-                {
-                    float tmp = a;
-                    a = b;
-                    b = tmp;
-                }
-                enter = Mathf.Max(enter, a);
-                exit = Mathf.Min(exit, b);
-                return enter <= exit;
             }
 
             private static void BuildGrid(

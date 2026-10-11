@@ -63,8 +63,10 @@ namespace Game.Server.Application.World
         private readonly Dictionary<CellKey, List<int>> _movementTriangleGrid = new Dictionary<CellKey, List<int>>();
         private readonly Dictionary<CellKey, List<int>> _triangleGrid = new Dictionary<CellKey, List<int>>();
         private readonly Dictionary<long, DynamicBlockerState> _dynamicBlockers = new Dictionary<long, DynamicBlockerState>();
+        private readonly Dictionary<CellKey, List<long>> _dynamicBlockerGrid = new Dictionary<CellKey, List<long>>();
         private readonly HashSet<int> _movementQueryScratch = new HashSet<int>();
         private readonly HashSet<int> _queryScratch = new HashSet<int>();
+        private readonly HashSet<long> _dynamicBlockerQueryScratch = new HashSet<long>();
 
         private bool _hasWorldBounds;
         private float _minX;
@@ -109,6 +111,7 @@ namespace Game.Server.Application.World
                     Definition = blocker,
                     Enabled = blocker.enabledByDefault,
                 };
+                IndexDynamicBlocker(blocker);
             }
         }
 
@@ -213,9 +216,12 @@ namespace Game.Server.Application.World
                     return true;
             }
 
-            foreach (DynamicBlockerState state in _dynamicBlockers.Values)
+            QueryDynamicBlockers(minX, minZ, maxX, maxZ);
+            foreach (long stableId in _dynamicBlockerQueryScratch)
             {
-                if (state.Enabled && SegmentIntersectsOrientedBox(from, to, state.Definition))
+                if (_dynamicBlockers.TryGetValue(stableId, out DynamicBlockerState state) &&
+                    state.Enabled &&
+                    SegmentIntersectsOrientedBox(from, to, state.Definition))
                     return true;
             }
             return false;
@@ -288,6 +294,27 @@ namespace Game.Server.Application.World
             float bestY = float.NegativeInfinity;
             ServerCollisionTriangle best = default;
 
+            // Gather the complete five-point footprint candidate set once. The previous
+            // implementation rebuilt the same spatial-grid candidate set independently for
+            // center/+X/-X/+Z/-Z, multiplying dictionary/hash work for every ground probe.
+            float queryExtent = ring + 0.01f;
+            if (requireWalkable)
+            {
+                QueryMovementTriangles(
+                    feet.X - queryExtent,
+                    feet.Z - queryExtent,
+                    feet.X + queryExtent,
+                    feet.Z + queryExtent);
+            }
+            else
+            {
+                QueryTriangles(
+                    feet.X - queryExtent,
+                    feet.Z - queryExtent,
+                    feet.X + queryExtent,
+                    feet.Z + queryExtent);
+            }
+
             for (int sample = 0; sample < 5; ++sample)
             {
                 float offsetX = sample == 1 ? ring : sample == 2 ? -ring : 0f;
@@ -295,7 +322,7 @@ namespace Game.Server.Application.World
                 float x = feet.X + offsetX;
                 float z = feet.Z + offsetZ;
 
-                if (!TryFindGroundAtPoint(
+                if (!TryFindGroundAtPointFromCurrentCandidates(
                         x,
                         z,
                         feet.Y,
@@ -364,9 +391,11 @@ namespace Game.Server.Application.World
                     return false;
             }
 
-            foreach (DynamicBlockerState state in _dynamicBlockers.Values)
+            QueryDynamicBlockers(feet.X - radius, feet.Z - radius, feet.X + radius, feet.Z + radius);
+            foreach (long stableId in _dynamicBlockerQueryScratch)
             {
-                if (state.Enabled &&
+                if (_dynamicBlockers.TryGetValue(stableId, out DynamicBlockerState state) &&
+                    state.Enabled &&
                     CapsuleOverlapsOrientedBox(feet, capsule, state.Definition))
                 {
                     return false;
@@ -387,9 +416,37 @@ namespace Game.Server.Application.World
             ServerCapsule capsule,
             float maximumSlopeDegrees)
         {
-            foreach (DynamicBlockerState state in _dynamicBlockers.Values)
+            // Ground support is not a substitute for physical standing clearance.
+            // Ignore the supporting walkable floor directly under the capsule (which
+            // would intersect the capsule on slopes), but still test walls, overhead
+            // geometry, steep faces, and other static solid triangles.
+            float radius = capsule.Radius;
+            float cylinderBottomY = feet.Y + radius;
+            float cylinderTopY = feet.Y + capsule.Height - radius;
+            float floorNormalY = MathF.Cos(
+                Math.Clamp(maximumSlopeDegrees, 0f, 89.9f) * (MathF.PI / 180f));
+            QueryTriangles(feet.X - radius, feet.Z - radius,
+                feet.X + radius, feet.Z + radius);
+            foreach (int index in _queryScratch)
             {
-                if (state.Enabled &&
+                ServerCollisionTriangle t = _triangles[index];
+                // Floors below the lower hemisphere are accounted for by the
+                // authoritative movement-support test, including ramps and curbs.
+                if (t.normalY >= floorNormalY &&
+                    Math.Max(t.ay, Math.Max(t.by, t.cy)) <= feet.Y + radius * 1.5f)
+                    continue;
+                float distanceSquared = SegmentTriangleDistanceSquared(
+                    feet.X, cylinderBottomY, feet.Z,
+                    feet.X, cylinderTopY, feet.Z, t);
+                if (distanceSquared < radius * radius - 0.000001f)
+                    return false;
+            }
+
+            QueryDynamicBlockers(feet.X - radius, feet.Z - radius, feet.X + radius, feet.Z + radius);
+            foreach (long stableId in _dynamicBlockerQueryScratch)
+            {
+                if (_dynamicBlockers.TryGetValue(stableId, out DynamicBlockerState state) &&
+                    state.Enabled &&
                     CapsuleOverlapsOrientedBox(feet, capsule, state.Definition))
                 {
                     return false;
@@ -577,22 +634,38 @@ namespace Game.Server.Application.World
             out float bestY,
             out ServerCollisionTriangle bestTriangle)
         {
-            bestY = float.NegativeInfinity;
-            bestTriangle = default;
-            bool found = false;
-
             if (requireWalkable)
                 QueryMovementTriangles(x - 0.01f, z - 0.01f, x + 0.01f, z + 0.01f);
             else
                 QueryTriangles(x - 0.01f, z - 0.01f, x + 0.01f, z + 0.01f);
 
+            return TryFindGroundAtPointFromCurrentCandidates(
+                x, z, feetY, probeUp, probeDown, minNormalY, requireWalkable, out bestY, out bestTriangle);
+        }
+
+        private bool TryFindGroundAtPointFromCurrentCandidates(
+            float x,
+            float z,
+            float feetY,
+            float probeUp,
+            float probeDown,
+            float minNormalY,
+            bool requireWalkable,
+            out float bestY,
+            out ServerCollisionTriangle bestTriangle)
+        {
+            bestY = float.NegativeInfinity;
+            bestTriangle = default;
+            bool found = false;
             ServerCollisionTriangle[] source = requireWalkable ? _movementTriangles : _triangles;
             HashSet<int> candidates = requireWalkable ? _movementQueryScratch : _queryScratch;
             foreach (int index in candidates)
             {
                 ServerCollisionTriangle t = source[index];
                 if (t.normalY < minNormalY)
+                {
                     continue;
+                }
                 if (!TryTriangleHeightAtXZ(t, x, z, out float y))
                     continue;
                 if (y > feetY + Math.Max(0f, probeUp) || y < feetY - Math.Max(0f, probeDown))
@@ -680,6 +753,53 @@ namespace Game.Server.Application.World
                     }
                     list.Add(i);
                 }
+            }
+        }
+
+        private void IndexDynamicBlocker(ServerDynamicBlocker blocker)
+        {
+            if (blocker == null || blocker.stableId <= 0)
+                return;
+
+            float halfX = Math.Max(0.01f, blocker.sizeX * 0.5f);
+            float halfZ = Math.Max(0.01f, blocker.sizeZ * 0.5f);
+            float yaw = blocker.pose.yaw * (MathF.PI / 180f);
+            float cos = MathF.Abs(MathF.Cos(yaw));
+            float sin = MathF.Abs(MathF.Sin(yaw));
+            float extentX = cos * halfX + sin * halfZ;
+            float extentZ = sin * halfX + cos * halfZ;
+
+            int minCellX = ToCell(blocker.pose.x - extentX);
+            int maxCellX = ToCell(blocker.pose.x + extentX);
+            int minCellZ = ToCell(blocker.pose.z - extentZ);
+            int maxCellZ = ToCell(blocker.pose.z + extentZ);
+            for (int z = minCellZ; z <= maxCellZ; ++z)
+            for (int x = minCellX; x <= maxCellX; ++x)
+            {
+                var key = new CellKey(x, z);
+                if (!_dynamicBlockerGrid.TryGetValue(key, out List<long> list))
+                {
+                    list = new List<long>(4);
+                    _dynamicBlockerGrid.Add(key, list);
+                }
+                list.Add(blocker.stableId);
+            }
+        }
+
+        private void QueryDynamicBlockers(float minX, float minZ, float maxX, float maxZ)
+        {
+            _dynamicBlockerQueryScratch.Clear();
+            int minCellX = ToCell(minX);
+            int maxCellX = ToCell(maxX);
+            int minCellZ = ToCell(minZ);
+            int maxCellZ = ToCell(maxZ);
+            for (int z = minCellZ; z <= maxCellZ; ++z)
+            for (int x = minCellX; x <= maxCellX; ++x)
+            {
+                if (!_dynamicBlockerGrid.TryGetValue(new CellKey(x, z), out List<long> list))
+                    continue;
+                for (int i = 0; i < list.Count; ++i)
+                    _dynamicBlockerQueryScratch.Add(list[i]);
             }
         }
 

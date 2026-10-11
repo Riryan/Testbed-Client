@@ -79,11 +79,8 @@ namespace Game.WorldAuthoring.Editor
                 return false;
             }
 
-            // Fail fast on ServerSpawn authoring before doing NavMesh/collision work. Duplicate
-            // spawn identities are repaired deterministically here using the same scene-authoring
-            // pattern already used by Population Route Markers.
-            if (!ValidateSpawnAuthoring(scene, repairDuplicateIds: true, logSuccess: false))
-                return false;
+            // Spawn and Population authoring are separate layers. Their validation must
+            // not prevent the physical world geometry from being published.
 
             // Rebuild an authored NavMesh when one exists. If this scene has no NavMesh
             // authoring setup at all, fall back to a temporary server-only walk bake below.
@@ -117,21 +114,8 @@ namespace Game.WorldAuthoring.Editor
                 dynamicBlockers = Array.Empty<ServerDynamicBlocker>(),
             });
 
-            // Population authoring is exported before spawns so any deterministic Route Marker
-            // duplicate-ID repair is complete before ServerSpawn references are converted to
-            // stable route-node IDs.
-            if (!ExportPopulation(
-                    scene,
-                    map,
-                    portalValidationWorld,
-                    out ServerPopulationRouteNode[] populationNodes,
-                    out ServerPopulationRouteEdge[] populationEdges,
-                    out ServerPopulationPortal[] populationPortals))
-            {
-                return false;
-            }
-            if (!ExportSpawns(scene, out ServerSpawnAnchor[] spawns))
-                return false;
+            // Route/spawn exports run after publishing the core map below. No invalid
+            // route graph can veto movement/collision/shared-world bake revisions.
 
             if (!TryBakeServerNavMesh(scene, map, out ServerNavMeshInfo navMesh))
                 return false;
@@ -157,6 +141,7 @@ namespace Game.WorldAuthoring.Editor
             var snapshot = new ServerMapSnapshot
             {
                 formatVersion = ServerMapFormat.Version,
+                layerFormatVersion = 1,
                 mapId = map.MapId,
                 instanceId = map.InstanceId,
                 bakeRevision = revision,
@@ -173,11 +158,12 @@ namespace Game.WorldAuthoring.Editor
                 collisionTriangles = triangles.ToArray(),
                 dynamicBlockers = blockers,
                 traversalLinks = Array.Empty<ServerTraversalLink>(),
-                spawnAnchors = spawns,
+                // Separate layer files are composed by the standalone loader.
+                spawnAnchors = Array.Empty<ServerSpawnAnchor>(),
                 interactables = interactables,
-                populationNodes = populationNodes,
-                populationEdges = populationEdges,
-                populationPortals = populationPortals,
+                populationNodes = Array.Empty<ServerPopulationRouteNode>(),
+                populationEdges = Array.Empty<ServerPopulationRouteEdge>(),
+                populationPortals = Array.Empty<ServerPopulationPortal>(),
             };
 
             snapshot.contentHash = string.Empty;
@@ -186,17 +172,121 @@ namespace Game.WorldAuthoring.Editor
             string json = JsonUtility.ToJson(snapshot, true);
             File.WriteAllText(output, json, new UTF8Encoding(false));
 
+            // These exports may fail independently without withholding the core map.
+            // Missing or stale spawn layers fail closed at GameServer startup.
+            int layerSpawnCount = TryWriteAuthoringLayers(
+                scene, map, portalValidationWorld, output, snapshot);
+
             if (saveScene && scene.isDirty)
                 EditorSceneManager.SaveScene(scene);
 
-            result = new Result(map.MapId, output, triangles.Count, interactables.Length, blockers.Length, spawns.Length);
+            result = new Result(map.MapId, output, triangles.Count, interactables.Length, blockers.Length, layerSpawnCount);
             Debug.Log(
                 $"[Server World Bake] {map.MapId} -> {output}\n" +
-                $"  triangles={triangles.Count:n0}, interactables={interactables.Length:n0}, blockers={blockers.Length:n0}, spawns={spawns.Length:n0}, revision={snapshot.bakeRevision}\n" +
-                $"  populationNodes={populationNodes.Length:n0}, populationEdges={populationEdges.Length:n0}, populationPortals={populationPortals.Length:n0}\n" +
+                $"  triangles={triangles.Count:n0}, interactables={interactables.Length:n0}, blockers={blockers.Length:n0}, spawns={layerSpawnCount:n0}, revision={snapshot.bakeRevision}\n" +
+                "  routes/spawns=separate versioned layers (check layer logs)\n" +
                 $"  serverNavMesh={navMesh.fileName}, hash={ShortHash(navMesh.contentHash)}\n" +
                 $"  sharedWorld={sharedWorld.fileName}, hash={ShortHash(sharedWorld.contentHash)}");
             return true;
+        }
+
+        [Serializable]
+        private sealed class RouteLayerFile
+        {
+            public int formatVersion = 1;
+            public string mapId;
+            public string instanceId;
+            public string coreContentHash;
+            public ServerPopulationRouteNode[] populationNodes;
+            public ServerPopulationRouteEdge[] populationEdges;
+            public ServerPopulationPortal[] populationPortals;
+        }
+
+        [Serializable]
+        private sealed class SpawnLayerFile
+        {
+            public int formatVersion = 1;
+            public string mapId;
+            public string instanceId;
+            public string coreContentHash;
+            public ServerSpawnAnchor[] spawnAnchors;
+        }
+
+        private static int TryWriteAuthoringLayers(
+            Scene scene, ServerMap map, ServerCollisionWorld validationWorld,
+            string corePath, ServerMapSnapshot core)
+        {
+            string stem = corePath.EndsWith(".servermap.json", StringComparison.OrdinalIgnoreCase)
+                ? corePath.Substring(0, corePath.Length - ".servermap.json".Length)
+                : Path.Combine(Path.GetDirectoryName(corePath), Path.GetFileNameWithoutExtension(corePath));
+            string routesPath = stem + ".routes.json";
+            string spawnsPath = stem + ".spawns.json";
+
+            // Run route authoring first to preserve stable marker-id repair before
+            // resolving optional spawn references. Failure cannot block core geometry.
+            bool routesOk = false;
+            try
+            {
+                routesOk = ExportPopulation(scene, map, validationWorld,
+                    out ServerPopulationRouteNode[] nodes,
+                    out ServerPopulationRouteEdge[] edges,
+                    out ServerPopulationPortal[] portals);
+                if (routesOk)
+                {
+                    var layer = new RouteLayerFile
+                    {
+                        mapId = core.mapId,
+                        instanceId = core.instanceId,
+                        coreContentHash = core.contentHash,
+                        populationNodes = nodes,
+                        populationEdges = edges,
+                        populationPortals = portals,
+                    };
+                    File.WriteAllText(routesPath, JsonUtility.ToJson(layer, true), new UTF8Encoding(false));
+                    Debug.Log($"[Server World Bake] Routes layer -> {routesPath}: {nodes.Length} nodes, {edges.Length} edges");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Server World Bake] Route layer failed: {ex}");
+            }
+            if (!routesOk)
+            {
+                // Never let a previous revision's graph be loaded with fresh geometry.
+                if (File.Exists(routesPath)) File.Delete(routesPath);
+                Debug.LogWarning("[Server World Bake] Core geometry published; Population routes layer NOT published.");
+            }
+
+            bool spawnsOk = false;
+            int spawnCount = 0;
+            try
+            {
+                if (ValidateSpawnAuthoring(scene, repairDuplicateIds: true, logSuccess: false) &&
+                    ExportSpawns(scene, out ServerSpawnAnchor[] spawns))
+                {
+                    var layer = new SpawnLayerFile
+                    {
+                        mapId = core.mapId,
+                        instanceId = core.instanceId,
+                        coreContentHash = core.contentHash,
+                        spawnAnchors = spawns,
+                    };
+                    File.WriteAllText(spawnsPath, JsonUtility.ToJson(layer, true), new UTF8Encoding(false));
+                    spawnCount = spawns.Length;
+                    spawnsOk = true;
+                    Debug.Log($"[Server World Bake] Spawns layer -> {spawnsPath}: {spawnCount} anchors");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Server World Bake] Spawns layer failed: {ex}");
+            }
+            if (!spawnsOk)
+            {
+                if (File.Exists(spawnsPath)) File.Delete(spawnsPath);
+                Debug.LogWarning("[Server World Bake] Core geometry published; Spawns layer NOT published. GameServer startup will reject this revision.");
+            }
+            return spawnCount;
         }
 
         public static bool BakeEnabledClientScenes(bool rebuildNavMesh, out List<Result> results)
@@ -1713,8 +1803,10 @@ namespace Game.WorldAuthoring.Editor
                     continue; // represented by the runtime blocker instead of permanent collision
 
                 ServerSurface surface = collider.GetComponentInParent<ServerSurface>();
-                if (!collider.gameObject.isStatic && surface == null)
-                    continue;
+                // A scene collider on an explicit ServerMap collision layer is authored
+                // collision even when Unity's optional Static flag was not checked.
+                // Exclusions are handled by ServerBakeIgnore, layer filtering, trigger
+                // filtering and dynamic WorldInteractable ownership above.
                 ServerSurfaceFlags flags = surface != null ? surface.flags : ServerSurfaceFlags.None;
                 string key = $"{scene.path}/{HierarchyPath(collider.transform)}#{i}";
 
