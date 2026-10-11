@@ -105,7 +105,7 @@ namespace Game.WorldAuthoring.Editor
             ServerCollisionTriangle[] supportTriangles;
             try
             {
-                if (!ExportNavMesh(map, triangles))
+                if (!ExportNavMesh(map, scene, triangles))
                     return false;
 
                 // Keep the navigable support surface separate from the broader static
@@ -1572,17 +1572,26 @@ namespace Game.WorldAuthoring.Editor
             return value.Length <= 12 ? value : value.Substring(0, 12);
         }
 
-        private static bool ExportNavMesh(ServerMap map, List<ServerCollisionTriangle> output)
+        // Unity's NavMesh triangulation can bridge a short curb/height transition with a
+        // triangle whose interpolated slope exceeds the NavMesh agent's own slope limit.
+        // Do not export that artificial bridge as authoritative ground. Recover the real
+        // support geometry underneath its XZ footprint instead, clipped to that footprint.
+        // This runs at bake time only and uses the already-authoritative nav source collector.
+        private static bool ExportNavMesh(ServerMap map, Scene scene, List<ServerCollisionTriangle> output)
         {
             NavMeshTriangulation nav = NavMesh.CalculateTriangulation();
             if (nav.vertices == null || nav.indices == null || nav.indices.Length < 3)
             {
-                Debug.LogError(
-                    $"[Server World Bake] Map '{map.MapId}' has no baked NavMesh triangulation. " +
-                    "The server needs a walk surface for authoritative grounding.");
+                Debug.LogError($"[Server World Bake] Map '{map.MapId}' has no baked NavMesh triangulation.");
                 return false;
             }
 
+            const float maxSlopeDegrees = 50f;
+            float minNormalY = Mathf.Cos(maxSlopeDegrees * Mathf.Deg2Rad);
+            int repaired = 0;
+            int unrecoverable = 0;
+            float[] sourceVertices = null;
+            int[] sourceIndices = null;
             int triangleCount = nav.indices.Length / 3;
             for (int triangle = 0; triangle < triangleCount; ++triangle)
             {
@@ -1593,18 +1602,151 @@ namespace Game.WorldAuthoring.Editor
                 Vector3 normal = Vector3.Cross(b - a, c - a).normalized;
                 if (normal.y < 0f)
                 {
-                    Vector3 swap = b;
-                    b = c;
-                    c = swap;
-                    normal = -normal;
+                    Vector3 swap = b; b = c; c = swap; normal = -normal;
                 }
 
                 int area = nav.areas != null && triangle < nav.areas.Length ? nav.areas[triangle] : 0;
                 ServerSurfaceFlags flags = map.FlagsForNavArea(area);
                 flags |= ServerSurfaceFlags.Walkable | ServerSurfaceFlags.Ground;
-                output.Add(Triangle(StableId($"{map.MapId}/nav/{triangle}"), a, b, c, normal, flags));
+                if (normal.y >= minNormalY)
+                {
+                    output.Add(Triangle(StableId($"{map.MapId}/nav/{triangle}"), a, b, c, normal, flags));
+                    continue;
+                }
+
+                // Collect the same collider/render/terrain sources already fed into the
+                // project's DotRecast bake, only if an invalid NavMesh triangle is found.
+                if (sourceVertices == null && !TryCollectServerNavGeometry(
+                    scene, map, out sourceVertices, out sourceIndices, out _))
+                    return false;
+
+                if (!TryRepairNavTriangle(map.MapId, triangle, a, b, c, flags,
+                    minNormalY, sourceVertices, sourceIndices, output))
+                {
+                    // Not every steep NavMesh polygon is a faulty pavement bridge.
+                    // Genuine walls, ramps and roof transitions must remain non-walkable.
+                    // Do not export them as Ground and do not fail the entire world bake.
+                    // Their authored static collision is still exported separately.
+                    unrecoverable++;
+                    if (unrecoverable <= 8)
+                        Debug.LogWarning(
+                            $"[Server World Bake] Excluded unrecoverable steep NavMesh triangle {triangle} " +
+                            $"near {((a + b + c) / 3f)} (slope={Vector3.Angle(normal, Vector3.up):0.##}°). " +
+                            "No safe source surface covers its footprint; it is not walkable ground.");
+                    continue;
+                }
+                repaired++;
             }
+
+            if (repaired != 0 || unrecoverable != 0)
+                Debug.Log($"[Server World Bake] Steep NavMesh surfaces: reconstructed={repaired}, " +
+                    $"excluded non-walkable={unrecoverable}. The motor and slope limit are unchanged.");
             return true;
+        }
+
+        // Sutherland-Hodgman clipping in XZ; height is interpolated on the actual source
+        // triangle, not on Unity's oversized NavMesh detail triangle.
+        private static List<Vector3> ClipWalkPolygon(
+            List<Vector3> polygon, Vector3 edgeA, Vector3 edgeB, float winding)
+        {
+            var result = new List<Vector3>(polygon.Count + 2);
+            if (polygon.Count == 0) return result;
+            Vector3 previous = polygon[polygon.Count - 1];
+            float previousSide = winding * ((edgeB.x - edgeA.x) * (previous.z - edgeA.z) -
+                (edgeB.z - edgeA.z) * (previous.x - edgeA.x));
+            for (int i = 0; i < polygon.Count; i++)
+            {
+                Vector3 current = polygon[i];
+                float currentSide = winding * ((edgeB.x - edgeA.x) * (current.z - edgeA.z) -
+                    (edgeB.z - edgeA.z) * (current.x - edgeA.x));
+                bool wasInside = previousSide >= -0.00001f;
+                bool isInside = currentSide >= -0.00001f;
+                if (wasInside != isInside)
+                {
+                    float denominator = previousSide - currentSide;
+                    if (Mathf.Abs(denominator) > 0.0000001f)
+                        result.Add(Vector3.LerpUnclamped(previous, current, previousSide / denominator));
+                }
+                if (isInside) result.Add(current);
+                previous = current;
+                previousSide = currentSide;
+            }
+            return result;
+        }
+
+        private static float WalkAreaXZ(Vector3 a, Vector3 b, Vector3 c) =>
+            Mathf.Abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)) * 0.5f;
+
+        private static bool TryRepairNavTriangle(
+            string mapId, int navIndex, Vector3 a, Vector3 b, Vector3 c,
+            ServerSurfaceFlags flags, float minNormalY, float[] source,
+            int[] indices, List<ServerCollisionTriangle> output)
+        {
+            float navArea = WalkAreaXZ(a, b, c);
+            if (navArea <= 0.000001f) return false;
+            float winding = (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
+            winding = Mathf.Sign(winding);
+            float minX = Mathf.Min(a.x, Mathf.Min(b.x, c.x));
+            float maxX = Mathf.Max(a.x, Mathf.Max(b.x, c.x));
+            float minZ = Mathf.Min(a.z, Mathf.Min(b.z, c.z));
+            float maxZ = Mathf.Max(a.z, Mathf.Max(b.z, c.z));
+            int start = output.Count;
+            float coverage = 0f;
+            // The source collector gives world-space triangles from existing authored
+            // colliders, static render meshes and terrain. No runtime raycasts/messages.
+            for (int i = 0; i + 2 < indices.Length; i += 3)
+            {
+                int ia = indices[i] * 3, ib = indices[i + 1] * 3, ic = indices[i + 2] * 3;
+                Vector3 p = new Vector3(source[ia], source[ia + 1], source[ia + 2]);
+                Vector3 q = new Vector3(source[ib], source[ib + 1], source[ib + 2]);
+                Vector3 r = new Vector3(source[ic], source[ic + 1], source[ic + 2]);
+                if (Mathf.Max(p.x, Mathf.Max(q.x, r.x)) < minX ||
+                    Mathf.Min(p.x, Mathf.Min(q.x, r.x)) > maxX ||
+                    Mathf.Max(p.z, Mathf.Max(q.z, r.z)) < minZ ||
+                    Mathf.Min(p.z, Mathf.Min(q.z, r.z)) > maxZ)
+                    continue;
+                Vector3 n = Vector3.Cross(q - p, r - p).normalized;
+                if (n.y < 0f)
+                {
+                    Vector3 swap = q; q = r; r = swap; n = -n;
+                }
+                if (n.y < minNormalY) continue;
+                var polygon = new List<Vector3>(3) { p, q, r };
+                polygon = ClipWalkPolygon(polygon, a, b, winding);
+                polygon = ClipWalkPolygon(polygon, b, c, winding);
+                polygon = ClipWalkPolygon(polygon, c, a, winding);
+                if (polygon.Count < 3) continue;
+                for (int j = 1; j < polygon.Count - 1; j++)
+                {
+                    Vector3 u = polygon[0], v = polygon[j], w = polygon[j + 1];
+                    float pieceArea = WalkAreaXZ(u, v, w);
+                    if (pieceArea <= 0.000001f) continue;
+                    // Reject unrelated basement/roof geometry. A genuine curb may sit
+                    // below the invalid interpolated NavMesh point by up to one metre.
+                    Vector3 centroid = (u + v + w) / 3f;
+                    float estimatedY = NavTriangleHeightAtXZ(a, b, c, centroid.x, centroid.z);
+                    if (Mathf.Abs(centroid.y - estimatedY) > 1.0f) continue;
+                    output.Add(Triangle(StableId($"{mapId}/nav/{navIndex}/repair/{i}/{j}"),
+                        u, v, w, n, flags));
+                    coverage += pieceArea;
+                }
+            }
+            // If actual authored surfaces cannot cover the footprint, abort the bake.
+            // Do not silently publish a hole or the original invalid steep triangle.
+            if (coverage >= navArea * 0.90f)
+                return true;
+            output.RemoveRange(start, output.Count - start);
+            return false;
+        }
+
+        private static float NavTriangleHeightAtXZ(
+            Vector3 a, Vector3 b, Vector3 c, float x, float z)
+        {
+            float d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+            if (Mathf.Abs(d) < 0.0000001f) return (a.y + b.y + c.y) / 3f;
+            float u = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / d;
+            float v = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / d;
+            return u * a.y + v * b.y + (1f - u - v) * c.y;
         }
 
         private static void ExportStaticCollision(ServerMap map, Scene scene, List<ServerCollisionTriangle> output)
@@ -2021,6 +2163,16 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
+            // Join separate ordered route paths into ONE physically traversable pedestrian network.
+            // Never bridge across unvalidated movement geometry, and never invent long shortcuts.
+            if (!ConnectPopulationNetwork(scene, portalCollision, markers, markerIds, edgeOutput, edgeKeys))
+            {
+                nodes = Array.Empty<ServerPopulationRouteNode>();
+                edges = Array.Empty<ServerPopulationRouteEdge>();
+                portals = Array.Empty<ServerPopulationPortal>();
+                return false;
+            }
+
             if (!ValidatePopulationEntryRouteGraph(
                     scene,
                     markers,
@@ -2331,6 +2483,99 @@ namespace Game.WorldAuthoring.Editor
                 Mathf.Max(0.5f, path.width),
                 Mathf.Max(0.01f, path.weight),
                 Mathf.Max(0f, path.minimumClearance));
+        }
+
+        // Bake-only, bounded network topology validation. This does not introduce a
+        // navigation solver, new runtime state, NavMesh queries or wire messages.
+        private static bool ConnectPopulationNetwork(
+            Scene scene,
+            ServerCollisionWorld collision,
+            PopulationRouteMarker[] markers,
+            Dictionary<PopulationRouteMarker, long> ids,
+            List<ServerPopulationRouteEdge> edges,
+            HashSet<string> edgeKeys)
+        {
+            int n = markers.Length;
+            if (n == 0) return true;
+            var index = new Dictionary<long, int>(n);
+            for (int i = 0; i < n; i++) index[ids[markers[i]]] = i;
+            var parent = new int[n];
+            for (int i = 0; i < n; i++) parent[i] = i;
+            for (int i = 0; i < edges.Count; i++)
+            {
+                ServerPopulationRouteEdge edge = edges[i];
+                if (edge != null && index.TryGetValue(edge.fromNodeId, out int a) &&
+                    index.TryGetValue(edge.toNodeId, out int b))
+                    MergePopulationComponents(parent, a, b);
+            }
+            int groups = CountPopulationComponents(parent);
+            int initialGroups = groups;
+            const float MaximumBridgeDistance = 8f;
+            const float MinimumBridgeDistance = 0.05f;
+            // Each accepted edge must merge two groups; at most nodeCount-1 bridges.
+            while (groups > 1)
+            {
+                int bestA = -1, bestB = -1;
+                float bestSq = MaximumBridgeDistance * MaximumBridgeDistance;
+                for (int a = 0; a < n; a++)
+                {
+                    Vector3 pa = markers[a].transform.position;
+                    for (int b = a + 1; b < n; b++)
+                    {
+                        if (RootPopulationComponent(parent, a) == RootPopulationComponent(parent, b)) continue;
+                        Vector3 pb = markers[b].transform.position;
+                        float dx = pa.x - pb.x, dz = pa.z - pb.z;
+                        float sq = dx * dx + dz * dz;
+                        if (sq >= bestSq || sq < MinimumBridgeDistance * MinimumBridgeDistance) continue;
+                        // A near neighbor on another floor must not be joined.
+                        if (Mathf.Abs(pa.y - pb.y) > 1.25f) continue;
+                        if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(collision, scene, pa, pb)) continue;
+                        bestA = a; bestB = b; bestSq = sq;
+                    }
+                }
+                if (bestA < 0)
+                {
+                    Debug.LogError($"[Server World Bake] Population route graph DISCONNECTED: {groups} components remain " +
+                        $"({n} nodes, {edges.Count} edges). No safe junction within {MaximumBridgeDistance}m. " +
+                        "Move the endpoints closer or add an explicit, collision-clear connection. Bake cancelled.");
+                    return false;
+                }
+                PopulationRouteMarker from = markers[bestA], to = markers[bestB];
+                AddPopulationEdge(edges, edgeKeys, ids[from], ids[to], false,
+                    Mathf.Max(0.5f, (from.pathWidth + to.pathWidth) * 0.5f), 1f, 0.5f);
+                MergePopulationComponents(parent, bestA, bestB);
+                groups--;
+                Debug.Log($"[Server World Bake] Population joined route paths '{HierarchyPath(from.transform)}' " +
+                    $"<-> '{HierarchyPath(to.transform)}' ({Mathf.Sqrt(bestSq):F2}m, collision checked).");
+            }
+            Debug.Log($"[Server World Bake] Population connected graph: {n} nodes, {edges.Count} edges, " +
+                $"components {initialGroups} -> {groups}.");
+            return true;
+        }
+
+        private static int RootPopulationComponent(int[] parent, int i)
+        {
+            while (parent[i] != i)
+            {
+                parent[i] = parent[parent[i]];
+                i = parent[i];
+            }
+            return i;
+        }
+
+        private static void MergePopulationComponents(int[] parent, int a, int b)
+        {
+            a = RootPopulationComponent(parent, a);
+            b = RootPopulationComponent(parent, b);
+            if (a != b) parent[b] = a;
+        }
+
+        private static int CountPopulationComponents(int[] parent)
+        {
+            int result = 0;
+            for (int i = 0; i < parent.Length; i++)
+                if (RootPopulationComponent(parent, i) == i) result++;
+            return result;
         }
 
         private static bool ValidatePopulationEntryRouteGraph(
