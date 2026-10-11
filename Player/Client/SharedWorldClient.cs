@@ -112,6 +112,15 @@ namespace Player.Client
                 float sx = desiredDelta.x / steps;
                 float sz = desiredDelta.z / steps;
                 Vector3 current = start;
+                // Owner presentation can be grounded from the local scene physics
+                // before the authoritative kinematic capsule has cleared a lower
+                // stair/curb edge. Do not suppress otherwise legal movement merely
+                // because that presentation-only feet Y clips the outgoing riser.
+                // Recover a clear pose only from nearby authored higher support.
+                if (!IsStandingCapsuleClear(current, safeRadius) &&
+                    TryFindNearbyClearStepHeight(current, safeRadius, stepUp, out float correctedY))
+                    current.y = correctedY;
+
                 for (int i = 0; i < steps; ++i)
                 {
                     if (TryGroundedCandidate(current, sx, sz, safeRadius, stepUp, snapDown,
@@ -137,6 +146,31 @@ namespace Player.Client
                 return true;
             }
 
+            private bool TryFindNearbyClearStepHeight(
+                Vector3 current, float radius, float stepHeight, out float raisedY)
+            {
+                raisedY = current.y;
+                float probe = Mathf.Max(0.05f, stepHeight + 0.05f);
+                float bestY = current.y;
+                for (int i = 0; i < 4; ++i)
+                {
+                    float x = current.x + (i == 0 ? radius : i == 1 ? -radius : 0f);
+                    float z = current.z + (i == 2 ? radius : i == 3 ? -radius : 0f);
+                    if (!TryFindGroundAtPoint(x, z, current.y, probe, probe,
+                            out float y) ||
+                        y <= current.y + 0.01f ||
+                        y > current.y + stepHeight + 0.05f ||
+                        y <= bestY)
+                        continue;
+                    if (IsStandingCapsuleClear(new Vector3(current.x, y, current.z), radius))
+                        bestY = y;
+                }
+                if (bestY <= current.y + 0.01f)
+                    return false;
+                raisedY = bestY;
+                return true;
+            }
+
             private bool TryGroundedCandidate(
                 Vector3 start, float deltaX, float deltaZ,
                 float radius, float stepHeight, float groundSnapDistance,
@@ -147,22 +181,109 @@ namespace Player.Client
                     return false;
 
                 Vector3 target = new Vector3(start.x + deltaX, start.y, start.z + deltaZ);
+                float up = Mathf.Max(0.05f, stepHeight + 0.05f);
+                float down = Mathf.Max(0.05f, groundSnapDistance);
                 if (!TryFindGroundFootprint(target.x, target.z, start.y, radius,
-                        Mathf.Max(0.05f, stepHeight + 0.05f),
-                        Mathf.Max(0.05f, groundSnapDistance), out float groundY))
+                        up, down, out float groundY))
                     return false;
 
-                float verticalDelta = groundY - start.y;
-                if (verticalDelta > stepHeight + 0.05f ||
-                    verticalDelta < -groundSnapDistance - 0.05f)
+                if (groundY > start.y + stepHeight + 0.05f ||
+                    groundY < start.y - groundSnapDistance - 0.05f)
                     return false;
 
-                target.y = groundY;
-                if (!IsStandingCapsuleClear(target, radius))
-                    return false;
+                Vector3 standing = new Vector3(target.x, groundY, target.z);
+                if (IsStandingCapsuleClear(standing, radius))
+                {
+                    if (groundY < start.y - 0.01f &&
+                        IsStandingCapsuleClear(target, radius) &&
+                        HasWalkableTreadAhead(target, deltaX, deltaZ, start.y,
+                            radius, stepHeight, groundY))
+                    {
+                        resolved = target;
+                        return true;
+                    }
 
-                resolved = target;
+                    if (groundY > start.y + 0.01f &&
+                        !IsStepElevationClear(start, groundY, radius))
+                        return false;
+
+                    resolved = standing;
+                    return true;
+                }
+
+                // Retain height for a legitimate step down until the exposed riser
+                // edge is no longer inside the lower capsule hemisphere.
+                if (groundY < start.y - 0.01f && IsStandingCapsuleClear(target, radius))
+                {
+                    resolved = target;
+                    return true;
+                }
+
+                // Probe a real next tread one radius ahead. This allows ascent before
+                // the center touches the next step, without climbing bare walls.
+                float length = Mathf.Sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                if (length > 0.000001f)
+                {
+                    float leadX = target.x + deltaX / length * radius;
+                    float leadZ = target.z + deltaZ / length * radius;
+                    if (TryFindGroundAtPoint(leadX, leadZ, start.y, up, down,
+                            out float leadY) &&
+                        leadY > groundY + 0.01f &&
+                        leadY >= start.y - 0.01f &&
+                        leadY <= start.y + stepHeight + 0.05f)
+                    {
+                        Vector3 raisedEnd = new Vector3(target.x, leadY, target.z);
+                        if (IsStepElevationClear(start, leadY, radius) &&
+                            IsStandingCapsuleClear(raisedEnd, radius))
+                        {
+                            resolved = raisedEnd;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            private bool IsStepElevationClear(Vector3 start, float raisedY, float radius)
+            {
+                float rise = raisedY - start.y;
+                if (rise < 0f)
+                    return false;
+                float unit = Mathf.Max(0.05f, radius * 0.5f);
+                int samples = Mathf.Clamp(Mathf.CeilToInt(rise / unit), 1, 12);
+                for (int i = 1; i <= samples; ++i)
+                {
+                    float y = start.y + rise * i / samples;
+                    if (!IsStandingCapsuleClear(new Vector3(start.x, y, start.z), radius))
+                        return false;
+                }
                 return true;
+            }
+
+            private bool HasWalkableTreadAhead(
+                Vector3 desired, float dx, float dz, float currentY,
+                float radius, float stepHeight, float centerGroundY)
+            {
+                float length = Mathf.Sqrt(dx * dx + dz * dz);
+                if (length <= 0.000001f)
+                    return false;
+                float x = desired.x + dx / length * radius;
+                float z = desired.z + dz / length * radius;
+                return TryFindGroundAtPoint(x, z, currentY,
+                           Mathf.Max(0.05f, stepHeight + 0.05f),
+                           Mathf.Max(0.05f, stepHeight + 0.05f), out float aheadY) &&
+                       aheadY > centerGroundY + 0.01f &&
+                       aheadY >= currentY - 0.01f &&
+                       aheadY <= currentY + stepHeight + 0.05f;
+            }
+
+            private bool TryFindGroundAtPoint(
+                float x, float z, float feetY,
+                float probeUp, float probeDown, out float height)
+            {
+                Query(_supportGrid, x - 0.01f, z - 0.01f, x + 0.01f, z + 0.01f);
+                return TryGroundAtPointFromCandidates(x, z, feetY, probeUp,
+                    probeDown, Mathf.Cos(MaximumSlopeDegrees * Mathf.Deg2Rad), out height);
             }
 
             public bool TryFindSupportHeight(
@@ -248,8 +369,12 @@ namespace Player.Client
                 foreach (int index in _scratch)
                 {
                     ServerCollisionTriangle t = _collision[index];
+                    // Match the GameServer: long ramps are classified by the
+                    // local footprint height, never the remote high vertex.
                     if (t.normalY >= floorNormalY &&
-                        Mathf.Max(t.ay, Mathf.Max(t.by, t.cy)) <= feet.y + radius * 1.5f)
+                        (Mathf.Max(t.ay, Mathf.Max(t.by, t.cy)) <= feet.y + radius * 1.5f ||
+                         (TryClosestTriangleHeightAtXZ(t, feet.x, feet.z, out float localFloorY) &&
+                          localFloorY <= feet.y + radius * 1.5f)))
                         continue;
                     float distanceSquared = SegmentTriangleDistanceSquared(
                         feet.x, bottomY, feet.z, feet.x, topY, feet.z, t);
@@ -378,6 +503,46 @@ namespace Player.Client
 
             private static float DistSq(float ax,float ay,float az,float bx,float by,float bz)
             { float x=ax-bx,y=ay-by,z=az-bz; return x*x+y*y+z*z; }
+            private static bool TryClosestTriangleHeightAtXZ(
+                ServerCollisionTriangle t, float x, float z, out float y)
+            {
+                if (TryHeightAtXZ(t, x, z, out y))
+                    return true;
+
+                float bestDistance = float.PositiveInfinity;
+                y = 0f;
+                SampleClosestXZEdge(x, z, t.ax, t.ay, t.az,
+                    t.bx, t.by, t.bz, ref bestDistance, ref y);
+                SampleClosestXZEdge(x, z, t.bx, t.by, t.bz,
+                    t.cx, t.cy, t.cz, ref bestDistance, ref y);
+                SampleClosestXZEdge(x, z, t.cx, t.cy, t.cz,
+                    t.ax, t.ay, t.az, ref bestDistance, ref y);
+                return !float.IsNaN(y) && !float.IsInfinity(y) &&
+                       bestDistance < float.PositiveInfinity;
+            }
+
+            private static void SampleClosestXZEdge(
+                float px, float pz,
+                float ax, float ay, float az,
+                float bx, float by, float bz,
+                ref float bestDistance, ref float nearestHeight)
+            {
+                float dx = bx - ax;
+                float dz = bz - az;
+                float lengthSquared = dx * dx + dz * dz;
+                float t = lengthSquared > 0.00000001f
+                    ? Mathf.Clamp01(((px - ax) * dx + (pz - az) * dz) / lengthSquared)
+                    : 0f;
+                float nx = ax + dx * t - px;
+                float nz = az + dz * t - pz;
+                float squared = nx * nx + nz * nz;
+                if (squared < bestDistance)
+                {
+                    bestDistance = squared;
+                    nearestHeight = ay + (by - ay) * t;
+                }
+            }
+
             private static bool TryHeightAtXZ(ServerCollisionTriangle t, float x, float z, out float y)
             {
                 float v0x = t.bx - t.ax, v0z = t.bz - t.az;
