@@ -15,6 +15,7 @@ namespace Game.WorldAuthoring.Editor
         private string outputPath;
         private bool rebuildNavMesh = true;
         private float populationPortalMarkerRadius = 12f;
+        private bool showPopulationRouteAdvanced;
         private Vector2 scroll;
 
         [MenuItem("Tools/MMO/Build Client")]
@@ -40,69 +41,24 @@ namespace Game.WorldAuthoring.Editor
             DrawCurrentScene();
 
             EditorGUILayout.Space(10);
-            EditorGUILayout.LabelField("Server World Bake", EditorStyles.boldLabel);
-            rebuildNavMesh = EditorGUILayout.ToggleLeft("Rebuild authored Unity NavMesh too (optional preview/client use)", rebuildNavMesh);
-            EditorGUILayout.LabelField("Server Maps", ServerWorldBake.ServerMapsFolder, EditorStyles.wordWrappedMiniLabel);
-
-            EditorGUILayout.Space(6);
-            DrawPopulationSpawnSummary();
-
-            EditorGUILayout.Space(6);
-            EditorGUILayout.LabelField("Population Routes", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "Auto-connect materializes each Population Route Path in child order as explicit marker Links. " +
-                "Consecutive markers must have clear line of sight. Manual links are preserved; generated path links are replaceable.",
-                MessageType.None);
-
-            populationPortalMarkerRadius = EditorGUILayout.Slider(
-                "Portal Marker Radius",
-                populationPortalMarkerRadius,
-                1f,
-                50f);
-
-            if (GUILayout.Button("Find Nearby Portal Markers"))
-            {
-                if (PopulationRouteAuthoringTools.AssignNearbyPortalMarkersActiveScene(
-                        populationPortalMarkerRadius,
-                        out int assigned,
-                        out int unresolved))
-                {
-                    ShowNotification(new GUIContent(
-                        $"Portals: {assigned} assigned, {unresolved} unresolved"));
-                }
-            }
-
+            EditorGUILayout.LabelField("Population Graph", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Build Route Path Links"))
+                if (GUILayout.Button("1. AUTO CONNECT", GUILayout.Height(40)))
+                    BuildPopulationGraph();
+                if (GUILayout.Button("2. EDIT GRAPH", GUILayout.Height(40)))
+                    PopulationBakedGraphEditor.Open(SceneManager.GetActiveScene());
+                if (GUILayout.Button("3. SAVE GRAPH", GUILayout.Height(40)))
                 {
-                    if (PopulationRouteAuthoringTools.AutoConnectActiveScene(
-                            0f,
-                            out int added,
-                            out int removed))
-                    {
-                        ShowNotification(new GUIContent($"Routes: +{added}, replaced {removed} generated"));
-                    }
-                }
-
-                if (GUILayout.Button("Clean Generated Links"))
-                {
-                    int removed = PopulationRouteAuthoringTools.CleanGeneratedLinksActiveScene();
-                    ShowNotification(new GUIContent($"Removed {removed} generated route links"));
+                    PopulationBakedGraphEditor.SaveOpenGraph(SceneManager.GetActiveScene(), out string status);
+                    ShowNotification(new GUIContent(status));
                 }
             }
+            EditorGUILayout.LabelField("Edit: click node A, click node B, then Pair or Clear in the Scene view. " +
+                "AUTO CONNECT already bakes and saves the current world.", EditorStyles.wordWrappedMiniLabel);
 
-            EditorGUILayout.HelpBox(
-                "Route walkability validation is explicit. Scene gizmos only draw cached green/red results and never run collision traversal during repaint.",
-                MessageType.None);
-
-            if (GUILayout.Button("Validate Population Routes"))
-            {
-                if (PopulationRouteWalkabilityGizmos.ValidateActiveScene(out int valid, out int invalid))
-                    ShowNotification(new GUIContent($"Population routes: {valid} valid, {invalid} invalid"));
-            }
-
-            EditorGUILayout.Space(6);
+            // World Bake must never be hidden inside Advanced. AUTO CONNECT bakes the
+            // current scene, but explicit bake actions remain accessible and obvious.
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Bake Current Scene"))
@@ -111,10 +67,54 @@ namespace Game.WorldAuthoring.Editor
                     BakeEnabled();
             }
 
-            if (GUILayout.Button("Open Server Maps Folder"))
+            showPopulationRouteAdvanced = EditorGUILayout.Foldout(
+                showPopulationRouteAdvanced, "Advanced route tools", true);
+            if (showPopulationRouteAdvanced)
             {
-                Directory.CreateDirectory(ServerWorldBake.ServerMapsFolder);
-                EditorUtility.RevealInFinder(ServerWorldBake.ServerMapsFolder);
+                EditorGUILayout.LabelField("Server World Bake", EditorStyles.boldLabel);
+                rebuildNavMesh = EditorGUILayout.ToggleLeft(
+                    "Rebuild authored Unity NavMesh too (optional preview/client use)", rebuildNavMesh);
+                EditorGUILayout.LabelField("Server Maps", ServerWorldBake.ServerMapsFolder,
+                    EditorStyles.wordWrappedMiniLabel);
+
+                EditorGUILayout.Space(4);
+                DrawPopulationSpawnSummary();
+                EditorGUILayout.Space(4);
+                populationPortalMarkerRadius = EditorGUILayout.Slider(
+                    "Portal Marker Radius", populationPortalMarkerRadius, 1f, 50f);
+                if (GUILayout.Button("Find Nearby Portal Markers"))
+                {
+                    if (PopulationRouteAuthoringTools.AssignNearbyPortalMarkersActiveScene(
+                            populationPortalMarkerRadius, out int assigned, out int unresolved))
+                        ShowNotification(new GUIContent(
+                            $"Portals: {assigned} assigned, {unresolved} unresolved"));
+                }
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Preview Automatic Base Graph"))
+                    {
+                        if (PopulationRouteGraphBuilder.BuildPreview(
+                                SceneManager.GetActiveScene(), out int edges, out int rejected))
+                            ShowNotification(new GUIContent($"Graph: {edges} edges, {rejected} rejected"));
+                    }
+                    if (GUILayout.Button("Clear Graph Preview"))
+                    {
+                        PopulationRouteGraphBuilder.ClearPreview(SceneManager.GetActiveScene());
+                        ShowNotification(new GUIContent("Population graph preview cleared"));
+                    }
+                }
+                if (GUILayout.Button("Validate Population Routes"))
+                {
+                    if (PopulationRouteGraphBuilder.BuildPreview(
+                            SceneManager.GetActiveScene(), out int edges, out int rejected))
+                        ShowNotification(new GUIContent(
+                            $"Population graph valid: {edges} edges, {rejected} rejected"));
+                }
+                if (GUILayout.Button("Open Server Maps Folder"))
+                {
+                    Directory.CreateDirectory(ServerWorldBake.ServerMapsFolder);
+                    EditorUtility.RevealInFinder(ServerWorldBake.ServerMapsFolder);
+                }
             }
 
             EditorGUILayout.Space(10);
@@ -209,16 +209,31 @@ namespace Game.WorldAuthoring.Editor
             }
         }
 
-        private void BakeCurrent()
+        // BUILD GRAPH uses the existing authoritative world bake rather than creating
+        // a second graph file or overwriting an unsaved baked-graph editing session.
+        private void BuildPopulationGraph()
         {
+            Scene active = SceneManager.GetActiveScene();
+            if (!PopulationBakedGraphEditor.SaveOpenEditsBeforeBake(active))
+                return;
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
-            if (ServerWorldBake.TryBakeCurrentScene(rebuildNavMesh, true, out _))
-                ShowNotification(new GUIContent("Server world bake complete"));
+            if (!ServerWorldBake.TryBakeCurrentScene(rebuildNavMesh, true, out _))
+            {
+                ShowNotification(new GUIContent("Graph bake failed — check Console"));
+                return;
+            }
+            PopulationRouteGraphBuilder.ClearPreview(active);
+            PopulationBakedGraphEditor.RefreshOpenEditorsAfterBake(active);
+            ShowNotification(new GUIContent("Graph generated — click EDIT GRAPH"));
         }
+
+        private void BakeCurrent() => BuildPopulationGraph();
 
         private void BakeEnabled()
         {
+            if (!PopulationBakedGraphEditor.SaveOpenEditsBeforeBake(SceneManager.GetActiveScene()))
+                return;
             if (!ServerWorldBake.BakeEnabledClientScenes(rebuildNavMesh, out List<ServerWorldBake.Result> results))
                 return;
             ShowNotification(new GUIContent($"Baked {results.Count} server map(s)"));

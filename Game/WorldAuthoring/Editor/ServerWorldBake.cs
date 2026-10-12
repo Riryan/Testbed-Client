@@ -114,13 +114,23 @@ namespace Game.WorldAuthoring.Editor
                 dynamicBlockers = Array.Empty<ServerDynamicBlocker>(),
             });
 
-            // Route/spawn exports run after publishing the core map below. No invalid
-            // route graph can veto movement/collision/shared-world bake revisions.
+            // Prepare and validate both authored layers BEFORE publishing any new
+            // core/navmesh/shared-world output. A rejected graph must never leave
+            // the server with a new core hash and the previous .routes.json.
+            string output = OutputPath(map.MapId, map.InstanceId);
+            if (!TryPrepareAuthoringLayers(scene, map, portalValidationWorld, output,
+                    out RouteLayerFile preparedRoutes, out SpawnLayerFile preparedSpawns))
+                return false;
+
+            // The navmesh and shared-world files are also referenced by the core.
+            // Restore their prior versions if anything after this point fails.
+            using BakeDependencyBackup dependentFiles = BakeDependencyBackup.TryCreate(map);
+            if (dependentFiles == null)
+                return false;
 
             if (!TryBakeServerNavMesh(scene, map, out ServerNavMeshInfo navMesh))
                 return false;
 
-            string output = OutputPath(map.MapId, map.InstanceId);
             Directory.CreateDirectory(ServerMapsFolder);
             long revision = Math.Max(1, ReadPreviousRevision(output) + 1);
             long bakedUtcTicks = DateTime.UtcNow.Ticks;
@@ -170,12 +180,12 @@ namespace Game.WorldAuthoring.Editor
             string unhashed = JsonUtility.ToJson(snapshot, false);
             snapshot.contentHash = Sha256(unhashed);
             string json = JsonUtility.ToJson(snapshot, true);
-            File.WriteAllText(output, json, new UTF8Encoding(false));
-
-            // These exports may fail independently without withholding the core map.
-            // Missing or stale spawn layers fail closed at GameServer startup.
-            int layerSpawnCount = TryWriteAuthoringLayers(
-                scene, map, portalValidationWorld, output, snapshot);
+            preparedRoutes.coreContentHash = snapshot.contentHash;
+            preparedSpawns.coreContentHash = snapshot.contentHash;
+            if (!TryPublishCoreAndLayers(output, json, preparedRoutes, preparedSpawns))
+                return false;
+            dependentFiles.Commit();
+            int layerSpawnCount = preparedSpawns.spawnAnchors.Length;
 
             if (saveScene && scene.isDirty)
                 EditorSceneManager.SaveScene(scene);
@@ -200,6 +210,7 @@ namespace Game.WorldAuthoring.Editor
             public ServerPopulationRouteNode[] populationNodes;
             public ServerPopulationRouteEdge[] populationEdges;
             public ServerPopulationPortal[] populationPortals;
+            public PopulationBakedGraphEdits editorEdits = new PopulationBakedGraphEdits();
         }
 
         [Serializable]
@@ -212,81 +223,229 @@ namespace Game.WorldAuthoring.Editor
             public ServerSpawnAnchor[] spawnAnchors;
         }
 
-        private static int TryWriteAuthoringLayers(
-            Scene scene, ServerMap map, ServerCollisionWorld validationWorld,
-            string corePath, ServerMapSnapshot core)
+        // Keep binary/nav packages coherent with the core on any failed publication.
+        // These are file backups only during the bake; no extra gameplay data or
+        // network protocol is introduced.
+        private sealed class BakeDependencyBackup : IDisposable
         {
+            private readonly string directory;
+            private readonly string[] files;
+            private readonly bool[] existed;
+            private bool committed;
+
+            private BakeDependencyBackup(ServerMap map)
+            {
+                string stem = MapFileStem(map.MapId, map.InstanceId);
+                files = new[]
+                {
+                    Path.Combine(ServerMapsFolder, stem + ".servernavmesh.bin"),
+                    Path.Combine(ServerMapsFolder, stem + ".sharedworld.json"),
+                    Path.Combine(ClientSharedWorldFolder, stem + ".sharedworld.json"),
+                };
+                existed = new bool[files.Length];
+                directory = Path.Combine(ProjectRoot, "Library", "MMO World Bake Rollback",
+                    Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(directory);
+                try
+                {
+                    for (int i = 0; i < files.Length; ++i)
+                    {
+                        existed[i] = File.Exists(files[i]);
+                        if (existed[i]) File.Copy(files[i], Path.Combine(directory, i.ToString()), false);
+                    }
+                }
+                catch
+                {
+                    try { Directory.Delete(directory, true); } catch { }
+                    throw;
+                }
+            }
+
+            public static BakeDependencyBackup TryCreate(ServerMap map)
+            {
+                try { return new BakeDependencyBackup(map); }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[Server World Bake] Unable to back up dependent world files; bake cancelled: {ex}");
+                    return null;
+                }
+            }
+
+            public void Commit() => committed = true;
+
+            public void Dispose()
+            {
+                if (!committed)
+                {
+                    for (int i = 0; i < files.Length; ++i)
+                    {
+                        try
+                        {
+                            if (existed[i]) File.Copy(Path.Combine(directory, i.ToString()), files[i], true);
+                            else if (File.Exists(files[i])) File.Delete(files[i]);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogError($"[Server World Bake] CRITICAL: Could not restore dependent world file '{files[i]}': {ex}");
+                        }
+                    }
+                }
+                try { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+                catch (Exception ex) { Debug.LogWarning($"[Server World Bake] World-bake backup cleanup failed: {ex.Message}"); }
+            }
+        }
+
+        // Preflight: the freshly exported route/spawn layers MUST validate as a pair.
+        // Keep saved manual graph edits even if their old layer hash is stale; ApplyEdits
+        // revalidates them against the NEW ground and prunes unsafe connections.
+        private static bool TryPrepareAuthoringLayers(
+            Scene scene, ServerMap map, ServerCollisionWorld validationWorld,
+            string corePath, out RouteLayerFile routes, out SpawnLayerFile spawns)
+        {
+            routes = null;
+            spawns = null;
             string stem = corePath.EndsWith(".servermap.json", StringComparison.OrdinalIgnoreCase)
                 ? corePath.Substring(0, corePath.Length - ".servermap.json".Length)
                 : Path.Combine(Path.GetDirectoryName(corePath), Path.GetFileNameWithoutExtension(corePath));
             string routesPath = stem + ".routes.json";
-            string spawnsPath = stem + ".spawns.json";
-
-            // Run route authoring first to preserve stable marker-id repair before
-            // resolving optional spawn references. Failure cannot block core geometry.
-            bool routesOk = false;
             try
             {
-                routesOk = ExportPopulation(scene, map, validationWorld,
-                    out ServerPopulationRouteNode[] nodes,
-                    out ServerPopulationRouteEdge[] edges,
-                    out ServerPopulationPortal[] portals);
-                if (routesOk)
+                if (!ExportPopulation(scene, map, validationWorld,
+                        out ServerPopulationRouteNode[] nodes,
+                        out ServerPopulationRouteEdge[] edges,
+                        out ServerPopulationPortal[] portals))
                 {
-                    var layer = new RouteLayerFile
-                    {
-                        mapId = core.mapId,
-                        instanceId = core.instanceId,
-                        coreContentHash = core.contentHash,
-                        populationNodes = nodes,
-                        populationEdges = edges,
-                        populationPortals = portals,
-                    };
-                    File.WriteAllText(routesPath, JsonUtility.ToJson(layer, true), new UTF8Encoding(false));
-                    Debug.Log($"[Server World Bake] Routes layer -> {routesPath}: {nodes.Length} nodes, {edges.Length} edges");
+                    Debug.LogError("[Server World Bake] Routes failed preflight. " +
+                        "Core geometry and previous authoring layers have NOT been republished.");
+                    return false;
                 }
+                PopulationBakedGraphEdits edits = PopulationBakedGraphEditor.ReadEdits(
+                    routesPath, map.MapId, map.InstanceId);
+                if (!PopulationBakedGraphEditor.ApplyEdits(
+                        scene, validationWorld, edits, ref nodes, ref edges, portals))
+                {
+                    Debug.LogError("[Server World Bake] Edited routes failed preflight. " +
+                        "Core geometry and previous authoring layers have NOT been republished.");
+                    return false;
+                }
+                // A broken Population Portal/Spawn is authoring content to omit, not a
+                // reason to publish no map at all. The final edited route graph is the
+                // source of truth: only its surviving portals may own spawn anchors.
+                portals = FilterPopulationPortals(
+                    scene, validationWorld, nodes, edges, portals);
+                if (!ExportSpawns(scene, map, validationWorld, nodes, edges, portals,
+                        out ServerSpawnAnchor[] anchors))
+                {
+                    Debug.LogError("[Server World Bake] Spawns failed preflight. " +
+                        "Core geometry and previous authoring layers have NOT been republished.");
+                    return false;
+                }
+
+                routes = new RouteLayerFile
+                {
+                    mapId = map.MapId,
+                    instanceId = map.InstanceId,
+                    populationNodes = nodes,
+                    populationEdges = edges,
+                    populationPortals = portals,
+                    editorEdits = edits,
+                };
+                spawns = new SpawnLayerFile
+                {
+                    mapId = map.MapId,
+                    instanceId = map.InstanceId,
+                    spawnAnchors = anchors,
+                };
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[Server World Bake] Route layer failed: {ex}");
+                Debug.LogError($"[Server World Bake] Authoring-layer preflight failed: {ex}");
+                return false;
             }
-            if (!routesOk)
-            {
-                // Never let a previous revision's graph be loaded with fresh geometry.
-                if (File.Exists(routesPath)) File.Delete(routesPath);
-                Debug.LogWarning("[Server World Bake] Core geometry published; Population routes layer NOT published.");
-            }
+        }
 
-            bool spawnsOk = false;
-            int spawnCount = 0;
+        // Publish the three interdependent JSON files as one checked operation.
+        // Stage every file first; if a replacement fails, restore all previously
+        // replaced files. Core goes LAST so its hash never precedes its layers.
+        private static bool TryPublishCoreAndLayers(
+            string corePath, string coreJson, RouteLayerFile routes, SpawnLayerFile spawns)
+        {
+            string stem = corePath.EndsWith(".servermap.json", StringComparison.OrdinalIgnoreCase)
+                ? corePath.Substring(0, corePath.Length - ".servermap.json".Length)
+                : Path.Combine(Path.GetDirectoryName(corePath), Path.GetFileNameWithoutExtension(corePath));
+            string[] destinations = { stem + ".routes.json", stem + ".spawns.json", corePath };
+            string[] payloads =
+            {
+                JsonUtility.ToJson(routes, true),
+                JsonUtility.ToJson(spawns, true),
+                coreJson,
+            };
+            string token = Guid.NewGuid().ToString("N");
+            string[] temps = destinations.Select(x => x + "." + token + ".tmp").ToArray();
+            string[] backups = destinations.Select(x => x + "." + token + ".bak").ToArray();
+            bool[] existed = destinations.Select(File.Exists).ToArray();
+            bool keepBackups = false;
             try
             {
-                if (ValidateSpawnAuthoring(scene, repairDuplicateIds: true, logSuccess: false) &&
-                    ExportSpawns(scene, out ServerSpawnAnchor[] spawns))
+                var utf8 = new UTF8Encoding(false);
+                // Stage all three new payloads and preserve all three old versions
+                // before changing ANY published file. This also protects the edit
+                // record in an existing routes layer.
+                for (int i = 0; i < destinations.Length; ++i)
                 {
-                    var layer = new SpawnLayerFile
-                    {
-                        mapId = core.mapId,
-                        instanceId = core.instanceId,
-                        coreContentHash = core.contentHash,
-                        spawnAnchors = spawns,
-                    };
-                    File.WriteAllText(spawnsPath, JsonUtility.ToJson(layer, true), new UTF8Encoding(false));
-                    spawnCount = spawns.Length;
-                    spawnsOk = true;
-                    Debug.Log($"[Server World Bake] Spawns layer -> {spawnsPath}: {spawnCount} anchors");
+                    File.WriteAllText(temps[i], payloads[i], utf8);
+                    if (existed[i]) File.Copy(destinations[i], backups[i], false);
                 }
+                for (int i = 0; i < destinations.Length; ++i)
+                {
+                    if (existed[i]) File.Replace(temps[i], destinations[i], null);
+                    else File.Move(temps[i], destinations[i]);
+                }
+                Debug.Log($"[Server World Bake] Routes layer -> {destinations[0]}: " +
+                    $"{routes.populationNodes.Length} nodes, {routes.populationEdges.Length} edges (baked edits retained)");
+                Debug.Log($"[Server World Bake] Spawns layer -> {destinations[1]}: " +
+                    $"{spawns.spawnAnchors.Length} anchors; matching core geometry hash published.");
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[Server World Bake] Spawns layer failed: {ex}");
+                Debug.LogError($"[Server World Bake] Failed to publish core and authoring layers together: {ex}");
+                // Restore ALL destinations. A Replace/Move may have changed a file
+                // before reporting an error; do not rely on a committed counter.
+                for (int i = destinations.Length - 1; i >= 0; --i)
+                {
+                    try
+                    {
+                        if (existed[i] && File.Exists(backups[i]))
+                            File.Copy(backups[i], destinations[i], true);
+                        else if (!existed[i] && File.Exists(destinations[i]))
+                            File.Delete(destinations[i]);
+                    }
+                    catch (Exception rollbackError)
+                    {
+                        keepBackups = true;
+                        Debug.LogError($"[Server World Bake] CRITICAL: Could not restore {destinations[i]}; backup retained at {backups[i]}: {rollbackError}");
+                    }
+                }
+                return false;
             }
-            if (!spawnsOk)
+            finally
             {
-                if (File.Exists(spawnsPath)) File.Delete(spawnsPath);
-                Debug.LogWarning("[Server World Bake] Core geometry published; Spawns layer NOT published. GameServer startup will reject this revision.");
+                foreach (string path in temps)
+                {
+                    try { if (File.Exists(path)) File.Delete(path); }
+                    catch (Exception cleanupError) { Debug.LogWarning($"[Server World Bake] Could not remove temporary file '{path}': {cleanupError.Message}"); }
+                }
+                if (!keepBackups)
+                {
+                    foreach (string path in backups)
+                    {
+                        try { if (File.Exists(path)) File.Delete(path); }
+                        catch (Exception cleanupError) { Debug.LogWarning($"[Server World Bake] Could not remove backup '{path}': {cleanupError.Message}"); }
+                    }
+                }
             }
-            return spawnCount;
         }
 
         public static bool BakeEnabledClientScenes(bool rebuildNavMesh, out List<Result> results)
@@ -2022,8 +2181,9 @@ namespace Game.WorldAuthoring.Editor
             for (int i = 0; i < markers.Length; ++i)
             {
                 PopulationRouteMarker marker = markers[i];
-                long id = StableId(marker.BakeId);
-                if (!ids.Add(id))
+                bool missingId = string.IsNullOrWhiteSpace(marker.BakeId);
+                long id = missingId ? 0L : StableId(marker.BakeId);
+                if (missingId || !ids.Add(id))
                 {
                     // Unity's normal Duplicate operation copies serialized private fields, including
                     // PopulationRouteMarker.bakeId. Repair only the later duplicate in deterministic
@@ -2054,6 +2214,10 @@ namespace Game.WorldAuthoring.Editor
                         return false;
                     }
 
+                    // A copied prefab instance needs an explicit recorded property override;
+                    // marking the scene dirty alone need not preserve its new stable ID.
+                    if (PrefabUtility.IsPartOfPrefabInstance(marker))
+                        PrefabUtility.RecordPrefabInstancePropertyModifications(marker);
                     EditorUtility.SetDirty(marker);
                     EditorSceneManager.MarkSceneDirty(scene);
                     Debug.LogWarning(
@@ -2200,28 +2364,26 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            // Join separate ordered route paths into ONE physically traversable pedestrian network.
-            // Never bridge across unvalidated movement geometry, and never invent long shortcuts.
-            if (!ConnectPopulationNetwork(scene, portalCollision, markers, markerIds, edgeOutput, edgeKeys))
+            // All active scene markers (including markers nested in prefab instances) are
+            // graph nodes. Reject unwalkable authored edges, then add validated nearby links
+            // independently of hierarchy and sibling order. The graph stays transient until
+            // the routes authoring layer is written; prefab markers are never rewritten.
+            if (!PopulationRouteGraphBuilder.CompleteGraph(
+                    scene, portalCollision, markers, markerIds, edgeOutput, edgeKeys,
+                    out int graphAutoEdges, out int rejectedEdges, true))
             {
                 nodes = Array.Empty<ServerPopulationRouteNode>();
                 edges = Array.Empty<ServerPopulationRouteEdge>();
                 portals = Array.Empty<ServerPopulationPortal>();
                 return false;
             }
+            Debug.Log($"[Server World Bake] Scene-wide Population graph: " +
+                $"nodes={markers.Length}, edges={edgeOutput.Count}, generated={graphAutoEdges}, " +
+                $"unwalkable authored edges discarded={rejectedEdges}.");
 
-            if (!ValidatePopulationEntryRouteGraph(
-                    scene,
-                    markers,
-                    markerIds,
-                    nodeOutput,
-                    edgeOutput))
-            {
-                nodes = Array.Empty<ServerPopulationRouteNode>();
-                edges = Array.Empty<ServerPopulationRouteEdge>();
-                portals = Array.Empty<ServerPopulationPortal>();
-                return false;
-            }
+            // CompleteGraph above is the single authority for automatic topology.
+            // Do not run the legacy forced 64m component merger afterward: it can
+            // reintroduce diagonal shortcuts that the local graph intentionally rejected.
 
             PopulationPortal[] portalSources = Object.FindObjectsByType<PopulationPortal>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                 .Where(x => x != null && x.gameObject.scene == scene && x.gameObject.activeInHierarchy)
@@ -2229,6 +2391,14 @@ namespace Game.WorldAuthoring.Editor
                 .ToArray();
             var portalOutput = new List<ServerPopulationPortal>(portalSources.Length);
             var portalIds = new HashSet<long>();
+            // Reuse the final automatic/explicit adjacency for every portal repair.
+            var outgoingNodeIds = new HashSet<long>();
+            foreach (ServerPopulationRouteEdge edge in edgeOutput)
+            {
+                if (edge == null) continue;
+                outgoingNodeIds.Add(edge.fromNodeId);
+                if (!edge.oneWay) outgoingNodeIds.Add(edge.toNodeId);
+            }
             for (int i = 0; i < portalSources.Length; ++i)
             {
                 PopulationPortal source = portalSources[i];
@@ -2264,6 +2434,8 @@ namespace Game.WorldAuthoring.Editor
                         return false;
                     }
 
+                    if (PrefabUtility.IsPartOfPrefabInstance(source))
+                        PrefabUtility.RecordPrefabInstancePropertyModifications(source);
                     EditorUtility.SetDirty(source);
                     EditorSceneManager.MarkSceneDirty(scene);
                     Debug.LogWarning(
@@ -2275,35 +2447,39 @@ namespace Game.WorldAuthoring.Editor
 
                 if (source.routeMarker != null)
                 {
-                    if (!markerIds.TryGetValue(source.routeMarker, out routeNodeId) ||
-                        source.routeMarker.gameObject.scene != scene)
+                    PopulationRouteMarker primary = source.routeMarker;
+                    // A reference to an inactive marker in this scene is just as unusable as
+                    // a prefab-asset/cross-scene reference. The previous error conflated both.
+                    if (primary.gameObject.scene != scene ||
+                        !primary.gameObject.activeInHierarchy ||
+                        !markerIds.TryGetValue(primary, out routeNodeId))
                     {
-                        Debug.LogError(
+                        Debug.LogWarning(
                             $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
-                            "references a Route Marker outside the current scene.");
-                        nodes = Array.Empty<ServerPopulationRouteNode>();
-                        edges = Array.Empty<ServerPopulationRouteEdge>();
-                        portals = Array.Empty<ServerPopulationPortal>();
-                        return false;
+                            $"has a stale or inactive primary Route Marker '{primary.name}'. " +
+                            "Searching for a nearby reachable scene-graph marker; the bad reference will " +
+                            "only be replaced when a safe candidate is found.", source);
+                        routeNodeId = 0L;
                     }
-
-                    resolvedRouteMarker = source.routeMarker;
-                    if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(
-                            portalCollision,
-                            scene,
-                            source.transform.position,
-                            resolvedRouteMarker.transform.position))
+                    else
                     {
-                        Debug.LogError(
-                            $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
-                            "cannot reach its primary Route Marker on the baked movement surface.");
-                        nodes = Array.Empty<ServerPopulationRouteNode>();
-                        edges = Array.Empty<ServerPopulationRouteEdge>();
-                        portals = Array.Empty<ServerPopulationPortal>();
-                        return false;
+                        resolvedRouteMarker = primary;
+                        if (!outgoingNodeIds.Contains(routeNodeId) ||
+                            !PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                                portalCollision, scene,
+                                source.transform.position, primary.transform.position))
+                        {
+                            Debug.LogWarning(
+                                $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
+                                "cannot reach its primary Route Marker; searching for a safe replacement.", source);
+                            resolvedRouteMarker = null;
+                            routeNodeId = 0L;
+                        }
+                        else
+                        {
+                            portalNodeIds.Add(routeNodeId);
+                        }
                     }
-
-                    portalNodeIds.Add(routeNodeId);
                 }
 
                 if (source.nearbyRouteMarkers != null)
@@ -2314,6 +2490,7 @@ namespace Game.WorldAuthoring.Editor
                         if (candidate == null ||
                             candidate.gameObject.scene != scene ||
                             !markerIds.TryGetValue(candidate, out long candidateId) ||
+                            !outgoingNodeIds.Contains(candidateId) ||
                             portalNodeIds.Contains(candidateId))
                         {
                             continue;
@@ -2337,41 +2514,53 @@ namespace Game.WorldAuthoring.Editor
 
                 if (routeNodeId <= 0)
                 {
-                    float bestSq = float.PositiveInfinity;
-                    for (int m = 0; m < markers.Length; ++m)
-                    {
-                        PopulationRouteMarker candidate = markers[m];
-                        if (candidate == null || !markerIds.TryGetValue(candidate, out long candidateId))
-                            continue;
+                    // Never attach a doorway to an arbitrary node across the map. First
+                    // prefer explicit nearby candidates, then the nearest safe local node.
+                    // The 24m limit applies only to AUTOMATIC fallback, not an already-valid
+                    // authored primary; invalid references must not create long shortcuts.
+                    const float MaxPortalAutoRepairMeters = 24f;
+                    float bestSq = MaxPortalAutoRepairMeters * MaxPortalAutoRepairMeters;
+                    IEnumerable<PopulationRouteMarker> candidates =
+                        (source.nearbyRouteMarkers ?? new List<PopulationRouteMarker>())
+                        .Concat(markers)
+                        .Where(candidate => candidate != null &&
+                            candidate.gameObject.scene == scene &&
+                            candidate.gameObject.activeInHierarchy &&
+                            markerIds.ContainsKey(candidate))
+                        .Distinct()
+                        .OrderBy(candidate =>
+                        {
+                            Vector3 delta = candidate.transform.position - source.transform.position;
+                            return delta.x * delta.x + delta.z * delta.z;
+                        });
 
+                    // An entry needs a usable outward edge, not just an isolated waypoint.
+                    foreach (PopulationRouteMarker candidate in candidates)
+                    {
+                        long candidateId = markerIds[candidate];
+                        if (!outgoingNodeIds.Contains(candidateId)) continue;
                         Vector3 delta = candidate.transform.position - source.transform.position;
                         float horizontalSq = delta.x * delta.x + delta.z * delta.z;
-                        if (horizontalSq >= bestSq)
-                            continue;
-
+                        if (horizontalSq > bestSq) continue;
                         if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(
-                                portalCollision,
-                                scene,
-                                source.transform.position,
-                                candidate.transform.position))
-                        {
+                                portalCollision, scene,
+                                source.transform.position, candidate.transform.position))
                             continue;
-                        }
 
                         bestSq = horizontalSq;
                         resolvedRouteMarker = candidate;
                         routeNodeId = candidateId;
+                        break; // Deterministic nearest reachable, connected marker.
                     }
 
                     if (resolvedRouteMarker == null || routeNodeId <= 0)
                     {
-                        Debug.LogError(
-                            $"[Server World Bake] Population Portal '{HierarchyPath(source.transform)}' " +
-                            "has no primary Route Marker and no traversable route node could be resolved automatically.");
-                        nodes = Array.Empty<ServerPopulationRouteNode>();
-                        edges = Array.Empty<ServerPopulationRouteEdge>();
-                        portals = Array.Empty<ServerPopulationPortal>();
-                        return false;
+                        Debug.LogWarning(
+                            $"[Server World Bake] OMIT Population Portal '{HierarchyPath(source.transform)}': " +
+                            "no reachable, connected route node within 24m. " +
+                            "This portal and its Population spawn capacity will NOT be exported. " +
+                            "Other portals will continue baking.", source);
+                        continue;
                     }
 
                     if (!portalNodeIds.Contains(routeNodeId))
@@ -2391,11 +2580,17 @@ namespace Game.WorldAuthoring.Editor
                         source.transform,
                         out ServerPose anchor))
                 {
-                    nodes = Array.Empty<ServerPopulationRouteNode>();
-                    edges = Array.Empty<ServerPopulationRouteEdge>();
-                    portals = Array.Empty<ServerPopulationPortal>();
-                    return false;
+                    Debug.LogWarning(
+                        $"[Server World Bake] OMIT Population Portal '{HierarchyPath(source.transform)}': " +
+                        "invalid portal ground/capsule location. Its Population spawn capacity " +
+                        "will NOT be exported. Other portals will continue baking.", source);
+                    continue;
                 }
+
+                // Only commit repaired references after the portal's pose also passes
+                // the authoritative collision/ground validation.
+                PersistPopulationPortalRouteRefs(
+                    scene, portalCollision, source, resolvedRouteMarker, markerIds, outgoingNodeIds);
 
                 portalOutput.Add(new ServerPopulationPortal
                 {
@@ -2430,10 +2625,133 @@ namespace Game.WorldAuthoring.Editor
                 });
             }
 
+            // Individual orphaned/invalid portal entries are filtered after saved graph
+            // edits have been applied. Do not reject the entire world because one portal
+            // or direct Population spawn refers to an unusable route.
+            if (portalOutput.Count != portalSources.Length)
+                Debug.LogWarning($"[Server World Bake] Population Portal preflight: " +
+                    $"accepted={portalOutput.Count}, omitted={portalSources.Length - portalOutput.Count}. " +
+                    "Omitted portals contribute zero active Population spawn anchors.");
+
             nodes = nodeOutput.ToArray();
             edges = edgeOutput.ToArray();
             portals = portalOutput.ToArray();
             return true;
+        }
+
+        // A portal is only publishable if it survives the FINAL edited graph and can
+        // physically reach a route node with outward adjacency. Do not let a skipped
+        // portal leave behind its generated active Population identities in .spawns.json.
+        private static ServerPopulationPortal[] FilterPopulationPortals(
+            Scene scene,
+            ServerCollisionWorld collision,
+            ServerPopulationRouteNode[] nodes,
+            ServerPopulationRouteEdge[] edges,
+            ServerPopulationPortal[] portals)
+        {
+            var positions = new Dictionary<long, Vector3>();
+            foreach (ServerPopulationRouteNode node in nodes ?? Array.Empty<ServerPopulationRouteNode>())
+            {
+                if (node != null && node.stableId > 0)
+                    positions[node.stableId] = new Vector3(node.pose.x, node.pose.y, node.pose.z);
+            }
+            var outgoing = new HashSet<long>();
+            foreach (ServerPopulationRouteEdge edge in edges ?? Array.Empty<ServerPopulationRouteEdge>())
+            {
+                if (edge == null) continue;
+                if (!positions.ContainsKey(edge.fromNodeId) ||
+                    !positions.ContainsKey(edge.toNodeId))
+                    continue;
+                outgoing.Add(edge.fromNodeId);
+                if (!edge.oneWay) outgoing.Add(edge.toNodeId);
+            }
+            var kept = new List<ServerPopulationPortal>();
+            foreach (ServerPopulationPortal portal in portals ?? Array.Empty<ServerPopulationPortal>())
+            {
+                if (portal == null) continue;
+                // Primary must be connected and reachable. Never invent a jump across
+                // an obstructed doorway or silently activate a different route.
+                if (!positions.TryGetValue(portal.routeNodeId, out Vector3 entry) ||
+                    !outgoing.Contains(portal.routeNodeId) ||
+                    !PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                        collision, scene,
+                        new Vector3(portal.exterior.x, portal.exterior.y, portal.exterior.z),
+                        entry))
+                {
+                    Debug.LogWarning(
+                        $"[Server World Bake] OMIT Population Portal '{portal.label}' " +
+                        $"(id={portal.stableId}, entry={portal.routeNodeId}): " +
+                        "its entry is missing, isolated, or no longer traversable after graph edits. " +
+                        "No spawn anchors will be generated for this portal.");
+                    continue;
+                }
+                // Discard stale alternatives whose endpoints were deleted by graph edits;
+                // they must also lead outward and be physically accessible.
+                var candidates = new List<long> { portal.routeNodeId };
+                if (portal.routeNodeIds != null)
+                {
+                    foreach (long alternate in portal.routeNodeIds)
+                    {
+                        if (alternate == portal.routeNodeId || candidates.Contains(alternate) ||
+                            !positions.TryGetValue(alternate, out Vector3 point) ||
+                            !outgoing.Contains(alternate)) continue;
+                        if (PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                                collision, scene,
+                                new Vector3(portal.exterior.x, portal.exterior.y, portal.exterior.z),
+                                point))
+                            candidates.Add(alternate);
+                    }
+                }
+                portal.routeNodeIds = candidates.ToArray();
+                kept.Add(portal);
+            }
+            if (kept.Count != (portals?.Length ?? 0))
+                Debug.LogWarning($"[Server World Bake] Final Population Portal validation: " +
+                    $"accepted={kept.Count}, omitted={(portals?.Length ?? 0) - kept.Count}.");
+            return kept.ToArray();
+        }
+
+        private static void PersistPopulationPortalRouteRefs(
+            Scene scene,
+            ServerCollisionWorld collision,
+            PopulationPortal portal,
+            PopulationRouteMarker primary,
+            Dictionary<PopulationRouteMarker, long> markerIds,
+            HashSet<long> outgoingNodeIds)
+        {
+            var cleaned = new List<PopulationRouteMarker> { primary };
+            if (portal.nearbyRouteMarkers != null)
+            {
+                foreach (PopulationRouteMarker marker in portal.nearbyRouteMarkers)
+                {
+                    if (marker == null || marker == primary || cleaned.Contains(marker) ||
+                        marker.gameObject.scene != scene || !marker.gameObject.activeInHierarchy ||
+                        !markerIds.TryGetValue(marker, out long markerId) ||
+                        !outgoingNodeIds.Contains(markerId))
+                        continue;
+                    if (PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                            collision, scene, portal.transform.position, marker.transform.position))
+                        cleaned.Add(marker);
+                }
+            }
+            if (portal.routeMarker == primary &&
+                portal.nearbyRouteMarkers != null &&
+                portal.nearbyRouteMarkers.SequenceEqual(cleaned))
+                return;
+
+            Undo.RecordObject(portal, "Repair Population Portal Route References");
+            PopulationRouteMarker oldPrimary = portal.routeMarker;
+            portal.routeMarker = primary;
+            portal.nearbyRouteMarkers = cleaned;
+            if (PrefabUtility.IsPartOfPrefabInstance(portal))
+                PrefabUtility.RecordPrefabInstancePropertyModifications(portal);
+            EditorUtility.SetDirty(portal);
+            EditorSceneManager.MarkSceneDirty(scene);
+            Debug.LogWarning(
+                $"[Server World Bake] Repaired Population Portal '{HierarchyPath(portal.transform)}': " +
+                $"primary='{(oldPrimary != null ? oldPrimary.name : "missing")}' -> " +
+                $"'{HierarchyPath(primary.transform)}', nearby={cleaned.Count}. " +
+                "Scene references will be saved after a successful bake.", portal);
         }
 
         private static bool TryResolvePortalBakePose(
@@ -2466,9 +2784,10 @@ namespace Game.WorldAuthoring.Editor
                     out resolved,
                     out string detail))
             {
-                Debug.LogError(
+                Debug.LogWarning(
                     $"[Server World Bake] Population Portal '{HierarchyPath(portal.transform)}' " +
-                    $"{pointName} is not a valid grounded traversal pose: {detail}");
+                    $"{pointName} is not a valid grounded traversal pose: {detail}. " +
+                    "This Portal will be omitted from the current bake.", portal);
                 return false;
             }
 
@@ -2520,144 +2839,6 @@ namespace Game.WorldAuthoring.Editor
                 Mathf.Max(0.5f, path.width),
                 Mathf.Max(0.01f, path.weight),
                 Mathf.Max(0f, path.minimumClearance));
-        }
-
-        // Bake-only, bounded network topology validation. This does not introduce a
-        // navigation solver, new runtime state, NavMesh queries or wire messages.
-        // Authoring links can be separated by more than eight metres on city blocks.
-        // Connect only when the exact authoritative support/capsule sweep is traversable.
-        // The 64m bound keeps SegmentTraversable's 512-sample safety ceiling intact for
-        // the configured humanoid radius (the traversal routine uses radius*0.45m).
-        private static bool ConnectPopulationNetwork(
-            Scene scene,
-            ServerCollisionWorld collision,
-            PopulationRouteMarker[] markers,
-            Dictionary<PopulationRouteMarker, long> ids,
-            List<ServerPopulationRouteEdge> edges,
-            HashSet<string> edgeKeys)
-        {
-            int n = markers.Length;
-            if (n == 0) return true;
-            var index = new Dictionary<long, int>(n);
-            for (int i = 0; i < n; ++i) index[ids[markers[i]]] = i;
-            var parent = new int[n];
-            for (int i = 0; i < n; ++i) parent[i] = i;
-            for (int i = 0; i < edges.Count; ++i)
-            {
-                ServerPopulationRouteEdge edge = edges[i];
-                if (edge != null && index.TryGetValue(edge.fromNodeId, out int a) &&
-                    index.TryGetValue(edge.toNodeId, out int b))
-                    MergePopulationComponents(parent, a, b);
-            }
-
-            int groups = CountPopulationComponents(parent);
-            int initialGroups = groups;
-            // Search in increasing distance bands. This preserves short junctions
-            // and never invents a route through a building, wall, missing ground,
-            // steep surface, or invalid standing capsule.
-            float[] bridgeLimits = { 8f, 16f, 32f, 64f };
-            const float MinimumBridgeDistance = 0.05f;
-            int added = 0;
-            while (groups > 1)
-            {
-                int bestA = -1, bestB = -1;
-                float bestSq = float.PositiveInfinity;
-                for (int band = 0; band < bridgeLimits.Length && bestA < 0; ++band)
-                {
-                    float limitSq = bridgeLimits[band] * bridgeLimits[band];
-                    for (int a = 0; a < n; ++a)
-                    {
-                        Vector3 pa = markers[a].transform.position;
-                        for (int b = a + 1; b < n; ++b)
-                        {
-                            if (RootPopulationComponent(parent, a) == RootPopulationComponent(parent, b)) continue;
-                            Vector3 pb = markers[b].transform.position;
-                            float dx = pa.x - pb.x, dz = pa.z - pb.z;
-                            float sq = dx * dx + dz * dz;
-                            if (sq >= bestSq || sq > limitSq ||
-                                sq < MinimumBridgeDistance * MinimumBridgeDistance) continue;
-                            if (Mathf.Abs(pa.y - pb.y) > 1.25f) continue;
-                            if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(collision, scene, pa, pb)) continue;
-                            bestA = a;
-                            bestB = b;
-                            bestSq = sq;
-                        }
-                    }
-                }
-                if (bestA < 0)
-                {
-                    // A named nearest pair is actionable; an anonymous component
-                    // count is not. No unsafe link is added and the bake still fails.
-                    int nearestA = -1, nearestB = -1;
-                    float nearestSq = float.PositiveInfinity;
-                    for (int a = 0; a < n; ++a)
-                    {
-                        Vector3 pa = markers[a].transform.position;
-                        for (int b = a + 1; b < n; ++b)
-                        {
-                            if (RootPopulationComponent(parent, a) == RootPopulationComponent(parent, b)) continue;
-                            Vector3 pb = markers[b].transform.position;
-                            float dx = pa.x - pb.x, dz = pa.z - pb.z;
-                            float sq = dx * dx + dz * dz;
-                            if (sq >= nearestSq) continue;
-                            nearestSq = sq;
-                            nearestA = a;
-                            nearestB = b;
-                        }
-                    }
-                    string nearest = nearestA >= 0
-                        ? $"Nearest remaining endpoints: '{HierarchyPath(markers[nearestA].transform)}' " +
-                          $"at {markers[nearestA].transform.position} and " +
-                          $"'{HierarchyPath(markers[nearestB].transform)}' " +
-                          $"at {markers[nearestB].transform.position}, " +
-                          $"horizontal distance={Mathf.Sqrt(nearestSq):F2}m."
-                        : "No remaining endpoint pair could be identified.";
-                    Debug.LogError($"[Server World Bake] Population route graph DISCONNECTED: {groups} " +
-                        $"components remain ({n} nodes, {edges.Count} edges). " +
-                        "No traversable direct junction within 64m on the new movement geometry. " +
-                        nearest + " Fix the authored link/position or missing safe ground; bake cancelled.");
-                    return false;
-                }
-
-                PopulationRouteMarker from = markers[bestA], to = markers[bestB];
-                AddPopulationEdge(edges, edgeKeys, ids[from], ids[to], false,
-                    Mathf.Max(0.5f, (from.pathWidth + to.pathWidth) * 0.5f), 1f, 0.5f);
-                MergePopulationComponents(parent, bestA, bestB);
-                --groups;
-                ++added;
-                Debug.Log($"[Server World Bake] Population joined route paths " +
-                    $"'{HierarchyPath(from.transform)}' <-> '{HierarchyPath(to.transform)}' " +
-                    $"({Mathf.Sqrt(bestSq):F2}m, verified traversable on baked ground).");
-            }
-            Debug.Log($"[Server World Bake] Population connected graph: {n} nodes, " +
-                $"{edges.Count} edges, components {initialGroups} -> {groups}, " +
-                $"new validated bridges={added}.");
-            return true;
-        }
-
-        private static int RootPopulationComponent(int[] parent, int i)
-        {
-            while (parent[i] != i)
-            {
-                parent[i] = parent[parent[i]];
-                i = parent[i];
-            }
-            return i;
-        }
-
-        private static void MergePopulationComponents(int[] parent, int a, int b)
-        {
-            a = RootPopulationComponent(parent, a);
-            b = RootPopulationComponent(parent, b);
-            if (a != b) parent[b] = a;
-        }
-
-        private static int CountPopulationComponents(int[] parent)
-        {
-            int result = 0;
-            for (int i = 0; i < parent.Length; i++)
-                if (RootPopulationComponent(parent, i) == i) result++;
-            return result;
         }
 
         private static bool ValidatePopulationEntryRouteGraph(
@@ -2858,7 +3039,13 @@ namespace Game.WorldAuthoring.Editor
         private static bool TryPrepareSpawns(
             Scene scene,
             bool repairDuplicateIds,
-            out ServerSpawn[] spawns)
+            out ServerSpawn[] spawns,
+            HashSet<long> acceptedPortalIds = null,
+            HashSet<long> acceptedRouteNodeIds = null,
+            HashSet<long> outgoingRouteNodeIds = null,
+            ServerCollisionWorld collision = null,
+            ServerMap map = null,
+            Dictionary<long, Vector3> finalRoutePositions = null)
         {
             spawns = Object.FindObjectsByType<ServerSpawn>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                 .Where(x => x != null && x.gameObject.scene == scene && x.gameObject.activeInHierarchy)
@@ -2880,9 +3067,58 @@ namespace Game.WorldAuthoring.Editor
                 portalIds.Add(StableId(portals[i].BakeId));
 
             var usedSpawnIds = new HashSet<long>();
+            var acceptedSpawns = new List<ServerSpawn>(spawns.Length);
             for (int i = 0; i < spawns.Length; ++i)
             {
                 ServerSpawn spawn = spawns[i];
+                if (acceptedPortalIds != null && spawn.kind == ServerSpawnKind.Population)
+                {
+                    string reason = null;
+                    bool portalLinked = spawn.populationPortal != null || spawn.portalId > 0;
+                    long linkedPortalId = spawn.populationPortal != null
+                        ? StableId(spawn.populationPortal.BakeId)
+                        : spawn.portalId;
+                    long routeId = spawn.routeMarker != null
+                        ? StableId(spawn.routeMarker.BakeId)
+                        : spawn.routeNodeId;
+                    if (portalLinked && (spawn.populationPortal != null &&
+                            (spawn.populationPortal.gameObject.scene != scene ||
+                             !spawn.populationPortal.gameObject.activeInHierarchy ||
+                             spawn.populationPortal.mode == PopulationPortalMode.DespawnOnly) ||
+                            !acceptedPortalIds.Contains(linkedPortalId)))
+                        reason = "its linked Population Portal was omitted, inactive, or despawn-only";
+                    else if (spawn.routeMarker != null &&
+                             (spawn.routeMarker.gameObject.scene != scene ||
+                              !spawn.routeMarker.gameObject.activeInHierarchy))
+                        reason = "its Route Marker is outside this scene or inactive";
+                    else if (!portalLinked && routeId > 0 &&
+                             (acceptedRouteNodeIds == null || !acceptedRouteNodeIds.Contains(routeId) ||
+                              outgoingRouteNodeIds == null || !outgoingRouteNodeIds.Contains(routeId)))
+                        reason = "its direct route node is missing or has no outgoing graph edge";
+                    else if (!portalLinked && routeId > 0 && collision != null &&
+                             finalRoutePositions != null &&
+                             finalRoutePositions.TryGetValue(routeId, out Vector3 entryPoint) &&
+                             !PopulationRouteWalkabilityGizmos.SegmentTraversable(
+                                 collision, scene, spawn.transform.position, entryPoint))
+                        reason = "its spawn-to-route entry segment is obstructed or unwalkable";
+                    else if (!portalLinked && collision != null && map != null && spawn.enabledForServer &&
+                             !collision.TryValidateSpawn(
+                                 Pose(spawn.transform),
+                                 new ServerCapsule(Mathf.Max(0.1f, spawn.capsuleRadius),
+                                     Mathf.Max(spawn.capsuleHeight, spawn.capsuleRadius * 2f)),
+                                 Mathf.Max(0.1f, spawn.maximumGroundSnap),
+                                 Mathf.Clamp(map.NavAgentMaxSlope, 0f, 89f),
+                                 out ServerPose resolvedPose, out string spawnReason))
+                        reason = "its authored spawn location has no valid grounded capsule";
+                    if (reason != null)
+                    {
+                        Debug.LogWarning($"[Server World Bake] OMIT Population Spawn " +
+                            $"'{HierarchyPath(spawn.transform)}': {reason}. " +
+                            "The remaining spawn sources will still bake.", spawn);
+                        continue;
+                    }
+                }
+
                 bool portalBackedPopulation =
                     spawn.kind == ServerSpawnKind.Population &&
                     (spawn.populationPortal != null || spawn.portalId > 0);
@@ -2957,11 +3193,12 @@ namespace Game.WorldAuthoring.Editor
                         return false;
                     }
                 }
-                else if (spawn.routeNodeId > 0 && !routeIds.Contains(spawn.routeNodeId))
+                else if (spawn.routeNodeId > 0 && !routeIds.Contains(spawn.routeNodeId) &&
+                         !PopulationBakedGraphEditor.RouteLayerIncludesId(scene, spawn.routeNodeId))
                 {
                     Debug.LogError(
                         $"[Server World Bake] Spawn '{HierarchyPath(spawn.transform)}' has manual routeNodeId {spawn.routeNodeId}, " +
-                        "but no active Population Route Marker in this scene bakes to that ID.");
+                        "but neither a scene marker nor the baked Population route layer contains that node ID.");
                     return false;
                 }
 
@@ -2985,8 +3222,10 @@ namespace Game.WorldAuthoring.Editor
                         "but no active Population Portal in this scene bakes to that ID.");
                     return false;
                 }
+                acceptedSpawns.Add(spawn);
             }
 
+            spawns = acceptedSpawns.ToArray();
             return true;
         }
 
@@ -3011,10 +3250,34 @@ namespace Game.WorldAuthoring.Editor
             return true;
         }
 
-        private static bool ExportSpawns(Scene scene, out ServerSpawnAnchor[] anchors)
+        private static bool ExportSpawns(
+            Scene scene, ServerMap map, ServerCollisionWorld collision,
+            ServerPopulationRouteNode[] nodes, ServerPopulationRouteEdge[] edges,
+            ServerPopulationPortal[] bakedPortals, out ServerSpawnAnchor[] anchors)
         {
             var output = new List<ServerSpawnAnchor>();
-            if (!TryPrepareSpawns(scene, repairDuplicateIds: true, out ServerSpawn[] spawns))
+            var acceptedPortalIds = new HashSet<long>(
+                (bakedPortals ?? Array.Empty<ServerPopulationPortal>())
+                    .Where(x => x != null).Select(x => x.stableId));
+            var acceptedRouteNodeIds = new HashSet<long>(
+                (nodes ?? Array.Empty<ServerPopulationRouteNode>())
+                    .Where(x => x != null).Select(x => x.stableId));
+            var finalRoutePositions = (nodes ?? Array.Empty<ServerPopulationRouteNode>())
+                .Where(x => x != null && x.stableId > 0)
+                .GroupBy(x => x.stableId)
+                .ToDictionary(g => g.Key,
+                    g => new Vector3(g.First().pose.x, g.First().pose.y, g.First().pose.z));
+            var outgoingRouteNodeIds = new HashSet<long>();
+            foreach (ServerPopulationRouteEdge edge in edges ?? Array.Empty<ServerPopulationRouteEdge>())
+            {
+                if (edge == null || !acceptedRouteNodeIds.Contains(edge.fromNodeId) ||
+                    !acceptedRouteNodeIds.Contains(edge.toNodeId)) continue;
+                outgoingRouteNodeIds.Add(edge.fromNodeId);
+                if (!edge.oneWay) outgoingRouteNodeIds.Add(edge.toNodeId);
+            }
+            if (!TryPrepareSpawns(scene, repairDuplicateIds: true, out ServerSpawn[] spawns,
+                    acceptedPortalIds, acceptedRouteNodeIds, outgoingRouteNodeIds,
+                    collision, map, finalRoutePositions))
             {
                 anchors = Array.Empty<ServerSpawnAnchor>();
                 return false;
@@ -3119,20 +3382,22 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            // Every spawn-capable portal is self-sufficient. It always contributes exactly its
-            // Max Active In World capacity as lightweight dormant Population identities.
+            // Every ACCEPTED spawn-capable portal contributes its authored capacity.
+            // Omitted portals must not leave orphaned/ghost active Population identities.
             // Existing linked Population spawns are cycled only as optional archetype/capsule
             // templates; a portal with no templates still produces generic Civilian Population.
-            for (int p = 0; p < portals.Length; ++p)
+            var scenePortalById = new Dictionary<long, PopulationPortal>();
+            foreach (PopulationPortal portal in portals)
             {
-                PopulationPortal portal = portals[p];
-                if (!IsSpawnCapable(portal))
-                    continue;
-
-                long portalId = StableId(portal.BakeId);
-                long routeNodeId = portal.routeMarker != null
-                    ? StableId(portal.routeMarker.BakeId)
-                    : 0L;
+                long id = StableId(portal.BakeId);
+                if (!scenePortalById.ContainsKey(id)) scenePortalById.Add(id, portal);
+            }
+            foreach (ServerPopulationPortal baked in bakedPortals ?? Array.Empty<ServerPopulationPortal>())
+            {
+                if (baked == null || !scenePortalById.TryGetValue(baked.stableId, out PopulationPortal portal) ||
+                    !IsSpawnCapable(portal)) continue;
+                long portalId = baked.stableId;
+                long routeNodeId = baked.routeNodeId;
 
                 ServerSpawn[] templates = spawns
                     .Where(x =>
@@ -3177,6 +3442,10 @@ namespace Game.WorldAuthoring.Editor
             }
 
             anchors = output.ToArray();
+            Debug.Log($"[Server World Bake] Population spawn export: " +
+                $"scenePortals={portals.Length}, bakedPortals={acceptedPortalIds.Count}, " +
+                $"acceptedServerSpawnTemplates={spawns.Length}, exportedSpawnAnchors={anchors.Length}. " +
+                "Skipped Population sources contribute no spawn anchors.");
             return true;
         }
 
