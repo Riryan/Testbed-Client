@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Threading.Tasks;
 using Game.Shared.World;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -675,14 +676,28 @@ namespace Player.Client
 
         private static RuntimeWorld _world;
         private static string _loadAttemptScene = string.Empty;
+        private static int _loadGeneration;
+        private static bool _loadInProgress;
+        private static readonly Dictionary<long, bool> PendingBlockerStates =
+            new Dictionary<long, bool>();
 
         public static bool IsLoaded => _world != null;
+        public static bool IsLoading => _loadInProgress;
         public static string LoadedMapId => _world?.Snapshot?.mapId ?? string.Empty;
         public static string LoadedHash => _world?.Snapshot?.contentHash ?? string.Empty;
 
         public static bool TrySetDynamicBlockerEnabled(long stableId, bool enabled)
         {
-            return EnsureLoaded() && _world.TrySetDynamicBlockerEnabled(stableId, enabled);
+            if (stableId <= 0)
+                return false;
+            if (_world != null)
+                return _world.TrySetDynamicBlockerEnabled(stableId, enabled);
+
+            // World blocker state can arrive before the client-safe map is ready.
+            // Preserve the latest value rather than losing a closed/open door update.
+            PendingBlockerStates[stableId] = enabled;
+            EnsureLoaded();
+            return false; // Not yet applied. The pending state is replayed on publication.
         }
 
         public static bool TryResolveGroundedMove(
@@ -710,9 +725,8 @@ namespace Player.Client
         }
 
         /// <summary>
-        /// Resolves the precise baked support height at an X/Z position without advancing
-        /// movement. Owner presentation uses this as a zero-wire grounded-height fallback
-        /// when the local Unity physics probe is unavailable or intentionally disabled.
+        /// Resolves the baked support height without moving. If the world is still being
+        /// prepared, callers retain their existing authoritative-height fallback.
         /// </summary>
         public static bool TryFindSupportHeight(
             float x,
@@ -735,63 +749,168 @@ namespace Player.Client
                 out y);
         }
 
+        // The earlier implementation did File.ReadAllText/GZip, JsonUtility.FromJson and
+        // BuildGrid synchronously inside the FIRST movement/presentation query. Map content
+        // can be large, so start once and never stall movement input on map preparation.
         private static bool EnsureLoaded()
         {
             if (_world != null)
                 return true;
 
-            Scene scene = SceneManager.GetActiveScene();
-            string sceneName = scene.IsValid() ? scene.name : string.Empty;
-            if (string.Equals(_loadAttemptScene, sceneName, StringComparison.Ordinal))
-                return false;
-            _loadAttemptScene = sceneName;
+            Scene active = SceneManager.GetActiveScene();
+            if (active.IsValid() && active.isLoaded)
+                BeginLoad(active.name, eagerOnly: false);
+            return false;
+        }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void InitializeSceneWarmup()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+            SceneManager.activeSceneChanged += OnActiveSceneChanged;
+            Scene active = SceneManager.GetActiveScene();
+            if (active.IsValid() && active.isLoaded)
+                BeginLoad(active.name, eagerOnly: true);
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            // Additive scenes may contain UI/presentation objects; the active gameplay
+            // scene, not every additive scene, owns this client-safe collision world.
+            Scene active = SceneManager.GetActiveScene();
+            if (!active.IsValid() || active.handle != scene.handle)
+                return;
+            ClearForSceneChange();
+            BeginLoad(scene.name, eagerOnly: true);
+        }
+
+        private static void OnActiveSceneChanged(Scene oldScene, Scene newScene)
+        {
+            ClearForSceneChange();
+            if (newScene.IsValid() && newScene.isLoaded)
+                BeginLoad(newScene.name, eagerOnly: true);
+        }
+
+        private static void ClearForSceneChange()
+        {
+            ++_loadGeneration; // Invalidate pending completion from the previous scene.
+            _world = null;
+            _loadAttemptScene = string.Empty;
+            _loadInProgress = false;
+            PendingBlockerStates.Clear();
+        }
+
+        private static void BeginLoad(string sceneName, bool eagerOnly)
+        {
+            if (string.IsNullOrWhiteSpace(sceneName) || _world != null ||
+                string.Equals(_loadAttemptScene, sceneName, StringComparison.Ordinal))
+                return;
+
+            string folder = Path.Combine(Application.streamingAssetsPath, "MMOWorld");
+            if (!Directory.Exists(folder))
+            {
+                _loadAttemptScene = sceneName;
+                return;
+            }
+
+            // Do not eagerly load the only shared-world file into Character Select or
+            // another unrelated scene merely because the legacy fallback accepts it.
+            // First gameplay query retains the legacy fallback, but loads asynchronously.
+            string mapId = ServerMapId.Normalize(sceneName);
+            string preferred = Path.Combine(folder, mapId + ".sharedworld.json.gz");
+            string legacy = Path.Combine(folder, mapId + ".sharedworld.json");
+            bool exactMatch = File.Exists(preferred) || File.Exists(legacy);
+            if (eagerOnly && !exactMatch)
+                return;
+
+            _loadAttemptScene = sceneName;
+            StartLoad(sceneName, folder, ++_loadGeneration);
+        }
+
+        private static void StartLoad(string sceneName, string folder, int generation)
+        {
+            _loadInProgress = true;
+            LoadAsync(sceneName, folder, generation);
+        }
+
+        private static async void LoadAsync(string sceneName, string folder, int generation)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            RuntimeWorld loaded = null;
+            Exception failure = null;
             try
             {
-                string folder = Path.Combine(Application.streamingAssetsPath, "MMOWorld");
-                if (!Directory.Exists(folder))
-                    return false;
-
-                string mapId = ServerMapId.Normalize(sceneName);
-                string preferred = Path.Combine(folder, mapId + ".sharedworld.json.gz");
-                string legacy = Path.Combine(folder, mapId + ".sharedworld.json");
-                string path = File.Exists(preferred) ? preferred
-                    : File.Exists(legacy) ? legacy : FindFallback(folder, mapId);
-                if (string.IsNullOrWhiteSpace(path))
-                    return false;
-
-                string json;
-                if (path.EndsWith(".gz", StringComparison.OrdinalIgnoreCase))
-                {
-                    using (FileStream stream = File.OpenRead(path))
-                    using (var gzip = new GZipStream(stream, CompressionMode.Decompress))
-                    using (var reader = new StreamReader(gzip))
-                        json = reader.ReadToEnd();
-                }
-                else
-                {
-                    json = File.ReadAllText(path);
-                }
-                SharedWorldSnapshot snapshot = JsonUtility.FromJson<SharedWorldSnapshot>(json);
-                if (snapshot == null || snapshot.formatVersion != SharedWorldFormat.Version ||
-                    string.IsNullOrWhiteSpace(snapshot.mapId))
-                {
-                    Debug.LogError($"[Shared World] Invalid client world package: {path}");
-                    return false;
-                }
-
-                _world = new RuntimeWorld(snapshot);
-                Debug.Log(
-                    $"[Shared World] Loaded '{snapshot.mapId}' revision={snapshot.bakeRevision}, " +
-                    $"support={snapshot.supportTriangles?.Length ?? 0:n0}, edges={snapshot.surfaceEdges?.Length ?? 0:n0}, " +
-                    $"collision={snapshot.collisionTriangles?.Length ?? 0:n0}, interactables={snapshot.interactables?.Length ?? 0:n0}.");
-                return true;
+                // Pure DTO + grid preparation; no GameObject, Transform or scene access.
+                // JsonUtility.FromJson supports deserialization from background threads.
+                loaded = await Task.Run(() => ReadAndBuildWorld(folder, sceneName));
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                Debug.LogWarning($"[Shared World] Client package load failed: {ex.Message}");
-                return false;
+                failure = exception;
             }
+
+            // Unity's synchronization context resumes this await on its main thread.
+            Scene active = SceneManager.GetActiveScene();
+            if (generation != _loadGeneration || !active.IsValid() ||
+                !string.Equals(sceneName, active.name, StringComparison.Ordinal))
+                return;
+
+            _loadInProgress = false;
+            if (failure != null)
+            {
+                Debug.LogWarning($"[Shared World] Background preparation failed: {failure.Message}");
+                return;
+            }
+            if (loaded == null)
+                return; // Same missing-file behavior as before, without blocking movement.
+
+            // Replay all state changes observed while the world data was being prepared.
+            foreach (KeyValuePair<long, bool> pair in PendingBlockerStates)
+                loaded.TrySetDynamicBlockerEnabled(pair.Key, pair.Value);
+            PendingBlockerStates.Clear();
+            _world = loaded;
+            Debug.Log(
+                $"[Shared World] Ready '{loaded.Snapshot.mapId}' revision={loaded.Snapshot.bakeRevision}, " +
+                $"support={loaded.Snapshot.supportTriangles?.Length ?? 0:n0}, " +
+                $"edges={loaded.Snapshot.surfaceEdges?.Length ?? 0:n0}, " +
+                $"collision={loaded.Snapshot.collisionTriangles?.Length ?? 0:n0}, " +
+                $"interactables={loaded.Snapshot.interactables?.Length ?? 0:n0}, " +
+                $"prepareMs={timer.Elapsed.TotalMilliseconds:0.##} (background). ");
+        }
+
+        private static RuntimeWorld ReadAndBuildWorld(string folder, string sceneName)
+        {
+            if (!Directory.Exists(folder))
+                return null;
+
+            string mapId = ServerMapId.Normalize(sceneName);
+            string preferred = Path.Combine(folder, mapId + ".sharedworld.json.gz");
+            string legacy = Path.Combine(folder, mapId + ".sharedworld.json");
+            string path = File.Exists(preferred) ? preferred
+                : File.Exists(legacy) ? legacy : FindFallback(folder, mapId);
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+
+            string json;
+            if (path.EndsWith(".gz", StringComparison.OrdinalIgnoreCase))
+            {
+                using (FileStream stream = File.OpenRead(path))
+                using (var gzip = new GZipStream(stream, CompressionMode.Decompress))
+                using (var reader = new StreamReader(gzip))
+                    json = reader.ReadToEnd();
+            }
+            else
+            {
+                json = File.ReadAllText(path);
+            }
+            SharedWorldSnapshot snapshot = JsonUtility.FromJson<SharedWorldSnapshot>(json);
+            if (snapshot == null || snapshot.formatVersion != SharedWorldFormat.Version ||
+                string.IsNullOrWhiteSpace(snapshot.mapId))
+                throw new InvalidDataException($"Invalid client world package: {path}");
+
+            return new RuntimeWorld(snapshot);
         }
 
         private static string FindFallback(string folder, string mapId)
@@ -822,8 +941,9 @@ namespace Player.Client
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Reset()
         {
-            _world = null;
-            _loadAttemptScene = string.Empty;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+            ClearForSceneChange();
         }
     }
 }
