@@ -48,6 +48,75 @@ namespace Game.WorldAuthoring.Editor
         public static string ServerMapsFolder => Path.Combine(ProjectRoot, "Server", "Content", "Maps");
         public static string ClientSharedWorldFolder => Path.Combine(Application.dataPath, "StreamingAssets", "MMOWorld");
 
+        // Builds the same static support/collision world used by the authoritative bake
+        // for the selected Spawner's green/red placement preview. This is an in-memory
+        // query only: do not run the NavMesh bake, AUTO CONNECT, or publish any files.
+        // Dynamic blocker state is intentionally absent, as in portal preflight.
+        public static bool TryBuildSpawnPlacementWorld(
+            Scene scene, out ServerMap map, out ServerCollisionWorld world, out string error)
+        {
+            map = null;
+            world = null;
+            error = string.Empty;
+
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                error = "Spawner placement preview requires a loaded scene.";
+                return false;
+            }
+
+            ServerMap[] maps = Object.FindObjectsByType<ServerMap>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Where(x => x != null && x.gameObject.scene == scene)
+                .ToArray();
+            if (maps.Length != 1)
+            {
+                error = maps.Length == 0
+                    ? "No ServerMap in this scene for placement checks."
+                    : "Spawner placement preview requires exactly one ServerMap in this scene.";
+                return false;
+            }
+
+            ServerMap candidate = maps[0];
+            if (string.IsNullOrWhiteSpace(candidate.MapId))
+            {
+                error = "ServerMap has no Map ID for placement checks.";
+                return false;
+            }
+
+            try
+            {
+                var triangles = new List<ServerCollisionTriangle>(8192);
+                if (!ExportMovementGeometry(candidate, scene, triangles))
+                {
+                    error = "No valid ground geometry for spawn placement preview.";
+                    return false;
+                }
+
+                ServerCollisionTriangle[] support = triangles.ToArray();
+                if (candidate.ExportStaticCollision)
+                    ExportStaticCollision(candidate, scene, triangles);
+
+                var snapshot = new ServerMapSnapshot
+                {
+                    mapId = candidate.MapId,
+                    instanceId = candidate.InstanceId,
+                    movementTriangles = support,
+                    collisionTriangles = triangles.ToArray(),
+                    dynamicBlockers = Array.Empty<ServerDynamicBlocker>(),
+                };
+                ServerCollisionWorld previewWorld = new ServerCollisionWorld(snapshot);
+                map = candidate;
+                world = previewWorld;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = "Spawner placement collision preview failed: " + ex.Message;
+                return false;
+            }
+        }
+
         public static bool TryBakeCurrentScene(bool rebuildNavMesh, bool saveScene, out Result result,
             bool autoConnectRoutes = false)
         {
