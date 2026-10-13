@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Process = System.Diagnostics.Process;
 using ProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -47,7 +48,8 @@ namespace Game.WorldAuthoring.Editor
         public static string ServerMapsFolder => Path.Combine(ProjectRoot, "Server", "Content", "Maps");
         public static string ClientSharedWorldFolder => Path.Combine(Application.dataPath, "StreamingAssets", "MMOWorld");
 
-        public static bool TryBakeCurrentScene(bool rebuildNavMesh, bool saveScene, out Result result)
+        public static bool TryBakeCurrentScene(bool rebuildNavMesh, bool saveScene, out Result result,
+            bool autoConnectRoutes = false)
         {
             result = default;
             Scene scene = SceneManager.GetActiveScene();
@@ -98,6 +100,9 @@ namespace Game.WorldAuthoring.Editor
             if (map.ExportStaticCollision)
                 ExportStaticCollision(map, scene, triangles);
 
+            // Reuse one immutable collision array in the validator and both output packages.
+            ServerCollisionTriangle[] collisionTriangles = triangles.ToArray();
+
             if (!ExportInteractables(scene, out ServerWorldInteractableDefinition[] interactables, out ServerDynamicBlocker[] blockers))
                 return false;
 
@@ -110,16 +115,15 @@ namespace Game.WorldAuthoring.Editor
                 mapId = map.MapId,
                 instanceId = map.InstanceId,
                 movementTriangles = supportTriangles,
-                collisionTriangles = triangles.ToArray(),
+                collisionTriangles = collisionTriangles,
                 dynamicBlockers = Array.Empty<ServerDynamicBlocker>(),
             });
 
-            // Prepare and validate both authored layers BEFORE publishing any new
-            // core/navmesh/shared-world output. A rejected graph must never leave
-            // the server with a new core hash and the previous .routes.json.
+            // Normal world bakes reuse the SAVED route/spawn graph. Only an explicit
+            // Auto Connect regenerates it. Both modes publish coherent layer hashes.
             string output = OutputPath(map.MapId, map.InstanceId);
             if (!TryPrepareAuthoringLayers(scene, map, portalValidationWorld, output,
-                    out RouteLayerFile preparedRoutes, out SpawnLayerFile preparedSpawns))
+                    autoConnectRoutes, out RouteLayerFile preparedRoutes, out SpawnLayerFile preparedSpawns))
                 return false;
 
             // The navmesh and shared-world files are also referenced by the core.
@@ -140,7 +144,7 @@ namespace Game.WorldAuthoring.Editor
                     revision,
                     bakedUtcTicks,
                     supportTriangles,
-                    triangles.ToArray(),
+                    collisionTriangles,
                     blockers,
                     interactables,
                     out ServerSharedWorldInfo sharedWorld))
@@ -165,7 +169,7 @@ namespace Game.WorldAuthoring.Editor
                 navMesh = navMesh,
                 sharedWorld = sharedWorld,
                 movementTriangles = supportTriangles,
-                collisionTriangles = triangles.ToArray(),
+                collisionTriangles = collisionTriangles,
                 dynamicBlockers = blockers,
                 traversalLinks = Array.Empty<ServerTraversalLink>(),
                 // Separate layer files are composed by the standalone loader.
@@ -179,7 +183,7 @@ namespace Game.WorldAuthoring.Editor
             snapshot.contentHash = string.Empty;
             string unhashed = JsonUtility.ToJson(snapshot, false);
             snapshot.contentHash = Sha256(unhashed);
-            string json = JsonUtility.ToJson(snapshot, true);
+            string json = JsonUtility.ToJson(snapshot, false);
             preparedRoutes.coreContentHash = snapshot.contentHash;
             preparedSpawns.coreContentHash = snapshot.contentHash;
             if (!TryPublishCoreAndLayers(output, json, preparedRoutes, preparedSpawns))
@@ -194,10 +198,18 @@ namespace Game.WorldAuthoring.Editor
             Debug.Log(
                 $"[Server World Bake] {map.MapId} -> {output}\n" +
                 $"  triangles={triangles.Count:n0}, interactables={interactables.Length:n0}, blockers={blockers.Length:n0}, spawns={layerSpawnCount:n0}, revision={snapshot.bakeRevision}\n" +
-                "  routes/spawns=separate versioned layers (check layer logs)\n" +
+                $"  routes/spawns={(autoConnectRoutes ? "explicit auto connect" : "preserved saved graph")}, see layer logs\n" +
                 $"  serverNavMesh={navMesh.fileName}, hash={ShortHash(navMesh.contentHash)}\n" +
                 $"  sharedWorld={sharedWorld.fileName}, hash={ShortHash(sharedWorld.contentHash)}");
             return true;
+        }
+
+        // Read core identity/revision without materializing the full baked geometry.
+        [Serializable]
+        private sealed class CoreHeader
+        {
+            public string contentHash;
+            public long bakeRevision;
         }
 
         [Serializable]
@@ -241,6 +253,8 @@ namespace Game.WorldAuthoring.Editor
                     Path.Combine(ServerMapsFolder, stem + ".servernavmesh.bin"),
                     Path.Combine(ServerMapsFolder, stem + ".sharedworld.json"),
                     Path.Combine(ClientSharedWorldFolder, stem + ".sharedworld.json"),
+                    Path.Combine(ServerMapsFolder, stem + ".sharedworld.json.gz"),
+                    Path.Combine(ClientSharedWorldFolder, stem + ".sharedworld.json.gz"),
                 };
                 existed = new bool[files.Length];
                 directory = Path.Combine(ProjectRoot, "Library", "MMO World Bake Rollback",
@@ -271,7 +285,25 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
-            public void Commit() => committed = true;
+            public void Commit()
+            {
+                committed = true;
+                // Delete old uncompressed copies after a complete successful publication.
+                for (int i = 0; i < files.Length; ++i)
+                {
+                    if (!files[i].EndsWith(".sharedworld.json", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    try
+                    {
+                        if (File.Exists(files[i]))
+                            File.Delete(files[i]);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[Server World Bake] Could not remove obsolete package '{files[i]}': {ex.Message}");
+                    }
+                }
+            }
 
             public void Dispose()
             {
@@ -295,12 +327,11 @@ namespace Game.WorldAuthoring.Editor
             }
         }
 
-        // Preflight: the freshly exported route/spawn layers MUST validate as a pair.
-        // Keep saved manual graph edits even if their old layer hash is stale; ApplyEdits
-        // revalidates them against the NEW ground and prunes unsafe connections.
-        private static bool TryPrepareAuthoringLayers(
-            Scene scene, ServerMap map, ServerCollisionWorld validationWorld,
-            string corePath, out RouteLayerFile routes, out SpawnLayerFile spawns)
+        // Normal world bakes are never an implicit route-regeneration operation.
+        // Read the existing authored layers, then update only their core hash when
+        // publishing. Saved connections, portal identities, and spawn anchors stay put.
+        private static bool TryReadSavedLayers(
+            ServerMap map, string corePath, out RouteLayerFile routes, out SpawnLayerFile spawns)
         {
             routes = null;
             spawns = null;
@@ -308,6 +339,119 @@ namespace Game.WorldAuthoring.Editor
                 ? corePath.Substring(0, corePath.Length - ".servermap.json".Length)
                 : Path.Combine(Path.GetDirectoryName(corePath), Path.GetFileNameWithoutExtension(corePath));
             string routesPath = stem + ".routes.json";
+            string spawnsPath = stem + ".spawns.json";
+            if (!File.Exists(routesPath) || !File.Exists(spawnsPath))
+            {
+                Debug.LogError("[Server World Bake] No complete saved Population graph for this map. " +
+                    "Open Spawns / Routes and run AUTO CONNECT once to create it. " +
+                    "Existing maps will NOT silently regenerate their routes.");
+                return false;
+            }
+            try
+            {
+                routes = JsonUtility.FromJson<RouteLayerFile>(File.ReadAllText(routesPath));
+                spawns = JsonUtility.FromJson<SpawnLayerFile>(File.ReadAllText(spawnsPath));
+                if (routes == null || spawns == null || routes.formatVersion != 1 ||
+                    spawns.formatVersion != 1 ||
+                    !string.Equals(routes.mapId, map.MapId, StringComparison.Ordinal) ||
+                    !string.Equals(spawns.mapId, map.MapId, StringComparison.Ordinal) ||
+                    !string.Equals(routes.instanceId ?? string.Empty, map.InstanceId ?? string.Empty, StringComparison.Ordinal) ||
+                    !string.Equals(spawns.instanceId ?? string.Empty, map.InstanceId ?? string.Empty, StringComparison.Ordinal) ||
+                    routes.populationNodes == null || routes.populationEdges == null ||
+                    routes.populationPortals == null || spawns.spawnAnchors == null)
+                    throw new InvalidDataException("Saved route/spawn layers have a mismatched identity, format, or missing arrays.");
+
+                // A stale/mixed pair must not be blessed with the new core hash.
+                if (!File.Exists(corePath))
+                    throw new FileNotFoundException("Prior servermap core is missing; saved routes cannot be verified.", corePath);
+                CoreHeader previous = JsonUtility.FromJson<CoreHeader>(File.ReadAllText(corePath));
+                if (previous == null || string.IsNullOrWhiteSpace(previous.contentHash) ||
+                    !string.Equals(routes.coreContentHash, previous.contentHash, StringComparison.Ordinal) ||
+                    !string.Equals(spawns.coreContentHash, previous.contentHash, StringComparison.Ordinal))
+                    throw new InvalidDataException("Saved route/spawn hashes do not match the existing servermap core.");
+
+                Debug.Log($"[Server World Bake] Reusing saved Population graph, " +
+                    $"no AUTO CONNECT: nodes={routes.populationNodes.Length}, " +
+                    $"edges={routes.populationEdges.Length}, portals={routes.populationPortals.Length}, " +
+                    $"spawns={spawns.spawnAnchors.Length}. No paths were regenerated or pruned.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Server World Bake] Saved Population graph is not safe to republish: {ex.Message} " +
+                    "No world files were changed. Restore the matching saved map files; do not AUTO CONNECT over them.");
+                routes = null;
+                spawns = null;
+                return false;
+            }
+        }
+
+        // Explicit AUTO CONNECT may add routes, but it must never silently delete
+        // published connections, portals or spawn anchors. Fail before publication;
+        // EDIT + SAVE is the explicit route-removal workflow.
+        private static bool CheckExistingGraphNotReduced(
+            RouteLayerFile previousRoutes, SpawnLayerFile previousSpawns,
+            RouteLayerFile nextRoutes, SpawnLayerFile nextSpawns)
+        {
+            string EdgeKey(ServerPopulationRouteEdge edge)
+            {
+                long a = edge.fromNodeId, b = edge.toNodeId;
+                return edge.oneWay ? $"D:{a}:{b}" :
+                    a < b ? $"B:{a}:{b}" : $"B:{b}:{a}";
+            }
+            var nextNodes = new HashSet<long>(nextRoutes.populationNodes
+                .Where(x => x != null).Select(x => x.stableId));
+            long[] missingNodes = previousRoutes.populationNodes
+                .Where(x => x != null && !nextNodes.Contains(x.stableId))
+                .Select(x => x.stableId).Distinct().Take(6).ToArray();
+            var nextEdges = new HashSet<string>(nextRoutes.populationEdges
+                .Where(x => x != null).Select(EdgeKey), StringComparer.Ordinal);
+            string[] missingEdges = previousRoutes.populationEdges
+                .Where(x => x != null).Select(EdgeKey)
+                .Where(x => !nextEdges.Contains(x)).Distinct().Take(6).ToArray();
+            var nextPortalIds = new HashSet<long>(nextRoutes.populationPortals
+                .Where(x => x != null).Select(x => x.stableId));
+            long[] missingPortals = previousRoutes.populationPortals
+                .Where(x => x != null && !nextPortalIds.Contains(x.stableId))
+                .Select(x => x.stableId).Distinct().Take(6).ToArray();
+            var nextSpawnIds = new HashSet<long>(nextSpawns.spawnAnchors
+                .Where(x => x != null).Select(x => x.stableId));
+            long[] missingSpawns = previousSpawns.spawnAnchors
+                .Where(x => x != null && !nextSpawnIds.Contains(x.stableId))
+                .Select(x => x.stableId).Distinct().Take(6).ToArray();
+            if (missingNodes.Length == 0 && missingEdges.Length == 0 &&
+                missingPortals.Length == 0 && missingSpawns.Length == 0)
+                return true;
+            Debug.LogError("[Population AUTO CONNECT] REFUSED: the proposed regeneration " +
+                "would remove saved content. None of the new route/spawn/core files were published. " +
+                $"Missing node IDs: {string.Join(", ", missingNodes)}; " +
+                $"edge examples: {string.Join(", ", missingEdges)}; " +
+                $"portal IDs: {string.Join(", ", missingPortals)}; " +
+                $"spawn IDs: {string.Join(", ", missingSpawns)}. " +
+                "Edit or remove old routes explicitly in EDIT, then SAVE, before retrying.");
+            return false;
+        }
+
+        // Preflight returns either the saved graph or an explicitly regenerated one.
+        private static bool TryPrepareAuthoringLayers(
+            Scene scene, ServerMap map, ServerCollisionWorld validationWorld,
+            string corePath, bool autoConnectRoutes,
+            out RouteLayerFile routes, out SpawnLayerFile spawns)
+        {
+            routes = null;
+            spawns = null;
+            if (!autoConnectRoutes)
+                return TryReadSavedLayers(map, corePath, out routes, out spawns);
+
+            string stem = corePath.EndsWith(".servermap.json", StringComparison.OrdinalIgnoreCase)
+                ? corePath.Substring(0, corePath.Length - ".servermap.json".Length)
+                : Path.Combine(Path.GetDirectoryName(corePath), Path.GetFileNameWithoutExtension(corePath));
+            string routesPath = stem + ".routes.json";
+            bool priorExists = File.Exists(routesPath) || File.Exists(stem + ".spawns.json");
+            RouteLayerFile oldRoutes = null;
+            SpawnLayerFile oldSpawns = null;
+            if (priorExists && !TryReadSavedLayers(map, corePath, out oldRoutes, out oldSpawns))
+                return false;
             try
             {
                 if (!ExportPopulation(scene, map, validationWorld,
@@ -315,8 +459,7 @@ namespace Game.WorldAuthoring.Editor
                         out ServerPopulationRouteEdge[] edges,
                         out ServerPopulationPortal[] portals))
                 {
-                    Debug.LogError("[Server World Bake] Routes failed preflight. " +
-                        "Core geometry and previous authoring layers have NOT been republished.");
+                    Debug.LogError("[Server World Bake] AUTO CONNECT failed route preflight; saved graph unchanged.");
                     return false;
                 }
                 PopulationBakedGraphEdits edits = PopulationBakedGraphEditor.ReadEdits(
@@ -324,23 +467,16 @@ namespace Game.WorldAuthoring.Editor
                 if (!PopulationBakedGraphEditor.ApplyEdits(
                         scene, validationWorld, edits, ref nodes, ref edges, portals))
                 {
-                    Debug.LogError("[Server World Bake] Edited routes failed preflight. " +
-                        "Core geometry and previous authoring layers have NOT been republished.");
+                    Debug.LogError("[Server World Bake] AUTO CONNECT failed edited-route validation; saved graph unchanged.");
                     return false;
                 }
-                // A broken Population Portal/Spawn is authoring content to omit, not a
-                // reason to publish no map at all. The final edited route graph is the
-                // source of truth: only its surviving portals may own spawn anchors.
-                portals = FilterPopulationPortals(
-                    scene, validationWorld, nodes, edges, portals);
+                portals = FilterPopulationPortals(scene, validationWorld, nodes, edges, portals);
                 if (!ExportSpawns(scene, map, validationWorld, nodes, edges, portals,
                         out ServerSpawnAnchor[] anchors))
                 {
-                    Debug.LogError("[Server World Bake] Spawns failed preflight. " +
-                        "Core geometry and previous authoring layers have NOT been republished.");
+                    Debug.LogError("[Server World Bake] AUTO CONNECT failed spawn preflight; saved graph unchanged.");
                     return false;
                 }
-
                 routes = new RouteLayerFile
                 {
                     mapId = map.MapId,
@@ -356,11 +492,35 @@ namespace Game.WorldAuthoring.Editor
                     instanceId = map.InstanceId,
                     spawnAnchors = anchors,
                 };
+                if (oldRoutes != null)
+                {
+                    if (!CheckExistingGraphNotReduced(oldRoutes, oldSpawns, routes, spawns))
+                        return false;
+                    // AUTO CONNECT adds connections. It must not rewrite saved link
+                    // width/weight/direction or validation metadata for existing links.
+                    string Key(ServerPopulationRouteEdge e)
+                    {
+                        long a = e.fromNodeId, b = e.toNodeId;
+                        return e.oneWay ? $"D:{a}:{b}" :
+                            a < b ? $"B:{a}:{b}" : $"B:{b}:{a}";
+                    }
+                    var oldEdges = oldRoutes.populationEdges.Where(x => x != null)
+                        .GroupBy(Key).ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
+                    for (int i = 0; i < routes.populationEdges.Length; ++i)
+                    {
+                        ServerPopulationRouteEdge edge = routes.populationEdges[i];
+                        if (edge != null && oldEdges.TryGetValue(Key(edge), out ServerPopulationRouteEdge saved))
+                            routes.populationEdges[i] = saved;
+                    }
+                }
+                Debug.Log($"[Population AUTO CONNECT] Prepared nodes={nodes.Length}, " +
+                    $"edges={edges.Length}, portals={portals.Length}, spawns={anchors.Length}. " +
+                    "Previous published route IDs were protected.");
                 return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[Server World Bake] Authoring-layer preflight failed: {ex}");
+                Debug.LogError($"[Server World Bake] AUTO CONNECT preflight failed; existing graph unchanged: {ex}");
                 return false;
             }
         }
@@ -950,7 +1110,7 @@ namespace Game.WorldAuthoring.Editor
             try
             {
                 string mapStem = MapFileStem(map.MapId, map.InstanceId);
-                string fileName = mapStem + ".sharedworld.json";
+                string fileName = mapStem + ".sharedworld.json.gz";
                 string serverPath = Path.Combine(ServerMapsFolder, fileName);
                 string clientPath = Path.Combine(ClientSharedWorldFolder, fileName);
 
@@ -976,10 +1136,14 @@ namespace Game.WorldAuthoring.Editor
                 // formatting. The manifest hash below validates the exact file bytes.
                 string unhashed = JsonUtility.ToJson(shared, false);
                 shared.contentHash = Sha256(unhashed);
-                string json = JsonUtility.ToJson(shared, true);
-                var utf8 = new UTF8Encoding(false);
-                File.WriteAllText(serverPath, json, utf8);
-                File.WriteAllText(clientPath, json, utf8);
+                string json = JsonUtility.ToJson(shared, false);
+                // Gzip is lossless: identifiers, floats, triangles and metadata are unchanged.
+                // Copy compressed bytes to guarantee identical server/client file hashes.
+                using (FileStream stream = File.Create(serverPath))
+                using (var gzip = new GZipStream(stream, System.IO.Compression.CompressionLevel.Optimal))
+                using (var writer = new StreamWriter(gzip, new UTF8Encoding(false)))
+                    writer.Write(json);
+                File.Copy(serverPath, clientPath, true);
 
                 string fileHash = Sha256File(serverPath);
                 if (string.IsNullOrWhiteSpace(fileHash))
@@ -1395,7 +1559,7 @@ namespace Game.WorldAuthoring.Editor
                 Debug.LogWarning(
                     $"[Server NavMesh Bake] {unsupportedColliderCount} eligible collider(s) were skipped. " +
                     "V1 directly supports BoxCollider, readable MeshCollider, and TerrainCollider. " +
-                    "Other collider types should use a simple server proxy.");
+                    "Other collider type   hould use a simple server proxy.");
             }
 
             if (unreadableMeshCount > 0)
@@ -3673,7 +3837,7 @@ namespace Game.WorldAuthoring.Editor
             try
             {
                 if (!File.Exists(file)) return 0;
-                ServerMapSnapshot old = JsonUtility.FromJson<ServerMapSnapshot>(File.ReadAllText(file));
+                CoreHeader old = JsonUtility.FromJson<CoreHeader>(File.ReadAllText(file));
                 return old?.bakeRevision ?? 0;
             }
             catch

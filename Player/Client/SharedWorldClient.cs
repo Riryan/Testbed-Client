@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using Game.Shared.World;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -752,12 +753,26 @@ namespace Player.Client
                     return false;
 
                 string mapId = ServerMapId.Normalize(sceneName);
-                string preferred = Path.Combine(folder, mapId + ".sharedworld.json");
-                string path = File.Exists(preferred) ? preferred : FindFallback(folder, mapId);
+                string preferred = Path.Combine(folder, mapId + ".sharedworld.json.gz");
+                string legacy = Path.Combine(folder, mapId + ".sharedworld.json");
+                string path = File.Exists(preferred) ? preferred
+                    : File.Exists(legacy) ? legacy : FindFallback(folder, mapId);
                 if (string.IsNullOrWhiteSpace(path))
                     return false;
 
-                SharedWorldSnapshot snapshot = JsonUtility.FromJson<SharedWorldSnapshot>(File.ReadAllText(path));
+                string json;
+                if (path.EndsWith(".gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    using (FileStream stream = File.OpenRead(path))
+                    using (var gzip = new GZipStream(stream, CompressionMode.Decompress))
+                    using (var reader = new StreamReader(gzip))
+                        json = reader.ReadToEnd();
+                }
+                else
+                {
+                    json = File.ReadAllText(path);
+                }
+                SharedWorldSnapshot snapshot = JsonUtility.FromJson<SharedWorldSnapshot>(json);
                 if (snapshot == null || snapshot.formatVersion != SharedWorldFormat.Version ||
                     string.IsNullOrWhiteSpace(snapshot.mapId))
                 {
@@ -781,13 +796,23 @@ namespace Player.Client
 
         private static string FindFallback(string folder, string mapId)
         {
-            string[] files = Directory.GetFiles(folder, "*.sharedworld.json", SearchOption.TopDirectoryOnly);
+            string[] compressed = Directory.GetFiles(folder, "*.sharedworld.json.gz", SearchOption.TopDirectoryOnly);
+            string[] legacy = Directory.GetFiles(folder, "*.sharedworld.json", SearchOption.TopDirectoryOnly);
+            string[] files = new string[compressed.Length + legacy.Length];
+            Array.Copy(compressed, files, compressed.Length);
+            Array.Copy(legacy, 0, files, compressed.Length, legacy.Length);
             if (files.Length == 1)
                 return files[0];
 
             for (int i = 0; i < files.Length; ++i)
             {
-                string name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(files[i]));
+                string name = Path.GetFileName(files[i]);
+                const string gzSuffix = ".sharedworld.json.gz";
+                const string jsonSuffix = ".sharedworld.json";
+                if (name.EndsWith(gzSuffix, StringComparison.OrdinalIgnoreCase))
+                    name = name.Substring(0, name.Length - gzSuffix.Length);
+                else if (name.EndsWith(jsonSuffix, StringComparison.OrdinalIgnoreCase))
+                    name = name.Substring(0, name.Length - jsonSuffix.Length);
                 if (name.StartsWith(mapId, StringComparison.OrdinalIgnoreCase))
                     return files[i];
             }

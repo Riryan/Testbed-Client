@@ -150,67 +150,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1434396873}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &28201933
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 28201934}
-  - component: {fileID: 28201935}
-  m_Layer: 0
-  m_Name: Route Marker 001 (62)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &28201934
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 28201933}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 44.16, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &28201935
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 28201933}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 64d3792e4fe1441abd959e18a2884fc4
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &46242731
 GameObject:
   m_ObjectHideFlags: 0
@@ -2122,6 +2061,10 @@ PrefabInstance:
       propertyPath: generatedLinks.Array.size
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1953265238695146914, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+      propertyPath: bakeId
+      value: e534e5f064824ca8a984630fdc451bc7
+      objectReference: {fileID: 0}
     - target: {fileID: 1995946759291760674, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
       propertyPath: bakeId
       value: ee3d5c4e3c86400890004e9180b1ec1b
@@ -2901,6 +2844,14 @@ PrefabInstance:
     - target: {fileID: 3228169929512523493, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
       propertyPath: generatedLinks.Array.size
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3257116125820468697, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -60.29
+      objectReference: {fileID: 0}
+    - target: {fileID: 3257116125820468697, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -108.82
       objectReference: {fileID: 0}
     - target: {fileID: 3273956285429719078, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
       propertyPath: bakeId
@@ -5158,6 +5109,10 @@ PrefabInstance:
       propertyPath: bakeId
       value: 28c63599c6df43c6b1b1ab7ef81755a3
       objectReference: {fileID: 0}
+    - target: {fileID: 6591264285553184085, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+      propertyPath: bakeId
+      value: fd986da943b241f4917adee086a5952e
+      objectReference: {fileID: 0}
     - target: {fileID: 6592532360104601833, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
       propertyPath: bakeId
       value: 8add3da60848486da1f30a18fd3833bd
@@ -6725,17 +6680,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &79333791 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1577122242805976743, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!114 &79333792 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2945989384423475879, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
@@ -6769,67 +6713,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!1 &88710130
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 88710132}
-  - component: {fileID: 88710131}
-  m_Layer: 0
-  m_Name: Route Marker 001 (37)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &88710131
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 88710130}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 867261603f9c4969ac51730f17f20a2f
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!4 &88710132
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 88710130}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 64.32, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &103075172
 GameObject:
   m_ObjectHideFlags: 0
@@ -7042,7 +6925,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &133750814
 Transform:
   m_ObjectHideFlags: 0
@@ -7117,7 +7000,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &138626338
 Transform:
   m_ObjectHideFlags: 0
@@ -7157,14 +7040,7 @@ MonoBehaviour:
   tags: 0
   allowedNpcTypes: -1
   routeMarker: {fileID: 2078114021}
-  nearbyRouteMarkers:
-  - {fileID: 2078114021}
-  - {fileID: 2078114020}
-  - {fileID: 2078114019}
-  - {fileID: 2078114014}
-  - {fileID: 2078114015}
-  - {fileID: 2078114035}
-  - {fileID: 2078114016}
+  nearbyRouteMarkers: []
   interiorSpawn: {fileID: 1530810435}
   approach: {fileID: 1534096902}
   interaction: {fileID: 113205967}
@@ -7261,7 +7137,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &196695839
 Transform:
   m_ObjectHideFlags: 0
@@ -7300,9 +7176,9 @@ MonoBehaviour:
   portalType: 0
   tags: 0
   allowedNpcTypes: -1
-  routeMarker: {fileID: 770841778}
+  routeMarker: {fileID: 0}
   nearbyRouteMarkers:
-  - {fileID: 770841778}
+  - {fileID: 0}
   interiorSpawn: {fileID: 247261429}
   approach: {fileID: 1833425181}
   interaction: {fileID: 1394335591}
@@ -7990,67 +7866,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fe0f1f0bd3495294dba655a3cf510325, type: 3}
---- !u!1 &214810600
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 214810601}
-  - component: {fileID: 214810602}
-  m_Layer: 0
-  m_Name: Route Marker 001 (52)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &214810601
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 214810600}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 76.77, y: 0.43, z: -47.14}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &214810602
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 214810600}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 7b13c456d5394405acf79d7fbcf83dff
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &219411234
 GameObject:
   m_ObjectHideFlags: 0
@@ -8082,67 +7897,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1699124639}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &220783508
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 220783509}
-  - component: {fileID: 220783510}
-  m_Layer: 0
-  m_Name: Route Marker 001 (2)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &220783509
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 220783508}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 14.49, y: 0.176, z: -25.95}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &220783510
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 220783508}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: d363980d30d849308086ef69f5c27531
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &227082029
 GameObject:
   m_ObjectHideFlags: 0
@@ -8236,67 +7990,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 663489999}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &245380759
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 245380760}
-  - component: {fileID: 245380761}
-  m_Layer: 0
-  m_Name: Route Marker 001 (42)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &245380760
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 245380759}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 77.91, y: 0.43, z: 1.38}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &245380761
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 245380759}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 32a33cb0dda3467dad0c26498f8b9e87
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &246003032
 GameObject:
   m_ObjectHideFlags: 0
@@ -8313,7 +8006,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &246003033
 Transform:
   m_ObjectHideFlags: 0
@@ -8353,12 +8046,7 @@ MonoBehaviour:
   tags: 0
   allowedNpcTypes: -1
   routeMarker: {fileID: 2078114022}
-  nearbyRouteMarkers:
-  - {fileID: 2078114022}
-  - {fileID: 79333790}
-  - {fileID: 2078114023}
-  - {fileID: 79333792}
-  - {fileID: 2078114035}
+  nearbyRouteMarkers: []
   interiorSpawn: {fileID: 1364403988}
   approach: {fileID: 469740458}
   interaction: {fileID: 171365276}
@@ -8424,7 +8112,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &247346702
 Transform:
   m_ObjectHideFlags: 0
@@ -8464,10 +8152,7 @@ MonoBehaviour:
   tags: 0
   allowedNpcTypes: -1
   routeMarker: {fileID: 2078114015}
-  nearbyRouteMarkers:
-  - {fileID: 2078114015}
-  - {fileID: 2078114014}
-  - {fileID: 2078114020}
+  nearbyRouteMarkers: []
   interiorSpawn: {fileID: 103075173}
   approach: {fileID: 330522606}
   interaction: {fileID: 1447060139}
@@ -8548,67 +8233,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1418006491}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &321780533
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 321780534}
-  - component: {fileID: 321780535}
-  m_Layer: 0
-  m_Name: Route Marker 001 (6)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &321780534
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 321780533}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.32, y: 0.43, z: -6.3099995}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &321780535
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 321780533}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: e0a3181459f24d8881250486e9adfd9d
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &327211739
 GameObject:
   m_ObjectHideFlags: 0
@@ -8647,10 +8271,6 @@ MonoBehaviour:
   routeMarker: {fileID: 79333792}
   nearbyRouteMarkers:
   - {fileID: 79333792}
-  - {fileID: 79333791}
-  - {fileID: 79333790}
-  - {fileID: 2078114025}
-  - {fileID: 2078114022}
   interiorSpawn: {fileID: 2013695464}
   approach: {fileID: 715504465}
   interaction: {fileID: 2044728707}
@@ -8751,67 +8371,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 327211741}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &344298122
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 344298123}
-  - component: {fileID: 344298124}
-  m_Layer: 0
-  m_Name: Route Marker 001 (40)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &344298123
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 344298122}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 22.81, y: 0.43, z: 12.59}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &344298124
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 344298122}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: b9eee5a6b10f4a1e92fcd5e10cbe8600
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &368413384
 GameObject:
   m_ObjectHideFlags: 0
@@ -8857,129 +8416,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!1 &387848427
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 387848428}
-  - component: {fileID: 387848429}
-  m_Layer: 0
-  m_Name: Route Marker 001 (29)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &387848428
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 387848427}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 49.32, y: 0.43, z: -63.809998}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &387848429
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 387848427}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 337369be92b44ae3aacabac107253860
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &388330828
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 388330829}
-  - component: {fileID: 388330830}
-  m_Layer: 0
-  m_Name: Route Marker 001 (65)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &388330829
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 388330828}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 27.65, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &388330830
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 388330828}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 9863e82379b2493baa60711de5d4e589
-  label: Route Marker
-  links:
-  - {fileID: 1588975187}
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &423894249
 GameObject:
   m_ObjectHideFlags: 0
@@ -9215,6 +8651,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2102496904}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &514784907 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6591264285553184085, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+  m_PrefabInstance: {fileID: 79333789}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!1 &516768096
 GameObject:
   m_ObjectHideFlags: 0
@@ -9760,67 +9207,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.ServerSurface
   flags: 15
---- !u!1 &632161400
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 632161401}
-  - component: {fileID: 632161402}
-  m_Layer: 0
-  m_Name: Route Marker 001 (20)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &632161401
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 632161400}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.6800003, y: 0.43, z: -51.309998}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &632161402
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 632161400}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 0123c1a4f1004b42aebb746c8c3d0cf4
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &655305550
 GameObject:
   m_ObjectHideFlags: 0
@@ -9930,7 +9316,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &663489999
 Transform:
   m_ObjectHideFlags: 0
@@ -9969,10 +9355,10 @@ MonoBehaviour:
   portalType: 0
   tags: 0
   allowedNpcTypes: -1
-  routeMarker: {fileID: 1403856779}
+  routeMarker: {fileID: 0}
   nearbyRouteMarkers:
-  - {fileID: 1403856779}
-  - {fileID: 720006762}
+  - {fileID: 0}
+  - {fileID: 0}
   interiorSpawn: {fileID: 239461869}
   approach: {fileID: 475897318}
   interaction: {fileID: 658402003}
@@ -10022,68 +9408,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1059828917}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &665754014
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 665754015}
-  - component: {fileID: 665754016}
-  m_Layer: 0
-  m_Name: Route Marker 001 (41)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &665754015
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 665754014}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 23.33, y: 0.43, z: 7.84}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &665754016
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 665754014}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 408c45cde59c4da08975bd182acec85c
-  label: Route Marker
-  links:
-  - {fileID: 770841778}
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &667744050
 GameObject:
   m_ObjectHideFlags: 0
@@ -10189,67 +9513,6 @@ MonoBehaviour:
   routeNodeId: 0
   portalId: 0
   populationCount: 1
---- !u!1 &698645640
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 698645641}
-  - component: {fileID: 698645642}
-  m_Layer: 0
-  m_Name: Route Marker 001 (49)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &698645641
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 698645640}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -32.24}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &698645642
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 698645640}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 682aaf14ca0c401ea3f8974a2c58e40c
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &699896026
 GameObject:
   m_ObjectHideFlags: 0
@@ -10374,128 +9637,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1418006491}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &720006760
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 720006761}
-  - component: {fileID: 720006762}
-  m_Layer: 0
-  m_Name: Route Marker 001 (34)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &720006761
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 720006760}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 44.32, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &720006762
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 720006760}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 3cd267ccdc2d4922b30e68a34e2c3309
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &724631007
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 724631008}
-  - component: {fileID: 724631009}
-  m_Layer: 0
-  m_Name: Route Marker 001 (28)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &724631008
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 724631007}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 49.32, y: 0.43, z: -68.81}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &724631009
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 724631007}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 02b35fd98cb94125baef56463137d76f
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &734479358
 GameObject:
   m_ObjectHideFlags: 0
@@ -10558,67 +9699,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2102496904}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &770841776
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 770841777}
-  - component: {fileID: 770841778}
-  m_Layer: 0
-  m_Name: Route Marker 001 (8)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &770841777
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 770841776}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.32, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &770841778
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 770841776}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: b491ae86ae9d4f06a2339f1ce03cd331
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &838291365
 GameObject:
   m_ObjectHideFlags: 0
@@ -10680,189 +9760,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1702611166}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &845927510
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 845927511}
-  - component: {fileID: 845927512}
-  m_Layer: 0
-  m_Name: Route Marker 001 (44)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &845927511
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 845927510}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -7.14}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &845927512
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 845927510}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: d40805a8a4df43b3bcb9dbb88ea292be
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &853471761
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 853471762}
-  - component: {fileID: 853471763}
-  m_Layer: 0
-  m_Name: Route Marker 001 (47)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &853471762
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 853471761}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -22.23}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &853471763
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 853471761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 234312c6e54642fc8d7dab4da9560e4c
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &868254071
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 868254073}
-  - component: {fileID: 868254072}
-  m_Layer: 0
-  m_Name: Route Marker 001 (66)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &868254072
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868254071}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 3150db38d78b4bf3bbf53ca12ab66120
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!4 &868254073
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868254071}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 64.85, y: 0.43, z: -18.2}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &871448346
 GameObject:
@@ -11022,189 +9919,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1418006491}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &898383757
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 898383758}
-  - component: {fileID: 898383759}
-  m_Layer: 0
-  m_Name: Route Marker 001 (53)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &898383758
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 898383757}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 67.83, y: 0.43, z: -47.14}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &898383759
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 898383757}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 20401080dced45cc8511835a5933e900
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &907236222
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 907236224}
-  - component: {fileID: 907236223}
-  m_Layer: 0
-  m_Name: Population Spawn - Population Portal - Route Marker 001 (7)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &907236223
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 907236222}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f9f9af04ddc1d9e4ea7662511eed0710, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.ServerSpawn
-  bakeId: 2319c1e360504b89b74b169a1b749f55
-  label: Population Spawn - Population Portal - Route Marker 001 (7)
-  kind: 12
-  actorKind: 1
-  archetypeId: 
-  deathLootTableId: 
-  priority: 0
-  enabledForServer: 1
-  capsuleRadius: 0.35
-  capsuleHeight: 1.8
-  maximumGroundSnap: 0.65
-  tags: []
-  routeMarker: {fileID: 0}
-  populationPortal: {fileID: 327211740}
-  routeNodeId: 0
-  portalId: 0
-  populationCount: 17
---- !u!4 &907236224
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 907236222}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -4.9214325, y: -1.51204, z: -10.909157}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2066023690}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &913645414
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 913645415}
-  - component: {fileID: 913645416}
-  m_Layer: 0
-  m_Name: Route Marker 001 (17)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &913645415
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913645414}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.97, y: 0.43, z: -7.1100025}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &913645416
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913645414}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: f47870ce7b0147bdba91a1a3bb4211fe
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &922693519
 GameObject:
   m_ObjectHideFlags: 0
@@ -11250,189 +9964,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!1 &930232289
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 930232290}
-  - component: {fileID: 930232291}
-  m_Layer: 0
-  m_Name: Route Marker 001 (26)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &930232290
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930232289}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 31.82, y: 0.43, z: -68.81}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &930232291
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930232289}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: fb59512bea424a739ccc3de3f256de50
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &931444019
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 931444020}
-  - component: {fileID: 931444021}
-  m_Layer: 0
-  m_Name: Route Marker 001 (7)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &931444020
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 931444019}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.32, y: 0.43, z: 0.36}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &931444021
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 931444019}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: afd5c460671244978f384adf961a408d
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &954182551
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 954182552}
-  - component: {fileID: 954182553}
-  m_Layer: 0
-  m_Name: Route Marker 001 (58)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &954182552
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 954182551}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 65.27, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &954182553
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 954182551}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 088323393d924ffda70d54d7e6e0f7d7
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &962004362
 GameObject:
   m_ObjectHideFlags: 0
@@ -11478,188 +10009,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!1 &985947360
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 985947361}
-  - component: {fileID: 985947362}
-  m_Layer: 0
-  m_Name: Population Route Path
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &985947361
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 985947360}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -166.4, y: 0, z: -134.8}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1813034938}
-  - {fileID: 2103421759}
-  - {fileID: 220783509}
-  - {fileID: 1906334407}
-  - {fileID: 1981487234}
-  - {fileID: 1314851308}
-  - {fileID: 1671382700}
-  - {fileID: 1588975186}
-  - {fileID: 321780534}
-  - {fileID: 931444020}
-  - {fileID: 770841777}
-  - {fileID: 1035080850}
-  - {fileID: 1664476877}
-  - {fileID: 720006761}
-  - {fileID: 1403856778}
-  - {fileID: 2123807328}
-  - {fileID: 88710132}
-  - {fileID: 1947313658}
-  - {fileID: 245380760}
-  - {fileID: 2011227761}
-  - {fileID: 845927511}
-  - {fileID: 1204609769}
-  - {fileID: 1300666349}
-  - {fileID: 853471762}
-  - {fileID: 1215804588}
-  - {fileID: 698645641}
-  - {fileID: 2105562339}
-  - {fileID: 1278659769}
-  - {fileID: 214810601}
-  - {fileID: 898383758}
-  - {fileID: 1001473739}
-  - {fileID: 2130172305}
-  - {fileID: 1351429803}
-  - {fileID: 1801240045}
-  - {fileID: 868254073}
-  - {fileID: 1413516746}
-  - {fileID: 954182552}
-  - {fileID: 1268558099}
-  - {fileID: 1519140058}
-  - {fileID: 1033750946}
-  - {fileID: 28201934}
-  - {fileID: 2092803990}
-  - {fileID: 1142189152}
-  - {fileID: 388330829}
-  - {fileID: 1664039022}
-  - {fileID: 1598309723}
-  - {fileID: 344298123}
-  - {fileID: 665754015}
-  - {fileID: 2133153924}
-  - {fileID: 1979784104}
-  - {fileID: 998156197}
-  - {fileID: 1745991661}
-  - {fileID: 1469669876}
-  - {fileID: 1663914005}
-  - {fileID: 913645415}
-  - {fileID: 1697338248}
-  - {fileID: 1588417968}
-  - {fileID: 632161401}
-  - {fileID: 1254914151}
-  - {fileID: 2138076853}
-  - {fileID: 1503371098}
-  - {fileID: 2092853624}
-  - {fileID: 1347205285}
-  - {fileID: 930232290}
-  - {fileID: 1447983553}
-  - {fileID: 724631008}
-  - {fileID: 387848428}
-  - {fileID: 1901199842}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &985947362
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 985947360}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e944ece607f64b6fbca63ac0da044900, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRoutePath
-  connectChildrenInOrder: 0
-  loop: 0
-  oneWay: 0
-  width: 2.5
-  weight: 1
-  minimumClearance: 0.5
-  blockedConnections: []
-  forcedConnections: []
-  manualOnlyMarkers: []
---- !u!1 &998156196
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 998156197}
-  - component: {fileID: 998156198}
-  m_Layer: 0
-  m_Name: Route Marker 001 (31)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &998156197
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 998156196}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.71, y: 0.37, z: 20.09}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &998156198
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 998156196}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 146335a8718b4b88a8bf66bb1f1fc8ce
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &998230328
 GameObject:
   m_ObjectHideFlags: 0
@@ -11691,67 +10040,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2102496904}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1001473738
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1001473739}
-  - component: {fileID: 1001473740}
-  m_Layer: 0
-  m_Name: Route Marker 001 (54)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1001473739
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1001473738}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 65.27, y: 0.43, z: -45.72}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1001473740
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1001473738}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 5806ce2f8ebb4b99acc5163067d31907
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1003940444
 GameObject:
   m_ObjectHideFlags: 0
@@ -11782,128 +10070,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1069234943}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1033750945
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1033750946}
-  - component: {fileID: 1033750947}
-  m_Layer: 0
-  m_Name: Route Marker 001 (61)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1033750946
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1033750945}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 51.08, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1033750947
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1033750945}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 142fd0876ae64729ad28a7f41dc860ca
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1035080848
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1035080850}
-  - component: {fileID: 1035080849}
-  m_Layer: 0
-  m_Name: Route Marker 001 (32)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1035080849
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1035080848}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 0cbb68304fba4b0b86dccb65bb84ba0e
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!4 &1035080850
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1035080848}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 32.429985, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1035084638
 GameObject:
@@ -11952,7 +10118,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1059828917
 Transform:
   m_ObjectHideFlags: 0
@@ -11991,9 +10157,9 @@ MonoBehaviour:
   portalType: 0
   tags: 0
   allowedNpcTypes: -1
-  routeMarker: {fileID: 344298124}
+  routeMarker: {fileID: 0}
   nearbyRouteMarkers:
-  - {fileID: 344298124}
+  - {fileID: 0}
   interiorSpawn: {fileID: 1810229838}
   approach: {fileID: 1098100216}
   interaction: {fileID: 1347173721}
@@ -12028,7 +10194,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1069234943
 Transform:
   m_ObjectHideFlags: 0
@@ -12123,67 +10289,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4870504246871209368, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
   m_PrefabInstance: {fileID: 79333789}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1142189151
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1142189152}
-  - component: {fileID: 1142189153}
-  m_Layer: 0
-  m_Name: Route Marker 001 (64)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1142189152
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1142189151}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 34.4, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1142189153
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1142189151}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 1bac227bf05f46f4bb8148a56e620117
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1152218234
 GameObject:
   m_ObjectHideFlags: 0
@@ -12330,128 +10435,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!1 &1204609768
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1204609769}
-  - component: {fileID: 1204609770}
-  m_Layer: 0
-  m_Name: Route Marker 001 (45)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1204609769
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1204609768}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -10.69}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1204609770
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1204609768}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: c0dc93fdeb274915a2eab4c96179993b
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1215804587
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1215804588}
-  - component: {fileID: 1215804589}
-  m_Layer: 0
-  m_Name: Route Marker 001 (48)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1215804588
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1215804587}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -27.13}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1215804589
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1215804587}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 7c1e8fe2555142e280f217ebe6b0241a
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1218206174
 GameObject:
   m_ObjectHideFlags: 0
@@ -12468,7 +10451,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1218206175
 Transform:
   m_ObjectHideFlags: 0
@@ -12508,12 +10491,7 @@ MonoBehaviour:
   tags: 0
   allowedNpcTypes: -1
   routeMarker: {fileID: 2078114035}
-  nearbyRouteMarkers:
-  - {fileID: 2078114035}
-  - {fileID: 2078114019}
-  - {fileID: 2078114023}
-  - {fileID: 2078114021}
-  - {fileID: 2078114022}
+  nearbyRouteMarkers: []
   interiorSpawn: {fileID: 1972895734}
   approach: {fileID: 2109988736}
   interaction: {fileID: 1931303296}
@@ -12532,67 +10510,6 @@ MonoBehaviour:
   exitClearanceRadius: 0.45
   requireDifferentDestination: 1
   suppressWhenVisibleToPlayers: 0
---- !u!1 &1234755631
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1234755633}
-  - component: {fileID: 1234755632}
-  m_Layer: 0
-  m_Name: Population Spawn - Population Portal - Route Marker 001 (8)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1234755632
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1234755631}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f9f9af04ddc1d9e4ea7662511eed0710, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.ServerSpawn
-  bakeId: 7d4351f8c59944769da278be1042824e
-  label: Population Spawn - Population Portal - Route Marker 001 (7)
-  kind: 12
-  actorKind: 1
-  archetypeId: 
-  deathLootTableId: 
-  priority: 0
-  enabledForServer: 1
-  capsuleRadius: 0.35
-  capsuleHeight: 1.8
-  maximumGroundSnap: 0.65
-  tags: []
-  routeMarker: {fileID: 0}
-  populationPortal: {fileID: 0}
-  routeNodeId: 0
-  portalId: 0
-  populationCount: 17
---- !u!4 &1234755633
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1234755631}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.82, y: -1.51204, z: 7.95}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2066023690}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1236055793
 GameObject:
   m_ObjectHideFlags: 0
@@ -12655,67 +10572,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 51859498}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1254914150
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1254914151}
-  - component: {fileID: 1254914152}
-  m_Layer: 0
-  m_Name: Route Marker 001 (21)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1254914151
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1254914150}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.6800003, y: 0.43, z: -56.309998}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1254914152
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1254914150}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 0ebd61ed4c0646c7b5f865df2f4147c9
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1265655800
 GameObject:
   m_ObjectHideFlags: 0
@@ -12761,128 +10617,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!1 &1268558098
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1268558099}
-  - component: {fileID: 1268558100}
-  m_Layer: 0
-  m_Name: Route Marker 001 (59)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1268558099
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1268558098}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 61.6, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1268558100
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1268558098}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 590892df5a8f4f45928881cb691e595b
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1278659768
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1278659769}
-  - component: {fileID: 1278659770}
-  m_Layer: 0
-  m_Name: Route Marker 001 (51)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1278659769
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1278659768}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -43.97}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1278659770
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1278659768}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: e1c415bf24f54aa2ab962674cb19c32c
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1001 &1291085004
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12957,128 +10691,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4008029175300419597, guid: f424c7a3d926b314d8a867a7b24487bc, type: 3}
   m_PrefabInstance: {fileID: 1291085004}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1300666348
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1300666349}
-  - component: {fileID: 1300666350}
-  m_Layer: 0
-  m_Name: Route Marker 001 (46)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1300666349
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1300666348}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -15.31}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1300666350
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1300666348}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 7b302b6cdfab4631aa0b509a2305ac29
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1314851306
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1314851308}
-  - component: {fileID: 1314851307}
-  m_Layer: 0
-  m_Name: Route Marker 001 (10)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1314851307
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1314851306}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 5065e0b4c43a4f7c92c2de88680a3424
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!4 &1314851308
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1314851306}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.25, y: 0.33, z: -19.21}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1337799640
 GameObject:
   m_ObjectHideFlags: 0
@@ -13141,128 +10753,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1059828917}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1347205284
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1347205285}
-  - component: {fileID: 1347205286}
-  m_Layer: 0
-  m_Name: Route Marker 001 (25)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1347205285
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1347205284}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 26.82, y: 0.43, z: -68.81}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1347205286
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1347205284}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 78d861759a854d36b720114f67c11f6b
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1351429802
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1351429803}
-  - component: {fileID: 1351429804}
-  m_Layer: 0
-  m_Name: Route Marker 001 (56)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1351429803
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1351429802}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 65.27, y: 0.43, z: -32.18}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1351429804
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1351429802}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 14981bd797ce49479c5237a3f03e5726
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1356583265
 GameObject:
   m_ObjectHideFlags: 0
@@ -13481,128 +10971,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 196695839}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1403856777
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1403856778}
-  - component: {fileID: 1403856779}
-  m_Layer: 0
-  m_Name: Route Marker 001 (35)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1403856778
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1403856777}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 49.32, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1403856779
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1403856777}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 264145de07414780838c51ae08697f4b
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1413516744
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1413516746}
-  - component: {fileID: 1413516745}
-  m_Layer: 0
-  m_Name: Route Marker 001 (67)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1413516745
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1413516744}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 07f66800fda8446cb4369a024a1c14c8
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!4 &1413516746
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1413516744}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 64.77, y: 0.43, z: -28.41}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1418006490
 GameObject:
   m_ObjectHideFlags: 0
@@ -13619,7 +10987,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1418006491
 Transform:
   m_ObjectHideFlags: 0
@@ -13659,9 +11027,7 @@ MonoBehaviour:
   tags: 0
   allowedNpcTypes: -1
   routeMarker: {fileID: 2078114018}
-  nearbyRouteMarkers:
-  - {fileID: 2078114018}
-  - {fileID: 2078114017}
+  nearbyRouteMarkers: []
   interiorSpawn: {fileID: 308052345}
   approach: {fileID: 886657817}
   interaction: {fileID: 480454206}
@@ -13792,67 +11158,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 247346702}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1447983552
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1447983553}
-  - component: {fileID: 1447983554}
-  m_Layer: 0
-  m_Name: Route Marker 001 (27)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1447983553
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1447983552}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 39.32, y: 0.43, z: -68.81}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1447983554
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1447983552}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 4c7fd1f07c074833ad01914be51db439
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1461548857
 GameObject:
   m_ObjectHideFlags: 0
@@ -13884,67 +11189,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1434396873}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1469669875
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1469669876}
-  - component: {fileID: 1469669877}
-  m_Layer: 0
-  m_Name: Route Marker 001 (15)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1469669876
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469669875}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.31, y: 0.43, z: 7.8899975}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1469669877
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469669875}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 6a84d992e89f4513ab67290875c1f646
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1473122407
 GameObject:
   m_ObjectHideFlags: 0
@@ -14007,67 +11251,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 196695839}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1503371097
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1503371098}
-  - component: {fileID: 1503371099}
-  m_Layer: 0
-  m_Name: Route Marker 001 (23)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1503371098
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1503371097}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 9.32, y: 0.43, z: -68.81}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1503371099
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1503371097}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 47b4a2efbc5f4d42a4fffc872c00515c
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1514038536
 GameObject:
   m_ObjectHideFlags: 0
@@ -14130,67 +11313,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1699124639}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1519140057
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1519140058}
-  - component: {fileID: 1519140059}
-  m_Layer: 0
-  m_Name: Route Marker 001 (60)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1519140058
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1519140057}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 55.76, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1519140059
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1519140057}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 04b3836d9ebe4974bd6f488030e2e276
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1530810434
 GameObject:
   m_ObjectHideFlags: 0
@@ -14427,129 +11549,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1556717742}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1588417967
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1588417968}
-  - component: {fileID: 1588417969}
-  m_Layer: 0
-  m_Name: Route Marker 001 (19)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1588417968
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1588417967}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.6800003, y: 0.43, z: -41.309998}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1588417969
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1588417967}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 886b429ecf284c0090a2200f81dbbe68
-  label: Route Marker
-  links:
-  - {fileID: 1813034939}
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1588975185
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1588975186}
-  - component: {fileID: 1588975187}
-  m_Layer: 0
-  m_Name: Route Marker 001 (5)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1588975186
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1588975185}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.32, y: 0.43, z: -12.12}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1588975187
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1588975185}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 822aac2d3d004d7f97664ceb0bdb7a94
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1589423248
 GameObject:
   m_ObjectHideFlags: 0
@@ -14581,67 +11580,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1699124639}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1598309722
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1598309723}
-  - component: {fileID: 1598309724}
-  m_Layer: 0
-  m_Name: Route Marker 001 (39)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1598309723
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1598309722}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 22.81, y: 0.43, z: 22.46}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1598309724
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1598309722}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 944328c975834b598d90ab8b3e68be6a
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1001 &1623727904
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14755,189 +11693,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1218206175}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1663914004
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1663914005}
-  - component: {fileID: 1663914006}
-  m_Layer: 0
-  m_Name: Route Marker 001 (16)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1663914005
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1663914004}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.08, y: 0.43, z: 2.8899975}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1663914006
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1663914004}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: e5e5927d29944351ad522b3dbed5e366
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1664039021
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1664039022}
-  - component: {fileID: 1664039023}
-  m_Layer: 0
-  m_Name: Route Marker 001 (11)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1664039022
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1664039021}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 14.32, y: 0.43, z: 22.46}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1664039023
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1664039021}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: ef6e1a98c4d84d1d9010295696ddb68a
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1664476876
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1664476877}
-  - component: {fileID: 1664476878}
-  m_Layer: 0
-  m_Name: Route Marker 001 (33)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1664476877
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1664476876}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 37.55, y: 0.43, z: 3.01}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1664476878
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1664476876}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 2e73e1af4b2048e6be390e92172b8085
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1668118937
 GameObject:
   m_ObjectHideFlags: 0
@@ -14969,67 +11724,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1702611166}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1671382699
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1671382700}
-  - component: {fileID: 1671382701}
-  m_Layer: 0
-  m_Name: Route Marker 001 (4)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1671382700
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1671382699}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.32, y: 0.43, z: -17.15}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1671382701
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1671382699}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 909baad45e0f4edfb94bb4892987b30d
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1676386603
 GameObject:
   m_ObjectHideFlags: 0
@@ -15092,68 +11786,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1702611166}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1697338247
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1697338248}
-  - component: {fileID: 1697338249}
-  m_Layer: 0
-  m_Name: Route Marker 001 (18)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1697338248
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1697338247}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.45, y: 0.43, z: -17.110003}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1697338249
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1697338247}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 9cf0930b410443f9b53a1d58afcaa742
-  label: Route Marker
-  links:
-  - {fileID: 1813034939}
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1699124638
 GameObject:
   m_ObjectHideFlags: 0
@@ -15170,7 +11802,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1699124639
 Transform:
   m_ObjectHideFlags: 0
@@ -15209,9 +11841,9 @@ MonoBehaviour:
   portalType: 0
   tags: 0
   allowedNpcTypes: -1
-  routeMarker: {fileID: 2123807329}
+  routeMarker: {fileID: 0}
   nearbyRouteMarkers:
-  - {fileID: 2123807329}
+  - {fileID: 0}
   interiorSpawn: {fileID: 443101875}
   approach: {fileID: 1515987883}
   interaction: {fileID: 483325151}
@@ -15285,9 +11917,9 @@ MonoBehaviour:
   portalType: 0
   tags: 4
   allowedNpcTypes: -1
-  routeMarker: {fileID: 1469669877}
+  routeMarker: {fileID: 79333790}
   nearbyRouteMarkers:
-  - {fileID: 1469669877}
+  - {fileID: 0}
   interiorSpawn: {fileID: 842990878}
   approach: {fileID: 1668118938}
   interaction: {fileID: 1691308539}
@@ -16044,67 +12676,6 @@ MonoBehaviour:
     consentMode: 0
     contentLevel: 0
     sortOrder: 0
---- !u!1 &1745991660
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1745991661}
-  - component: {fileID: 1745991662}
-  m_Layer: 0
-  m_Name: Route Marker 001 (14)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1745991661
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1745991660}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.79, y: 0.43, z: 12.89}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1745991662
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1745991660}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: afec828e227846cca5e1906d6d23b018
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1752033567
 GameObject:
   m_ObjectHideFlags: 0
@@ -16274,67 +12845,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1556717742}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1801240044
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1801240045}
-  - component: {fileID: 1801240046}
-  m_Layer: 0
-  m_Name: Route Marker 001 (57)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1801240045
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1801240044}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 65.52, y: 0.43, z: -24.01}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1801240046
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1801240044}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: cebaf0e9d89246548dd3d6a8055e3e60
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1810229837
 GameObject:
   m_ObjectHideFlags: 0
@@ -16411,22 +12921,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!4 &1813034938 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-  m_PrefabInstance: {fileID: 4174680103161593842}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1813034939 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4729967153330229447, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-  m_PrefabInstance: {fileID: 4174680103161593842}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!1 &1818976958
 GameObject:
   m_ObjectHideFlags: 0
@@ -16655,128 +13149,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 327211741}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1901199841
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1901199842}
-  - component: {fileID: 1901199843}
-  m_Layer: 0
-  m_Name: Route Marker 001 (30)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1901199842
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1901199841}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 49.32, y: 0.43, z: -53.809998}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1901199843
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1901199841}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: d526e99d1b704338802dc65fb8ef0908
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &1906334406
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1906334407}
-  - component: {fileID: 1906334408}
-  m_Layer: 0
-  m_Name: Route Marker 001 (3)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1906334407
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1906334406}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 23.78, y: 0.33, z: -26.42}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1906334408
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1906334406}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 830cf011e6564593b37ce7de2442dd81
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1907064439
 GameObject:
   m_ObjectHideFlags: 0
@@ -16920,67 +13292,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 51859498}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1947313657
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1947313658}
-  - component: {fileID: 1947313659}
-  m_Layer: 0
-  m_Name: Route Marker 001 (38)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1947313658
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1947313657}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 74.22, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1947313659
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1947313657}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: ed8d9613dd8a4592bfcc98a663910ce9
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1972895733
 GameObject:
   m_ObjectHideFlags: 0
@@ -17012,67 +13323,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1218206175}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1979784103
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1979784104}
-  - component: {fileID: 1979784105}
-  m_Layer: 0
-  m_Name: Route Marker 001 (13)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1979784104
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1979784103}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.34, y: 0.37, z: 22.85}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1979784105
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1979784103}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 451ccedede8247d29c922584f7a98f3f
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &1980101070
 GameObject:
   m_ObjectHideFlags: 0
@@ -17104,67 +13354,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 663489999}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1981487233
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1981487234}
-  - component: {fileID: 1981487235}
-  m_Layer: 0
-  m_Name: Route Marker 001 (9)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1981487234
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1981487233}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 23.98, y: 0.33, z: -23.39}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1981487235
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1981487233}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 5fcc4f7e6e5a409585d419393ea0dc39
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &2004405701
 GameObject:
   m_ObjectHideFlags: 0
@@ -17196,67 +13385,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 133750814}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2011227760
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2011227761}
-  - component: {fileID: 2011227762}
-  m_Layer: 0
-  m_Name: Route Marker 001 (43)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2011227761
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2011227760}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -1}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2011227762
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2011227760}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: daa20e6322db4d24b62f6c328226d574
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &2013695463
 GameObject:
   m_ObjectHideFlags: 0
@@ -17462,39 +13590,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1069234943}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2066023689
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2066023690}
-  m_Layer: 0
-  m_Name: SpawnPaths
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &2066023690
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2066023689}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -160.29857, y: 1.50904, z: -121.25085}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 907236224}
-  - {fileID: 1234755633}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2070961532
 GameObject:
   m_ObjectHideFlags: 0
@@ -17557,17 +13652,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1434396873}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2078114014 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4063146025778578865, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!114 &2078114015 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6403849041313880517, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
@@ -17579,53 +13663,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114016 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1180504892272629333, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114017 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5312292642977454304, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!114 &2078114018 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3336384037937303637, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114019 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3638560165844524911, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114020 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5106961513568541347, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
   m_PrefabInstance: {fileID: 79333789}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
@@ -17648,28 +13688,6 @@ MonoBehaviour:
 --- !u!114 &2078114022 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7777298513261777031, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114023 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2008611324741231752, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114025 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5585538615265369531, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
   m_PrefabInstance: {fileID: 79333789}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
@@ -17799,128 +13817,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!1 &2092803989
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2092803990}
-  - component: {fileID: 2092803991}
-  m_Layer: 0
-  m_Name: Route Marker 001 (63)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2092803990
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2092803989}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 39.29, y: 0.43, z: -12.17}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2092803991
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2092803989}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 2f6c208288634526a3fe5248f3f5a58a
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &2092853623
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2092853624}
-  - component: {fileID: 2092853625}
-  m_Layer: 0
-  m_Name: Route Marker 001 (24)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &2092853624
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2092853623}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 14.32, y: 0.43, z: -68.81}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2092853625
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2092853623}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 6bd9cc0b36044b40846416c3d71a72f2
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &2095171210
 GameObject:
   m_ObjectHideFlags: 0
@@ -18014,7 +13910,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &2102496904
 Transform:
   m_ObjectHideFlags: 0
@@ -18053,9 +13949,9 @@ MonoBehaviour:
   portalType: 0
   tags: 0
   allowedNpcTypes: -1
-  routeMarker: {fileID: 2078114018}
+  routeMarker: {fileID: 514784907}
   nearbyRouteMarkers:
-  - {fileID: 2078114018}
+  - {fileID: 514784907}
   interiorSpawn: {fileID: 1514038537}
   approach: {fileID: 497772665}
   interaction: {fileID: 735709852}
@@ -18074,128 +13970,6 @@ MonoBehaviour:
   exitClearanceRadius: 0.45
   requireDifferentDestination: 1
   suppressWhenVisibleToPlayers: 0
---- !u!1 &2103421758
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2103421759}
-  - component: {fileID: 2103421760}
-  m_Layer: 0
-  m_Name: Route Marker 001 (1)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2103421759
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2103421758}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 9.32, y: 0.43, z: -26.31}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2103421760
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2103421758}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 1223dacafae54e69949f288205f94001
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &2105562338
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2105562339}
-  - component: {fileID: 2105562340}
-  m_Layer: 0
-  m_Name: Route Marker 001 (50)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2105562339
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2105562338}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 79.33, y: 0.43, z: -37.26}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2105562340
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2105562338}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 864c1dc5edee4f379d55d712e9626714
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &2105729758
 GameObject:
   m_ObjectHideFlags: 0
@@ -18258,67 +14032,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1218206175}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2123807327
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2123807328}
-  - component: {fileID: 2123807329}
-  m_Layer: 0
-  m_Name: Route Marker 001 (36)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2123807328
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2123807327}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 56.82, y: 0.43, z: 2.93}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2123807329
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2123807327}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 41f0946de1e04e729164671570bb05f9
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
 --- !u!1 &2124073231
 GameObject:
   m_ObjectHideFlags: 0
@@ -18350,263 +14063,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 133750814}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2130172304
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2130172305}
-  - component: {fileID: 2130172306}
-  m_Layer: 0
-  m_Name: Route Marker 001 (55)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2130172305
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2130172304}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 65.27, y: 0.43, z: -37.44}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2130172306
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2130172304}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 594fb95587df45578eecf9ffb0648fd6
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &2133153923
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2133153924}
-  - component: {fileID: 2133153925}
-  m_Layer: 0
-  m_Name: Route Marker 001 (12)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2133153924
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2133153923}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 9.36, y: 0.43, z: 22.74}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2133153925
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2133153923}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: 52f1a7877786449d8b3f9bfc8ce48ad0
-  label: Route Marker
-  links:
-  - {fileID: 1664039023}
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1 &2138076852
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2138076853}
-  - component: {fileID: 2138076854}
-  m_Layer: 0
-  m_Name: Route Marker 001 (22)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &2138076853
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2138076852}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.6800003, y: 0.43, z: -66.31}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 985947361}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2138076854
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2138076852}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
-  bakeId: b5ef7ea565734ecab30756eecf88aedd
-  label: Route Marker
-  links: []
-  oneWayOutboundLinks: []
-  generatedLinks: []
-  pathWidth: 2.5
-  routeWeight: 1
-  branchNode: 0
-  nodeType: 0
-  isDestination: 0
-  destinationTags: 1
-  destinationGroup: 
-  hardRestricted: 0
-  allowedNpcTypes: -1
-  minimumWaitSeconds: 0
-  maximumWaitSeconds: 0
-  actionId: 0
---- !u!1001 &4174680103161593842
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 985947361}
-    m_Modifications:
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0.58
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.43
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -26.31
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1491532352952210288, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: m_Name
-      value: Route Marker 001
-      objectReference: {fileID: 0}
-    - target: {fileID: 4729967153330229447, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: links.Array.size
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4729967153330229447, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: 'links.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2103421760}
-    - target: {fileID: 4729967153330229447, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: generatedLinks.Array.size
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4729967153330229447, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
-      propertyPath: 'generatedLinks.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2103421760}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -18621,7 +14077,5 @@ SceneRoots:
   - {fileID: 1739089756}
   - {fileID: 1729384615}
   - {fileID: 1735474367}
-  - {fileID: 985947361}
-  - {fileID: 2066023690}
   - {fileID: 423894250}
   - {fileID: 79333789}
