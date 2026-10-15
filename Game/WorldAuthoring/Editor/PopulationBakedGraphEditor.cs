@@ -67,6 +67,9 @@ namespace Game.WorldAuthoring.Editor
         private bool dirty;
         private Vector2 scroll;
         private string lastError = string.Empty;
+        private string lastSaveStatus = string.Empty;
+        private bool lastSaveSucceeded;
+        private string loadedDiskText;
         private string lastPairResult = string.Empty;
         private MessageType lastPairMessageType = MessageType.None;
         private long lastPairedA;
@@ -75,6 +78,9 @@ namespace Game.WorldAuthoring.Editor
         private string lastSceneSync = string.Empty;
         private double nextSceneSync;
         private readonly HashSet<long> sceneMovedNodes = new HashSet<long>();
+        // Authoring validation only. Never repair or regenerate duplicate authoring IDs implicitly.
+        private readonly List<string> sceneMarkerProblems = new List<string>();
+        private int importedSceneMarkerCount;
         // Scene-only presentation: baked node identity does not depend on a GameObject.
         private bool showNodeNumbers = true;
         private bool showAllNodeLabels;
@@ -234,7 +240,16 @@ namespace Game.WorldAuthoring.Editor
                 output.RemoveAll(e => Connects(e, edge.fromNodeId, edge.toNodeId));
                 output.Add(edge);
             }
-            edits.manualEdges = validManualEdges.ToArray();
+            // Never overwrite the user's saved manual connections implicitly.
+            // Auto Connect refuses invalid manual links instead of pruning them.
+            if (removedManualCount > 0)
+            {
+                Debug.LogError($"[Population Graph Bake] REFUSED: {removedManualCount} saved manual " +
+                    "connection(s) failed geometry validation. No manual edit record was changed. " +
+                    (removedManualExamples.Count > 0
+                        ? "Examples: " + string.Join("; ", removedManualExamples) : string.Empty));
+                return false;
+            }
 
             // The prior scene may still contain a spawn whose marker or manual route ID
             // refers to a node removed by the baked editor. Fail before publishing routes.
@@ -277,13 +292,6 @@ namespace Game.WorldAuthoring.Editor
             }
             nodes = list.ToArray();
             edges = output.ToArray();
-            if (removedManualCount > 0)
-                Debug.LogWarning($"[Population Graph Bake] Removed {removedManualCount} unsafe manual " +
-                    "connection(s) from the graph AND its saved edit overrides. " +
-                    "The cleanup will persist when the routes layer is published. " +
-                    (removedManualExamples.Count > 0
-                        ? "Examples: " + string.Join("; ", removedManualExamples)
-                        : string.Empty));
             return true;
         }
 
@@ -315,27 +323,80 @@ namespace Game.WorldAuthoring.Editor
 
         // The Build Client three-step workflow saves through this editor's existing
         // validation and atomic routes-layer write. It does not duplicate graph storage.
+        // Never report a successful save without verifying the actual layer on disk.
+        // The server reads this file at startup; this operation does not hot-reload GameServer.
         internal static bool SaveOpenGraph(Scene target, out string status)
         {
             foreach (PopulationBakedGraphEditor editor in Resources.FindObjectsOfTypeAll<PopulationBakedGraphEditor>())
             {
                 if (editor == null || editor.layer == null || editor.scene.handle != target.handle)
                     continue;
-                if (!editor.dirty)
+                try
                 {
-                    status = "Graph already saved";
-                    return true;
+                    editor.SyncSceneNodes(true);
+                    if (!editor.dirty)
+                    {
+                        if (editor.TryVerifyPublishedGraph(out string details))
+                        {
+                            status = $"SAVE VERIFIED: {details}. BAKE then restart GameServer.";
+                            editor.lastSaveSucceeded = true;
+                            editor.lastSaveStatus = status;
+                            return true;
+                        }
+                        status = "SAVE BLOCKED: disk graph differs from loaded editor. RELOAD rather than overwrite: " + details;
+                        editor.lastSaveSucceeded = false;
+                        editor.lastSaveStatus = status;
+                        return false;
+                    }
+                    if (editor.Save())
+                    {
+                        status = editor.lastSaveStatus;
+                        return true;
+                    }
+                    status = "SAVE FAILED: " + editor.lastError;
+                    return false;
                 }
-                editor.Save();
-                if (!editor.dirty)
+                catch (Exception ex)
                 {
-                    status = "Graph saved";
-                    return true;
+                    editor.lastError = ex.Message;
+                    editor.lastSaveSucceeded = false;
+                    editor.lastSaveStatus = "SAVE FAILED: " + ex.Message;
+                    Debug.LogError("[Population Baked Graph] " + editor.lastSaveStatus);
+                    status = editor.lastSaveStatus;
+                    return false;
                 }
-                status = "Save failed — check graph editor and Console";
-                return false;
             }
-            status = "Open EDIT GRAPH before saving";
+            status = "SAVE FAILED: Open EDIT first. No graph editor is loaded for this scene.";
+            return false;
+        }
+
+        internal static bool HasUnsavedOpenGraph(Scene target, out string reason)
+        {
+            foreach (PopulationBakedGraphEditor editor in Resources.FindObjectsOfTypeAll<PopulationBakedGraphEditor>())
+            {
+                if (editor == null || editor.layer == null || editor.scene.handle != target.handle)
+                    continue;
+                try
+                {
+                    editor.SyncSceneNodes(true);
+                    if (editor.dirty)
+                    {
+                        reason = "The open route graph has unsaved edits. Press SAVE, fix validation errors, then BAKE.";
+                        return true;
+                    }
+                    if (!editor.TryVerifyPublishedGraph(out string details))
+                    {
+                        reason = "The open graph does not match its saved route layer: " + details + ". Reload or SAVE before BAKE.";
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    reason = "Unable to validate open graph: " + ex.Message;
+                    return true;
+                }
+            }
+            reason = string.Empty;
             return false;
         }
 
@@ -362,9 +423,14 @@ namespace Game.WorldAuthoring.Editor
             nextSceneSync = 0;
             lastSceneSync = string.Empty;
             sceneMovedNodes.Clear();
+            sceneMarkerProblems.Clear();
+            importedSceneMarkerCount = 0;
             selectedA = selectedB = hoveredNode = 0;
             moveSelected = false;
             lastError = string.Empty;
+            lastSaveStatus = string.Empty;
+            lastSaveSucceeded = false;
+            loadedDiskText = null;
             layer = null;
             collision = null;
             if (string.IsNullOrEmpty(routesPath) || !File.Exists(routesPath))
@@ -375,7 +441,8 @@ namespace Game.WorldAuthoring.Editor
             }
             try
             {
-                layer = JsonUtility.FromJson<Layer>(File.ReadAllText(routesPath));
+                loadedDiskText = File.ReadAllText(routesPath);
+                layer = JsonUtility.FromJson<Layer>(loadedDiskText);
                 if (layer == null || layer.formatVersion != 1)
                     throw new InvalidDataException("Routes layer format is invalid.");
                 layer.populationNodes ??= Array.Empty<ServerPopulationRouteNode>();
@@ -418,6 +485,11 @@ namespace Game.WorldAuthoring.Editor
             return matches.Length == 1 ? matches[0] : null;
         }
 
+        // AUTO LOAD CURRENT merges hand-placed scene markers into the existing saved graph.
+        // Existing nodes/edges and manual overrides are never regenerated, removed or replaced.
+        // New scene-backed markers are deliberately NOT added to editorEdits.addedNodes:
+        // AUTO CONNECT's exporter already includes actual PopulationRouteMarker components,
+        // and persisting them as graph-only addedNodes would create duplicate IDs on export.
         private void SyncSceneNodes(bool force = false)
         {
             if (layer == null || !scene.IsValid() || !scene.isLoaded) return;
@@ -425,46 +497,179 @@ namespace Game.WorldAuthoring.Editor
             if (!force && now < nextSceneSync) return;
             nextSceneSync = now + 0.15d;
 
+            layer.editorEdits = Normalize(layer.editorEdits);
             var byId = layer.populationNodes.Where(n => n != null)
                 .ToDictionary(n => n.stableId);
-            var added = new HashSet<long>(layer.editorEdits.addedNodes
+            var graphOnlyIds = new HashSet<long>(layer.editorEdits.addedNodes
                 .Where(n => n != null).Select(n => n.stableId));
+            var explicitlyRemovedIds = new HashSet<long>(layer.editorEdits.removedNodeIds);
             var changed = new List<long>();
-            // Do not project either instance of a duplicated prefab marker ID.
-            // Bake-time ID repair is responsible for establishing unique identity.
-            var uniqueMarkers = UnityEngine.Object.FindObjectsByType<PopulationRouteMarker>(
+            var imported = new List<ServerPopulationRouteNode>();
+            sceneMarkerProblems.Clear();
+
+            // Scan the ACTUAL scene, including nested prefab marker instances.
+            // Never move, relabel or delete markers during the scan.
+            PopulationRouteMarker[] markers = UnityEngine.Object.FindObjectsByType<PopulationRouteMarker>(
                     FindObjectsInactive.Include, FindObjectsSortMode.None)
-                .Where(m => m != null && m.gameObject.scene == scene &&
-                    m.gameObject.activeInHierarchy && !string.IsNullOrWhiteSpace(m.BakeId))
-                .GroupBy(m => ServerWorldBake.StableAuthoringId(m.BakeId))
-                .Where(g => g.Key > 0 && g.Count() == 1)
-                .Select(g => new { id = g.Key, marker = g.First() });
+                .Where(m => m != null && m.gameObject.scene == scene && m.gameObject.activeInHierarchy)
+                .ToArray();
+            var uniqueMarkers = new Dictionary<long, PopulationRouteMarker>();
+            var duplicateIds = new HashSet<long>();
+            foreach (PopulationRouteMarker marker in markers)
+            {
+                if (string.IsNullOrWhiteSpace(marker.BakeId))
+                {
+                    sceneMarkerProblems.Add($"Scene marker '{marker.name}' has no stable Bake ID. Select and repair it in Unity.");
+                    continue;
+                }
+                long id = ServerWorldBake.StableAuthoringId(marker.BakeId);
+                if (id <= 0)
+                {
+                    sceneMarkerProblems.Add($"Scene marker '{marker.name}' has invalid Bake ID '{marker.BakeId}'.");
+                    continue;
+                }
+                if (!uniqueMarkers.TryAdd(id, marker))
+                    duplicateIds.Add(id);
+            }
+            foreach (long duplicate in duplicateIds)
+            {
+                string names = string.Join(", ", markers.Where(m =>
+                    !string.IsNullOrWhiteSpace(m.BakeId) &&
+                    ServerWorldBake.StableAuthoringId(m.BakeId) == duplicate)
+                    .Select(m => m.name).Distinct().Take(4));
+                sceneMarkerProblems.Add($"Duplicate Route Marker ID {duplicate}: {names}. Assign a unique Bake ID before SAVE.");
+                uniqueMarkers.Remove(duplicate);
+            }
+
             foreach (var entry in uniqueMarkers)
             {
-                PopulationRouteMarker marker = entry.marker;
-                long id = entry.id;
-                if (added.Contains(id) || !byId.TryGetValue(id, out ServerPopulationRouteNode node)) continue;
+                long id = entry.Key;
+                PopulationRouteMarker marker = entry.Value;
+                if (explicitlyRemovedIds.Contains(id))
+                {
+                    // Respect a prior explicit manual removal. Never restore it as a side effect.
+                    continue;
+                }
+                if (graphOnlyIds.Contains(id))
+                {
+                    sceneMarkerProblems.Add($"Scene marker '{marker.name}' collides with existing graph-only node ID {id}.");
+                    continue;
+                }
+                if (!byId.TryGetValue(id, out ServerPopulationRouteNode node))
+                {
+                    // Use the same canonical node fields as ServerWorldBake.ExportPopulation.
+                    node = new ServerPopulationRouteNode
+                    {
+                        stableId = id,
+                        label = marker.label ?? marker.gameObject.name,
+                        pose = new ServerPose(marker.transform.position.x,
+                            marker.transform.position.y, marker.transform.position.z,
+                            marker.transform.eulerAngles.y),
+                        pathWidth = Mathf.Max(0.5f, marker.pathWidth),
+                        routeWeight = Mathf.Max(0.01f, marker.routeWeight),
+                        nodeType = marker.branchNode
+                            ? PopulationNodeType.Intersection : PopulationNodeType.Regular,
+                        isDestination = false,
+                        destinationTags = PopulationDestinationTag.None,
+                        destinationGroup = string.Empty,
+                        hardRestricted = false,
+                        allowedNpcTypes = PopulationNpcTypeMask.All,
+                        minimumWaitSeconds = 0f,
+                        maximumWaitSeconds = 0f,
+                        actionId = 0,
+                    };
+                    imported.Add(node);
+                    byId.Add(id, node);
+                    changed.Add(id);
+                    continue;
+                }
+
                 Vector3 current = marker.transform.position;
                 if ((Point(node.pose) - current).sqrMagnitude > 0.0001f)
                 {
                     node.pose = WithPosition(node.pose, current);
                     changed.Add(id);
                 }
-                // Legacy graph-editor moves of scene markers must not override their
-                // current scene Transform on the next World Bake. Moving the marker
-                // in the scene is the durable position edit for prefab-backed nodes.
+                // The scene owns the authoring metadata for prefab-backed markers.
+                // Do not override existing saved edge settings or graph-only nodes.
+                string sceneLabel = marker.label ?? marker.gameObject.name;
+                float width = Mathf.Max(0.5f, marker.pathWidth);
+                float weight = Mathf.Max(0.01f, marker.routeWeight);
+                PopulationNodeType nodeType = marker.branchNode
+                    ? PopulationNodeType.Intersection : PopulationNodeType.Regular;
+                if (node.label != sceneLabel || node.pathWidth != width ||
+                    node.routeWeight != weight || node.nodeType != nodeType)
+                {
+                    node.label = sceneLabel;
+                    node.pathWidth = width;
+                    node.routeWeight = weight;
+                    node.nodeType = nodeType;
+                    if (!changed.Contains(id)) changed.Add(id);
+                }
+                // Scene transforms override old graph-only position overrides for this ID.
                 int before = layer.editorEdits.movedNodes.Length;
                 layer.editorEdits.movedNodes = layer.editorEdits.movedNodes
                     .Where(m => m != null && m.id != id).ToArray();
                 if (before != layer.editorEdits.movedNodes.Length && !changed.Contains(id))
                     changed.Add(id);
             }
+
+            if (imported.Count > 0)
+            {
+                layer.populationNodes = layer.populationNodes.Concat(imported).ToArray();
+                importedSceneMarkerCount += imported.Count;
+            }
             if (changed.Count == 0) return;
             foreach (long id in changed) sceneMovedNodes.Add(id);
-            lastSceneSync = $"Synced {changed.Count} scene marker position(s) to the baked graph. " +
-                "SAVE GRAPH to publish; unsafe edges will be removed on save.";
+            lastSceneSync = imported.Count > 0
+                ? $"AUTO LOAD CURRENT: imported {imported.Count} new hand-placed Route Marker(s), " +
+                  $"graph now contains {layer.populationNodes.Length} nodes. " +
+                  "Select A and B to connect them; VALIDATE and SAVE when ready."
+                : $"Synced {changed.Count} existing scene Route Marker(s). " +
+                  "Validate links before SAVE; nothing was disconnected.";
             Modified();
         }
+        // Manual repair only: Unity prefab duplication can clone a marker's hidden Bake ID.
+        // Never silently reassign authored identities while merely loading or validating.
+        private void AssignNewIdToSelectedSceneMarker()
+        {
+            PopulationRouteMarker marker = Selection.activeGameObject != null
+                ? Selection.activeGameObject.GetComponent<PopulationRouteMarker>() : null;
+            if (marker == null || marker.gameObject.scene != scene)
+            {
+                EditorUtility.DisplayDialog("Select a Route Marker",
+                    "Select the newly placed Route Marker GameObject in the Unity Hierarchy first.", "OK");
+                return;
+            }
+            long oldId = string.IsNullOrWhiteSpace(marker.BakeId) ? 0L :
+                ServerWorldBake.StableAuthoringId(marker.BakeId);
+            int copies = UnityEngine.Object.FindObjectsByType<PopulationRouteMarker>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Count(m => m != null && m.gameObject.scene == scene &&
+                    m.gameObject.activeInHierarchy && !string.IsNullOrWhiteSpace(m.BakeId) &&
+                    ServerWorldBake.StableAuthoringId(m.BakeId) == oldId);
+            if (oldId > 0 && copies < 2)
+            {
+                EditorUtility.DisplayDialog("Stable ID Is Already Unique",
+                    "Only missing or duplicated Route Marker IDs need repair. " +
+                    "Changing a valid existing ID would break saved connections.", "OK");
+                return;
+            }
+            if (!EditorUtility.DisplayDialog("Assign Unique Route Marker ID",
+                    $"Give selected scene marker '{marker.name}' a NEW stable ID? " +
+                    "Only this selected marker will change. Existing saved connections are untouched. " +
+                    "Use this on the NEW duplicate, not on the original saved marker.",
+                    "Assign New ID", "Cancel")) return;
+            Undo.RecordObject(marker, "Assign Unique Route Marker ID");
+            marker.RegenerateBakeId();
+            if (PrefabUtility.IsPartOfPrefabInstance(marker))
+                PrefabUtility.RecordPrefabInstancePropertyModifications(marker);
+            EditorUtility.SetDirty(marker);
+            EditorSceneManager.MarkSceneDirty(scene);
+            SyncSceneNodes(true);
+            SceneView.RepaintAll();
+        }
+
         private string Label(long id) => Node(id) is ServerPopulationRouteNode n ? n.label + " (" + id + ")" : "None";
 
         // Node numbers correspond to the saved layer's array, not to prefab hierarchy order.
@@ -505,7 +710,14 @@ namespace Game.WorldAuthoring.Editor
             view.Repaint();
         }
 
-        private void Modified() { dirty = true; Repaint(); SceneView.RepaintAll(); }
+        private void Modified()
+        {
+            dirty = true;
+            lastSaveSucceeded = false;
+            lastSaveStatus = "UNSAVED CHANGES — SAVE and BAKE required.";
+            Repaint();
+            SceneView.RepaintAll();
+        }
 
         private bool DirectlyWalkable(long a, long b, out string reason)
         {
@@ -823,6 +1035,16 @@ namespace Game.WorldAuthoring.Editor
             EditorGUILayout.LabelField("Baked Population Graph", EditorStyles.boldLabel);
             EditorGUILayout.LabelField($"Nodes: {layer.populationNodes.Length} | Edges: {layer.populationEdges.Length} " +
                 $"| Manual links: {layer.editorEdits.manualEdges.Length} | Blocked pairs: {layer.editorEdits.blockedPairs.Length}");
+            if (importedSceneMarkerCount > 0)
+                EditorGUILayout.HelpBox($"{importedSceneMarkerCount} hand-placed scene Route Marker(s) added to the EDIT workspace. " +
+                    "They are not saved until you connect/validate them and press SAVE.", MessageType.Info);
+            foreach (string problem in sceneMarkerProblems.Take(12))
+                EditorGUILayout.HelpBox(problem, MessageType.Error);
+            if (sceneMarkerProblems.Count > 12)
+                EditorGUILayout.HelpBox($"{sceneMarkerProblems.Count - 12} additional marker identity error(s).", MessageType.Error);
+            if (sceneMarkerProblems.Count > 0 &&
+                GUILayout.Button("Assign New ID to Selected NEW Route Marker"))
+                AssignNewIdToSelectedSceneMarker();
             EditorGUILayout.HelpBox("Click A, click B, then PAIR or CLEAR LINK. " +
                 "Both selections reset after every action, including an already-connected pair. " +
                 "Yellow = A, magenta = B. SAVE GRAPH to persist edits in *.routes.json.", MessageType.Info);
@@ -832,6 +1054,9 @@ namespace Game.WorldAuthoring.Editor
                 EditorGUILayout.HelpBox(lastSceneSync, MessageType.Info);
             if (dirty)
                 EditorGUILayout.HelpBox("Unsaved changes — GameServer still uses the previous graph.", MessageType.Warning);
+            if (!string.IsNullOrWhiteSpace(lastSaveStatus))
+                EditorGUILayout.HelpBox(lastSaveStatus,
+                    lastSaveSucceeded ? MessageType.None : MessageType.Error);
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -996,78 +1221,183 @@ namespace Game.WorldAuthoring.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        private void Save()
+        private bool TryVerifyPublishedGraph(out string details)
         {
-            if (layer == null) return;
-            SyncSceneNodes(true);
+            details = "Graph layer missing or not loaded";
+            if (layer == null || string.IsNullOrWhiteSpace(routesPath) || !File.Exists(routesPath))
+                return false;
             try
             {
-                var refs = new HashSet<long>(layer.populationNodes.Select(x => x.stableId));
-                if (refs.Count != layer.populationNodes.Length || refs.Any(x => x <= 0))
-                    throw new InvalidDataException("Duplicate/invalid node IDs.");
-                foreach (var node in layer.populationNodes)
+                Layer disk = JsonUtility.FromJson<Layer>(File.ReadAllText(routesPath));
+                if (disk == null || disk.formatVersion != 1 ||
+                    disk.populationNodes == null || disk.populationEdges == null ||
+                    !string.Equals(disk.mapId, layer.mapId, StringComparison.Ordinal) ||
+                    !string.Equals(disk.instanceId ?? string.Empty,
+                        layer.instanceId ?? string.Empty, StringComparison.Ordinal) ||
+                    !string.Equals(disk.coreContentHash, layer.coreContentHash, StringComparison.Ordinal))
                 {
-                    var pos = Point(node.pose);
-                    if (float.IsNaN(pos.x) || float.IsNaN(pos.y) || float.IsNaN(pos.z))
-                        throw new InvalidDataException("Invalid node position.");
+                    details = "Route layer header / map identity / core hash mismatch";
+                    return false;
+                }
+                // Canonical serialization catches node poses, IDs, directional links,
+                // manual overrides, blocked pairs, and any future serialized fields.
+                if (!string.Equals(JsonUtility.ToJson(disk, false),
+                    JsonUtility.ToJson(layer, false), StringComparison.Ordinal))
+                {
+                    details = $"Disk contains {disk.populationNodes.Length} nodes, " +
+                        $"{disk.populationEdges.Length} edges but differs from EDIT workspace";
+                    return false;
+                }
+                details = $"{disk.populationNodes.Length} nodes, " +
+                    $"{disk.populationEdges.Length} edges, " +
+                    $"{(disk.editorEdits?.manualEdges?.Length ?? 0)} manual edges on disk";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                details = ex.Message;
+                return false;
+            }
+        }
+
+        private bool Save()
+        {
+            if (layer == null) return false;
+            string temporary = null;
+            string backup = null;
+            bool published = false;
+            try
+            {
+                SyncSceneNodes(true);
+                if (sceneMarkerProblems.Count > 0)
+                    throw new InvalidDataException("Graph SAVE refused: " +
+                        string.Join(" | ", sceneMarkerProblems.Take(4)) +
+                        ". No saved routes were changed.");
+                if (layer.populationNodes == null || layer.populationEdges == null ||
+                    layer.editorEdits == null)
+                    throw new InvalidDataException("Route graph contains missing node, edge, or edit arrays.");
+                var refs = new HashSet<long>(layer.populationNodes.Where(x => x != null).Select(x => x.stableId));
+                if (layer.populationNodes.Any(x => x == null) ||
+                    refs.Count != layer.populationNodes.Length || refs.Any(x => x <= 0))
+                    throw new InvalidDataException("Duplicate, null, or invalid node ID.");
+                foreach (ServerPopulationRouteNode node in layer.populationNodes)
+                {
+                    Vector3 pos = Point(node.pose);
+                    if (float.IsNaN(pos.x) || float.IsNaN(pos.y) || float.IsNaN(pos.z) ||
+                        float.IsInfinity(pos.x) || float.IsInfinity(pos.y) || float.IsInfinity(pos.z))
+                        throw new InvalidDataException("Invalid node position: " + node.stableId);
                 }
                 var changedIds = new HashSet<long>(layer.editorEdits.addedNodes
                     .Where(x => x != null).Select(x => x.stableId));
-                foreach (var moved in layer.editorEdits.movedNodes)
+                foreach (PopulationBakedGraphEdits.MovedNode moved in layer.editorEdits.movedNodes)
                     if (moved != null) changedIds.Add(moved.id);
                 changedIds.UnionWith(sceneMovedNodes);
-                foreach (var node in layer.populationNodes)
+                foreach (ServerPopulationRouteNode node in layer.populationNodes)
+                {
                     if (changedIds.Contains(node.stableId) &&
                         !PopulationRouteWalkabilityGizmos.SegmentTraversable(
                             collision, scene, Point(node.pose), Point(node.pose)))
-                        throw new InvalidDataException("Custom node '" + node.label +
-                            "' is not grounded on a safe walkable surface.");
+                        throw new InvalidDataException("Route Node '" + node.label + "' (" +
+                            node.stableId + ") is not grounded on a safe walkable surface.");
+                }
                 Physics.SyncTransforms();
-                // Edits to a node's location must not make every connection disappear,
-                // nor should one unsafe old link make the whole graph impossible to save.
-                // Keep all safe links, prune just the invalid edges, including their
-                // saved manual overrides. The next World Bake performs this same
-                // validation against freshly generated authoritative collision.
-                var validEdges = new List<ServerPopulationRouteEdge>();
-                var invalidPairs = new HashSet<string>(StringComparer.Ordinal);
+                var invalidConnections = new List<string>();
                 foreach (ServerPopulationRouteEdge edge in layer.populationEdges)
                 {
-                    if (edge == null || !refs.Contains(edge.fromNodeId) || !refs.Contains(edge.toNodeId) ||
-                        !DirectlyWalkable(edge.fromNodeId, edge.toNodeId, out _))
+                    if (edge == null)
                     {
-                        if (edge != null) invalidPairs.Add(Pair(edge.fromNodeId, edge.toNodeId));
+                        invalidConnections.Add("Null saved connection");
                         continue;
                     }
-                    validEdges.Add(edge);
+                    if (!refs.Contains(edge.fromNodeId) || !refs.Contains(edge.toNodeId))
+                    {
+                        invalidConnections.Add($"{edge.fromNodeId} -> {edge.toNodeId}: missing node");
+                        continue;
+                    }
+                    if (!DirectlyWalkable(edge.fromNodeId, edge.toNodeId, out string why))
+                        invalidConnections.Add($"{edge.fromNodeId} -> {edge.toNodeId}: {why}");
                 }
-                if (invalidPairs.Count > 0)
-                {
-                    layer.populationEdges = validEdges.ToArray();
-                    layer.editorEdits.manualEdges = layer.editorEdits.manualEdges.Where(e =>
-                        e != null && !invalidPairs.Contains(Pair(e.fromNodeId, e.toNodeId))).ToArray();
-                    lastSceneSync = $"Removed {invalidPairs.Count} unsafe or stale link(s); retained the valid connections.";
-                    Debug.LogWarning("[Population Baked Graph] " + lastSceneSync);
-                }
-                // The layer's coreContentHash is preserved. Never write stale graph data over a new map.
-                string corePath = routesPath.Substring(0, routesPath.Length - ".routes.json".Length) + ".servermap.json";
+                if (invalidConnections.Count != 0)
+                    throw new InvalidDataException($"SAVE blocked: {invalidConnections.Count} invalid connection(s). " +
+                        string.Join(" | ", invalidConnections.Take(8)) +
+                        ". Fix them using EDIT; no saved links were modified.");
+                if (!File.Exists(routesPath))
+                    throw new FileNotFoundException("Saved routes layer missing. Recover existing layer before SAVE.", routesPath);
+                if (loadedDiskText == null || !string.Equals(
+                        File.ReadAllText(routesPath), loadedDiskText, StringComparison.Ordinal))
+                    throw new InvalidDataException("The route file changed since EDIT was loaded. RELOAD the graph; do not overwrite newer saved data.");
+                string corePath = routesPath.Substring(0,
+                    routesPath.Length - ".routes.json".Length) + ".servermap.json";
+                if (!File.Exists(corePath))
+                    throw new FileNotFoundException("Server core map missing; do not save over an orphaned route layer.", corePath);
                 ServerMapSnapshot core = JsonUtility.FromJson<ServerMapSnapshot>(File.ReadAllText(corePath));
-                if (core == null || !string.Equals(core.contentHash, layer.coreContentHash, StringComparison.Ordinal))
-                    throw new InvalidDataException("World geometry changed. Reload/rebake before saving graph edits.");
-                // Never truncate the only persisted graph edit record during a failed write.
-                string temporary = routesPath + ".tmp";
-                File.WriteAllText(temporary, JsonUtility.ToJson(layer, true), new UTF8Encoding(false));
-                File.Replace(temporary, routesPath, null);
+                if (core == null || !string.Equals(core.contentHash,
+                    layer.coreContentHash, StringComparison.Ordinal))
+                    throw new InvalidDataException("World geometry hash mismatch. Restore the matching map/layer before SAVING.");
+
+                // Hand-placed scene markers/positions are part of authoring. Save the scene
+                // first; a .routes.json edit must not depend on unsaved scene objects.
+                if (scene.isDirty && !EditorSceneManager.SaveScene(scene))
+                    throw new IOException("Could not save the Unity scene. Route layer remains unchanged.");
+
+                string json = JsonUtility.ToJson(layer, true);
+                string token = Guid.NewGuid().ToString("N");
+                temporary = routesPath + "." + token + ".tmp";
+                backup = routesPath + "." + token + ".previous";
+                File.WriteAllText(temporary, json, new UTF8Encoding(false));
+                Layer staged = JsonUtility.FromJson<Layer>(File.ReadAllText(temporary));
+                if (staged == null || !string.Equals(
+                    JsonUtility.ToJson(staged, false), JsonUtility.ToJson(layer, false), StringComparison.Ordinal))
+                    throw new InvalidDataException("Staged routes layer did not round-trip correctly. Nothing published.");
+
+                // Atomic replace with a retained rollback copy until verification succeeds.
+                File.Replace(temporary, routesPath, backup);
+                temporary = null;
+                published = true;
+                if (!TryVerifyPublishedGraph(out string details))
+                    throw new InvalidDataException("Published layer verification failed: " + details);
+
+                if (File.Exists(backup)) File.Delete(backup);
+                backup = null;
+                loadedDiskText = File.ReadAllText(routesPath);
                 dirty = false;
                 sceneMovedNodes.Clear();
-                Debug.Log($"[Population Baked Graph] Saved {layer.populationNodes.Length} nodes, " +
-                    $"{layer.populationEdges.Length} edges to {routesPath}. World Bake will retain manual edits.");
+                lastError = string.Empty;
+                lastSaveSucceeded = true;
+                lastSaveStatus = $"SAVE VERIFIED: {details}. BAKE then restart GameServer.";
+                Debug.Log($"[Population Baked Graph] {lastSaveStatus} Path: {routesPath}");
                 Repaint();
+                return true;
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                lastError = e.Message;
-                Debug.LogError("[Population Baked Graph] Save rejected: " + e.Message);
-                EditorUtility.DisplayDialog("Baked Graph Not Saved", e.Message, "OK");
+                if (published && backup != null && File.Exists(backup))
+                {
+                    try
+                    {
+                        File.Copy(backup, routesPath, true);
+                        Debug.LogError("[Population Baked Graph] Restored previous routes layer after failed verification.");
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        Debug.LogError("[Population Baked Graph] CRITICAL rollback failed: " + rollbackEx);
+                    }
+                }
+                lastSaveSucceeded = false;
+                lastError = ex.Message;
+                lastSaveStatus = "SAVE FAILED: " + ex.Message;
+                Debug.LogError("[Population Baked Graph] " + lastSaveStatus);
+                EditorUtility.DisplayDialog("Baked Graph Not Saved", ex.Message, "OK");
+                Repaint();
+                return false;
+            }
+            finally
+            {
+                if (temporary != null && File.Exists(temporary))
+                {
+                    try { File.Delete(temporary); }
+                    catch (Exception ex) { Debug.LogWarning("[Population Baked Graph] Temp cleanup: " + ex.Message); }
+                }
             }
         }
 
