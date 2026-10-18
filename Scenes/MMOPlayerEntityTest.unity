@@ -736,10 +736,6 @@ MonoBehaviour:
   routeMarker: {fileID: 79333794}
   nearbyRouteMarkers:
   - {fileID: 79333794}
-  - {fileID: 79333793}
-  - {fileID: 2078114036}
-  - {fileID: 2078114029}
-  - {fileID: 2078114030}
   interiorSpawn: {fileID: 1940953880}
   approach: {fileID: 711106351}
   interaction: {fileID: 227082030}
@@ -749,10 +745,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -13242,10 +13238,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -13317,10 +13313,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -13603,10 +13599,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -14333,6 +14329,30 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: ecec0287b6dc48f0b1f41b4c55e61510
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: routeMarker
+      value: 
+      objectReference: {fileID: 613417322}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: 'nearbyRouteMarkers.Array.data[0]'
+      value: 
+      objectReference: {fileID: 613417322}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -14533,10 +14553,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 2
-  maximumSpawnInterval: 5.5
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 3
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -14639,10 +14659,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -15566,6 +15586,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: c6aca057a8a74f94b873d66963c43db0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -15660,7 +15696,27 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: ab08ead295c24f388405865a1bda0012
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: routeMarker
+      value: 
+      objectReference: {fileID: 1702314612}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: 'nearbyRouteMarkers.Array.data[0]'
       value: 
       objectReference: {fileID: 1702314612}
     m_RemovedComponents: []
@@ -15884,6 +15940,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1434396873}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &613417322 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 9473410677525549, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+  m_PrefabInstance: {fileID: 79333789}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!1 &621863536
 GameObject:
   m_ObjectHideFlags: 0
@@ -16174,10 +16241,9 @@ MonoBehaviour:
   portalType: 0
   tags: 0
   allowedNpcTypes: -1
-  routeMarker: {fileID: 0}
+  routeMarker: {fileID: 2078114036}
   nearbyRouteMarkers:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 2078114036}
   interiorSpawn: {fileID: 239461869}
   approach: {fileID: 475897318}
   interaction: {fileID: 658402003}
@@ -16187,10 +16253,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -17037,6 +17103,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: 368acc85cf72422cbceeb9dcb15f5878
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -17219,7 +17301,27 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: 75c3cc6e138a49aa8ea164b15a1a51a0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: routeMarker
+      value: 
+      objectReference: {fileID: 1565849022}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: 'nearbyRouteMarkers.Array.data[0]'
       value: 
       objectReference: {fileID: 1565849022}
     m_RemovedComponents: []
@@ -17392,10 +17494,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -17541,10 +17643,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -17798,9 +17900,29 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: 7590e3a70b5a4852987af31a61c6f77a
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: routeMarker
       value: 
-      objectReference: {fileID: 1412357634}
+      objectReference: {fileID: 1698269978}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: 'nearbyRouteMarkers.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1698269978}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -18031,10 +18153,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 3
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -18501,17 +18623,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 196695839}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1412357634 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3659883330784231341, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!1 &1418006490
 GameObject:
   m_ObjectHideFlags: 0
@@ -18578,10 +18689,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -18645,10 +18756,7 @@ MonoBehaviour:
   routeMarker: {fileID: 1707948029}
   nearbyRouteMarkers:
   - {fileID: 1707948029}
-  - {fileID: 2078114026}
   - {fileID: 2078114032}
-  - {fileID: 1707948028}
-  - {fileID: 2078114034}
   - {fileID: 2078114033}
   interiorSpawn: {fileID: 2071087517}
   approach: {fileID: 1461548858}
@@ -18659,10 +18767,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -18981,9 +19089,25 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: 26466b0e0ec348c09e6d4368e210e387
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: routeMarker
       value: 
       objectReference: {fileID: 55595414}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -19257,11 +19381,6 @@ MonoBehaviour:
   routeMarker: {fileID: 1707948028}
   nearbyRouteMarkers:
   - {fileID: 1707948028}
-  - {fileID: 2078114031}
-  - {fileID: 2078114026}
-  - {fileID: 2078114030}
-  - {fileID: 1707948029}
-  - {fileID: 2078114032}
   interiorSpawn: {fileID: 1583498987}
   approach: {fileID: 1537054423}
   interaction: {fileID: 190429178}
@@ -19271,10 +19390,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -19729,6 +19848,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1702611166}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1698269978 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8964978207465215956, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
+  m_PrefabInstance: {fileID: 79333789}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!1 &1699124638
 GameObject:
   m_ObjectHideFlags: 0
@@ -19796,10 +19926,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -19882,10 +20012,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 1.75
-  maximumSpawnInterval: 5
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 3
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -21203,9 +21333,25 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: f52736b4e1a346608660dfda521b6a46
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: routeMarker
       value: 
       objectReference: {fileID: 1638172417}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -21432,10 +21578,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -21908,42 +22054,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114026 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4833247605062559785, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
 --- !u!114 &2078114029 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 570440620361125865, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114030 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 329848130778775242, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114031 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4553822797875373979, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
   m_PrefabInstance: {fileID: 79333789}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
@@ -21966,17 +22079,6 @@ MonoBehaviour:
 --- !u!114 &2078114033 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 329870070056073752, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
-  m_PrefabInstance: {fileID: 79333789}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8b8137ebc4ec4cff9df882a9c065fb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.PopulationRouteMarker
---- !u!114 &2078114034 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4276723216587353139, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
   m_PrefabInstance: {fileID: 79333789}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
@@ -22151,10 +22253,10 @@ MonoBehaviour:
   minimumRespawnDelay: 8
   maximumRespawnDelay: 20
   blockedRetryDelay: 2
-  minimumSpawnInterval: 0.75
-  maximumSpawnInterval: 1.75
+  minimumSpawnInterval: 1
+  maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 5
+  maximumActiveInWorld: 2
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -22275,6 +22377,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: bakeId
+      value: f74c8083889745a5bc6e87865b388dcc
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: routeMarker
       value: 
       objectReference: {fileID: 808209384}
@@ -22283,9 +22389,21 @@ PrefabInstance:
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
-      propertyPath: nearbyRouteMarkers.Array.size
-      value: 0
+      propertyPath: maximumSpawnInterval
+      value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: nearbyRouteMarkers.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: 'nearbyRouteMarkers.Array.data[0]'
+      value: 
+      objectReference: {fileID: 808209384}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -22383,6 +22501,18 @@ PrefabInstance:
       propertyPath: routeMarker
       value: 
       objectReference: {fileID: 79333792}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumActiveInWorld
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: maximumSpawnInterval
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: minimumSpawnInterval
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: 'nearbyRouteMarkers.Array.data[0]'
       value: 

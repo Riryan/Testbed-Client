@@ -501,6 +501,112 @@ namespace Game.WorldAuthoring.Editor
             return false;
         }
 
+        // AUTO CONNECT adds scene-authoring content to the SAVED graph. Re-exporting
+        // the scene alone cannot reconstruct graph-only/manual nodes, stable portal
+        // identities, or saved spawns. Their absence is NEVER a removal instruction.
+        private static bool MergeSavedPopulationNodesAndEdges(
+            Scene scene, ServerCollisionWorld world, RouteLayerFile saved,
+            ref ServerPopulationRouteNode[] nodes, ref ServerPopulationRouteEdge[] edges)
+        {
+            var finalNodes = new List<ServerPopulationRouteNode>(saved.populationNodes);
+            var byId = new Dictionary<long, ServerPopulationRouteNode>();
+            foreach (ServerPopulationRouteNode node in finalNodes)
+            {
+                if (node == null || node.stableId <= 0 || !byId.TryAdd(node.stableId, node))
+                {
+                    Debug.LogError("[Population AUTO CONNECT] Invalid or duplicate stable node ID in saved graph. " +
+                        "Saved layers unchanged; repair the graph explicitly in EDIT.");
+                    return false;
+                }
+            }
+            foreach (ServerPopulationRouteNode node in nodes ?? Array.Empty<ServerPopulationRouteNode>())
+            {
+                if (node != null && node.stableId > 0 && byId.TryAdd(node.stableId, node))
+                    finalNodes.Add(node);
+            }
+
+            string Pair(long a, long b) => a < b ? $"{a}:{b}" : $"{b}:{a}";
+            string Key(ServerPopulationRouteEdge e) => e.oneWay
+                ? $"D:{e.fromNodeId}:{e.toNodeId}" : "B:" + Pair(e.fromNodeId, e.toNodeId);
+            var finalEdges = new List<ServerPopulationRouteEdge>(saved.populationEdges);
+            var savedPairs = new HashSet<string>(StringComparer.Ordinal);
+            var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ServerPopulationRouteEdge edge in saved.populationEdges)
+            {
+                if (edge == null || !byId.ContainsKey(edge.fromNodeId) ||
+                    !byId.ContainsKey(edge.toNodeId) || edge.fromNodeId == edge.toNodeId ||
+                    !edgeKeys.Add(Key(edge)))
+                {
+                    Debug.LogError("[Population AUTO CONNECT] Saved route contains an invalid or duplicate edge. " +
+                        "Saved layers unchanged; repair the graph explicitly in EDIT.");
+                    return false;
+                }
+                savedPairs.Add(Pair(edge.fromNodeId, edge.toNodeId));
+            }
+
+            int rejectedNewEdges = 0;
+            foreach (ServerPopulationRouteEdge edge in edges ?? Array.Empty<ServerPopulationRouteEdge>())
+            {
+                if (edge == null || edge.fromNodeId == edge.toNodeId) continue;
+                // A saved undirected pair also protects saved direction and manual
+                // one-way restrictions. Never introduce a conflicting auto edge.
+                if (savedPairs.Contains(Pair(edge.fromNodeId, edge.toNodeId))) continue;
+                if (!byId.TryGetValue(edge.fromNodeId, out ServerPopulationRouteNode from) ||
+                    !byId.TryGetValue(edge.toNodeId, out ServerPopulationRouteNode to))
+                {
+                    ++rejectedNewEdges;
+                    continue;
+                }
+                string key = Key(edge);
+                if (edgeKeys.Contains(key)) continue;
+                // The exported candidate may have used a changed scene pose while
+                // saved IDs retain their authored/saved positions. Validate additions
+                // against the FINAL positions before allowing them into the graph.
+                Vector3 a = new Vector3(from.pose.x, from.pose.y, from.pose.z);
+                Vector3 b = new Vector3(to.pose.x, to.pose.y, to.pose.z);
+                if (!PopulationRouteWalkabilityGizmos.SegmentTraversable(world, scene, a, b) ||
+                    Physics.Linecast(a + Vector3.up * 1.25f, b + Vector3.up * 1.25f,
+                        ~0, QueryTriggerInteraction.Ignore))
+                {
+                    ++rejectedNewEdges;
+                    continue;
+                }
+                edgeKeys.Add(key);
+                finalEdges.Add(edge);
+            }
+            nodes = finalNodes.ToArray();
+            edges = finalEdges.ToArray();
+            if (rejectedNewEdges > 0)
+                Debug.LogWarning($"[Population AUTO CONNECT] Ignored {rejectedNewEdges} " +
+                    "new edge proposal(s) that were invalid against the saved graph positions. " +
+                    "Saved connections were retained.");
+            return true;
+        }
+
+        private static ServerPopulationPortal[] MergeSavedPopulationPortals(
+            RouteLayerFile saved, ServerPopulationPortal[] additions)
+        {
+            var result = new List<ServerPopulationPortal>(saved.populationPortals);
+            var ids = new HashSet<long>(saved.populationPortals
+                .Where(x => x != null).Select(x => x.stableId));
+            foreach (ServerPopulationPortal portal in additions ?? Array.Empty<ServerPopulationPortal>())
+                if (portal != null && portal.stableId > 0 && ids.Add(portal.stableId))
+                    result.Add(portal);
+            return result.ToArray();
+        }
+
+        private static ServerSpawnAnchor[] MergeSavedPopulationSpawns(
+            SpawnLayerFile saved, ServerSpawnAnchor[] additions)
+        {
+            var result = new List<ServerSpawnAnchor>(saved.spawnAnchors);
+            var ids = new HashSet<long>(saved.spawnAnchors
+                .Where(x => x != null).Select(x => x.stableId));
+            foreach (ServerSpawnAnchor spawn in additions ?? Array.Empty<ServerSpawnAnchor>())
+                if (spawn != null && spawn.stableId > 0 && ids.Add(spawn.stableId))
+                    result.Add(spawn);
+            return result.ToArray();
+        }
+
         // Preflight returns either the saved graph or an explicitly regenerated one.
         private static bool TryPrepareAuthoringLayers(
             Scene scene, ServerMap map, ServerCollisionWorld validationWorld,
@@ -539,13 +645,27 @@ namespace Game.WorldAuthoring.Editor
                     Debug.LogError("[Server World Bake] AUTO CONNECT failed edited-route validation; saved graph unchanged.");
                     return false;
                 }
+                // A newly exported scene graph is only a set of ADDITIONS. Start with
+                // the saved nodes and edges before validating portals or generating
+                // spawns, because those entries may depend on graph-only saved nodes.
+                if (oldRoutes != null && !MergeSavedPopulationNodesAndEdges(
+                        scene, validationWorld, oldRoutes, ref nodes, ref edges))
+                    return false;
+
+                // Only candidate/new portals are filtered. Previously published
+                // portals are never passed through a destructive regeneration filter.
                 portals = FilterPopulationPortals(scene, validationWorld, nodes, edges, portals);
+                if (oldRoutes != null)
+                    portals = MergeSavedPopulationPortals(oldRoutes, portals);
+
                 if (!ExportSpawns(scene, map, validationWorld, nodes, edges, portals,
                         out ServerSpawnAnchor[] anchors))
                 {
                     Debug.LogError("[Server World Bake] AUTO CONNECT failed spawn preflight; saved graph unchanged.");
                     return false;
                 }
+                if (oldSpawns != null)
+                    anchors = MergeSavedPopulationSpawns(oldSpawns, anchors);
                 routes = new RouteLayerFile
                 {
                     mapId = map.MapId,
@@ -561,27 +681,11 @@ namespace Game.WorldAuthoring.Editor
                     instanceId = map.InstanceId,
                     spawnAnchors = anchors,
                 };
-                if (oldRoutes != null)
-                {
-                    if (!CheckExistingGraphNotReduced(oldRoutes, oldSpawns, routes, spawns))
-                        return false;
-                    // AUTO CONNECT adds connections. It must not rewrite saved link
-                    // width/weight/direction or validation metadata for existing links.
-                    string Key(ServerPopulationRouteEdge e)
-                    {
-                        long a = e.fromNodeId, b = e.toNodeId;
-                        return e.oneWay ? $"D:{a}:{b}" :
-                            a < b ? $"B:{a}:{b}" : $"B:{b}:{a}";
-                    }
-                    var oldEdges = oldRoutes.populationEdges.Where(x => x != null)
-                        .GroupBy(Key).ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
-                    for (int i = 0; i < routes.populationEdges.Length; ++i)
-                    {
-                        ServerPopulationRouteEdge edge = routes.populationEdges[i];
-                        if (edge != null && oldEdges.TryGetValue(Key(edge), out ServerPopulationRouteEdge saved))
-                            routes.populationEdges[i] = saved;
-                    }
-                }
+                // Assert that no saved identity was dropped. Publication continues
+                // to fail closed and remains atomic across all three output files.
+                if (oldRoutes != null &&
+                    !CheckExistingGraphNotReduced(oldRoutes, oldSpawns, routes, spawns))
+                    return false;
                 Debug.Log($"[Population AUTO CONNECT] Prepared nodes={nodes.Length}, " +
                     $"edges={edges.Length}, portals={portals.Length}, spawns={anchors.Length}. " +
                     "Previous published route IDs were protected.");

@@ -16,10 +16,12 @@ namespace Game.WorldAuthoring.Editor
             public readonly int SceneHandle;
             public readonly int Ax, Ay, Az;
             public readonly int Bx, By, Bz;
+            public readonly int Width;
 
-            public SegmentKey(int sceneHandle, Vector3 a, Vector3 b)
+            public SegmentKey(int sceneHandle, Vector3 a, Vector3 b, float width)
             {
                 SceneHandle = sceneHandle;
+                Width = Quantize(width);
 
                 int ax = Quantize(a.x);
                 int ay = Quantize(a.y);
@@ -51,6 +53,7 @@ namespace Game.WorldAuthoring.Editor
 
             public bool Equals(SegmentKey other) =>
                 SceneHandle == other.SceneHandle &&
+                Width == other.Width &&
                 Ax == other.Ax && Ay == other.Ay && Az == other.Az &&
                 Bx == other.Bx && By == other.By && Bz == other.Bz;
 
@@ -61,6 +64,7 @@ namespace Game.WorldAuthoring.Editor
                 unchecked
                 {
                     int hash = SceneHandle;
+                    hash = (hash * 397) ^ Width;
                     hash = (hash * 397) ^ Ax;
                     hash = (hash * 397) ^ Ay;
                     hash = (hash * 397) ^ Az;
@@ -76,6 +80,12 @@ namespace Game.WorldAuthoring.Editor
             new Dictionary<SegmentKey, bool>(4096);
         private static readonly HashSet<SegmentKey> Seen =
             new HashSet<SegmentKey>();
+        private static readonly Dictionary<int, (Vector3 Position, bool Valid)> MarkerResults =
+            new Dictionary<int, (Vector3 Position, bool Valid)>();
+        private static ServerCollisionWorld _selectedWorld;
+        private static int _selectedSceneHandle = int.MinValue;
+        private static DateTime _selectedMapStamp;
+        private static readonly Color UnknownColor = new Color(0.55f, 0.55f, 0.55f, 0.85f);
 
         private static readonly Color ValidColor = new Color(0.15f, 0.9f, 0.3f, 0.9f);
         private static readonly Color InvalidColor = new Color(0.95f, 0.15f, 0.1f, 0.95f);
@@ -85,6 +95,32 @@ namespace Game.WorldAuthoring.Editor
         {
             if (marker == null || !marker.gameObject.activeInHierarchy)
                 return;
+
+            // Same red/green placement contract as the spawner, but using the
+            // exact baked static collision world. Selected markers revalidate on
+            // movement; unselected markers reuse explicit Validate Scene results.
+            // Only the selected marker may refresh baked world data.
+            bool selected = (gizmoType & GizmoType.Selected) != 0;
+            ServerCollisionWorld selectedWorld = null;
+            bool worldReady = selected && TryGetSelectedWorld(marker.gameObject.scene, out selectedWorld);
+            int markerId = marker.GetInstanceID();
+            Vector3 position = marker.transform.position;
+            bool hasResult = MarkerResults.TryGetValue(markerId, out var markerResult) &&
+                             markerResult.Position == position;
+            if (worldReady && !hasResult)
+            {
+                bool valid = MarkerIsGrounded(selectedWorld, marker.gameObject.scene, position);
+                MarkerResults[markerId] = (position, valid);
+                markerResult = (position, valid);
+                hasResult = true;
+            }
+            Gizmos.color = !hasResult ? UnknownColor : markerResult.Valid ? ValidColor : InvalidColor;
+            Gizmos.DrawSphere(position, 0.23f);
+            if (marker.branchNode)
+            {
+                Gizmos.color = new Color(1f, 0.75f, 0.1f, 1f);
+                Gizmos.DrawWireSphere(position, 0.31f);
+            }
 
             if (marker.links != null)
             {
@@ -98,7 +134,8 @@ namespace Game.WorldAuthoring.Editor
                         marker.gameObject.scene,
                         marker.transform.position,
                         linked.transform.position,
-                        false);
+                        false,
+                        Mathf.Max(0.5f, (marker.pathWidth + linked.pathWidth) * 0.5f));
                 }
             }
 
@@ -114,7 +151,8 @@ namespace Game.WorldAuthoring.Editor
                         marker.gameObject.scene,
                         marker.transform.position,
                         linked.transform.position,
-                        true);
+                        true,
+                        Mathf.Max(0.5f, (marker.pathWidth + linked.pathWidth) * 0.5f));
                 }
             }
         }
@@ -129,15 +167,16 @@ namespace Game.WorldAuthoring.Editor
                 portal.gameObject.scene,
                 portal.EffectiveExterior.position,
                 portal.routeMarker.transform.position,
-                false);
+                false,
+                Mathf.Max(0.5f, portal.routeMarker.pathWidth));
         }
 
-        private static void DrawCached(Scene scene, Vector3 from, Vector3 to, bool oneWay)
+        private static void DrawCached(Scene scene, Vector3 from, Vector3 to,
+            bool oneWay, float width)
         {
-            var key = new SegmentKey(scene.handle, from, to);
-            bool valid = Results.TryGetValue(key, out bool cached) && cached;
-
-            Gizmos.color = valid ? ValidColor : InvalidColor;
+            var key = new SegmentKey(scene.handle, from, to, width);
+            bool known = Results.TryGetValue(key, out bool valid);
+            Gizmos.color = !known ? UnknownColor : valid ? ValidColor : InvalidColor;
             Gizmos.DrawLine(from, to);
 
             if (oneWay)
@@ -162,6 +201,11 @@ namespace Game.WorldAuthoring.Editor
 
             if (!TryLoadWorld(scene, out ServerCollisionWorld world, out string detail))
             {
+                // An absent/stale bake must never leave old results showing green.
+                Results.Clear();
+                MarkerResults.Clear();
+                _selectedWorld = null;
+                _selectedSceneHandle = int.MinValue;
                 Debug.LogError($"[Population Route Validation] {detail}");
                 return false;
             }
@@ -170,6 +214,17 @@ namespace Game.WorldAuthoring.Editor
             // ServerCollisionWorld queries.
             RemoveSceneResults(scene.handle);
             Seen.Clear();
+            _selectedWorld = world;
+            _selectedSceneHandle = scene.handle;
+            ServerMap selectedMap = FindMap(scene);
+            if (selectedMap != null)
+            {
+                string suffix = string.IsNullOrWhiteSpace(selectedMap.InstanceId) ? string.Empty :
+                    "__" + ServerMap.NormalizeId(selectedMap.InstanceId);
+                string path = Path.Combine(ServerWorldBake.ServerMapsFolder,
+                    ServerMap.NormalizeId(selectedMap.MapId) + suffix + ".servermap.json");
+                _selectedMapStamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : default;
+            }
 
             PopulationRouteMarker[] markers = UnityEngine.Object.FindObjectsByType<PopulationRouteMarker>(
                 FindObjectsInactive.Exclude,
@@ -180,6 +235,10 @@ namespace Game.WorldAuthoring.Editor
                 PopulationRouteMarker marker = markers[i];
                 if (marker == null || marker.gameObject.scene != scene || !marker.gameObject.activeInHierarchy)
                     continue;
+
+                MarkerResults[marker.GetInstanceID()] =
+                    (marker.transform.position,
+                     MarkerIsGrounded(world, scene, marker.transform.position));
 
                 if (marker.links != null)
                 {
@@ -194,6 +253,7 @@ namespace Game.WorldAuthoring.Editor
                             world,
                             marker.transform.position,
                             linked.transform.position,
+                            Mathf.Max(0.5f, (marker.pathWidth + linked.pathWidth) * 0.5f),
                             ref validCount,
                             ref invalidCount);
                     }
@@ -212,6 +272,7 @@ namespace Game.WorldAuthoring.Editor
                             world,
                             marker.transform.position,
                             linked.transform.position,
+                            Mathf.Max(0.5f, (marker.pathWidth + linked.pathWidth) * 0.5f),
                             ref validCount,
                             ref invalidCount);
                     }
@@ -238,6 +299,7 @@ namespace Game.WorldAuthoring.Editor
                     world,
                     portal.EffectiveExterior.position,
                     portal.routeMarker.transform.position,
+                    Mathf.Max(0.5f, portal.routeMarker.pathWidth),
                     ref validCount,
                     ref invalidCount);
             }
@@ -255,14 +317,15 @@ namespace Game.WorldAuthoring.Editor
             ServerCollisionWorld world,
             Vector3 from,
             Vector3 to,
+            float width,
             ref int validCount,
             ref int invalidCount)
         {
-            var key = new SegmentKey(scene.handle, from, to);
+            var key = new SegmentKey(scene.handle, from, to, width);
             if (!Seen.Add(key))
                 return;
 
-            bool valid = SegmentTraversable(world, scene, from, to);
+            bool valid = SegmentTraversable(world, scene, from, to, width);
             Results[key] = valid;
             if (valid)
                 validCount++;
@@ -270,76 +333,94 @@ namespace Game.WorldAuthoring.Editor
                 invalidCount++;
         }
 
+        // Validate the THREE exact lanes Population actually uses, and the
+        // interpolated ground-height profile (including stairs). This remains
+        // editor/bake-time work, never per-actor runtime movement.
         internal static bool SegmentTraversable(
-            ServerCollisionWorld world,
-            Scene scene,
-            Vector3 from,
-            Vector3 to)
+            ServerCollisionWorld world, Scene scene, Vector3 from, Vector3 to,
+            float width = 2.5f)
         {
             ServerMap map = FindMap(scene);
-            float radius = map != null ? map.NavAgentRadius : 0.35f;
-            float height = map != null ? map.NavAgentHeight : 1.8f;
-            float stepHeight = map != null ? map.NavAgentMaxClimb : 0.4f;
-            float slope = map != null ? map.NavAgentMaxSlope : 50f;
-            float groundSnap = 0.5f;
-
+            float radius = map != null ? Mathf.Max(0.20f, map.NavAgentRadius) : 0.35f;
+            float height = map != null ? Mathf.Max(radius * 2f, map.NavAgentHeight) : 1.8f;
             var capsule = new ServerCapsule(radius, height);
-            var authoredStart = new WorldPosition(from.x, from.y, from.z);
+            for (int lane = -1; lane <= 1; ++lane)
+                if (!LaneClear(world, from, to, lane * Mathf.Max(0f, width * 0.35f),
+                        capsule, 50f))
+                    return false;
+            return true;
+        }
 
-            if (!world.TryFindGround(
-                    authoredStart,
-                    radius,
-                    1.5f,
-                    1.5f,
-                    slope,
-                    out ServerGroundHit startGround))
-            {
-                return false;
-            }
+        private static bool MarkerIsGrounded(ServerCollisionWorld world, Scene scene, Vector3 pos)
+        {
+            ServerMap map = FindMap(scene);
+            float radius = map != null ? Mathf.Max(0.20f, map.NavAgentRadius) : 0.35f;
+            float height = map != null ? Mathf.Max(radius * 2f, map.NavAgentHeight) : 1.8f;
+            var point = new WorldPosition(pos.x, pos.y, pos.z);
+            return world != null &&
+                world.TryFindGround(point, radius, 0.18f, 0.18f, 50f,
+                    out ServerGroundHit ground) &&
+                Mathf.Abs(ground.Position.Y - pos.y) <= 0.10f &&
+                world.IsStandingCapsuleClear(ground.Position,
+                    new ServerCapsule(radius, height), 50f);
+        }
 
-            if (!world.IsStandingCapsuleClear(startGround.Position, capsule, slope))
-                return false;
-
-            float dx = to.x - from.x;
-            float dz = to.z - from.z;
-            float horizontal = Mathf.Sqrt(dx * dx + dz * dz);
-            if (horizontal <= 0.001f)
-                return true;
-
-            int samples = Mathf.Clamp(
-                Mathf.CeilToInt(horizontal / Mathf.Max(0.10f, radius * 0.45f)),
-                1,
-                512);
-
-            float previousY = startGround.Position.Y;
-            for (int i = 1; i <= samples; ++i)
+        private static bool LaneClear(ServerCollisionWorld world,
+            Vector3 from, Vector3 to, float laneOffset,
+            ServerCapsule capsule, float slope)
+        {
+            if (world == null) return false;
+            float dx = to.x - from.x, dz = to.z - from.z;
+            float distance = Mathf.Sqrt(dx * dx + dz * dz);
+            if ((float.IsNaN(distance) || float.IsInfinity(distance)) || distance <= 0.05f) return false;
+            int samples = Mathf.CeilToInt(distance /
+                Mathf.Max(0.05f, Mathf.Min(0.15f, capsule.Radius * 0.4f)));
+            if (samples <= 0 || samples > 1024) return false;
+            float sideX = -dz / distance, sideZ = dx / distance;
+            float previousY = 0f;
+            for (int i = 0; i <= samples; ++i)
             {
                 float t = i / (float)samples;
-                float x = Mathf.Lerp(from.x, to.x, t);
-                float z = Mathf.Lerp(from.z, to.z, t);
-                var probe = new WorldPosition(x, previousY, z);
-
-                if (!world.TryFindGround(
-                        probe,
-                        radius,
-                        Mathf.Max(0.05f, stepHeight + 0.05f),
-                        Mathf.Max(0.05f, groundSnap),
-                        slope,
-                        out ServerGroundHit ground))
-                {
+                var expected = new WorldPosition(from.x + dx * t + sideX * laneOffset,
+                    Mathf.Lerp(from.y, to.y, t),
+                    from.z + dz * t + sideZ * laneOffset);
+                if (!world.TryFindGround(expected, capsule.Radius, 0.18f, 0.18f,
+                        slope, out ServerGroundHit ground) ||
+                    Mathf.Abs(ground.Position.Y - expected.Y) > 0.10f ||
+                    !world.IsStandingCapsuleClear(ground.Position, capsule, slope))
                     return false;
-                }
-
-                float dy = ground.Position.Y - previousY;
-                if (dy > stepHeight + 0.05f || dy < -groundSnap - 0.05f)
+                if (i > 0 && Mathf.Abs(ground.Position.Y - previousY) > 0.22f)
                     return false;
-
-                if (!world.IsStandingCapsuleClear(ground.Position, capsule, slope))
-                    return false;
-
                 previousY = ground.Position.Y;
             }
+            return true;
+        }
 
+        // Existing loader, shared by selected marker previews and the explicit
+        // Validate Scene operation; no parallel world validation infrastructure.
+        private static bool TryGetSelectedWorld(Scene scene, out ServerCollisionWorld world)
+        {
+            world = null;
+            ServerMap map = FindMap(scene);
+            if (map == null || string.IsNullOrWhiteSpace(map.MapId)) return false;
+            string suffix = string.IsNullOrWhiteSpace(map.InstanceId) ? string.Empty :
+                "__" + ServerMap.NormalizeId(map.InstanceId);
+            string path = Path.Combine(ServerWorldBake.ServerMapsFolder,
+                ServerMap.NormalizeId(map.MapId) + suffix + ".servermap.json");
+            if (!File.Exists(path)) return false;
+            DateTime stamp = File.GetLastWriteTimeUtc(path);
+            if (_selectedWorld != null && _selectedSceneHandle == scene.handle &&
+                _selectedMapStamp == stamp)
+            {
+                world = _selectedWorld;
+                return true;
+            }
+            if (!TryLoadWorld(scene, out world, out _)) return false;
+            MarkerResults.Clear();
+            Results.Clear();
+            _selectedWorld = world;
+            _selectedSceneHandle = scene.handle;
+            _selectedMapStamp = stamp;
             return true;
         }
 
@@ -417,9 +498,9 @@ namespace Game.WorldAuthoring.Editor
 
         private static void RemoveSceneResults(int sceneHandle)
         {
+            MarkerResults.Clear();
             if (Results.Count == 0)
                 return;
-
             var remove = new List<SegmentKey>();
             foreach (KeyValuePair<SegmentKey, bool> pair in Results)
             {
