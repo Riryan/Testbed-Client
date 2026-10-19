@@ -150,6 +150,13 @@ namespace Game.WorldAuthoring.Editor
                 return false;
             }
 
+            // Build the immutable, agent-eroded movement certificate before any optional
+            // scene NavMesh rebuild. It is emitted only when this bake can isolate its
+            // temporary walk surface; otherwise the standalone server keeps its full
+            // collision path for this map.
+            ServerCollisionTriangle[] safeMovementTriangles =
+                TryBuildCertifiedSafeMovementTriangles(scene, map);
+
             // Spawn and Population authoring are separate layers. Their validation must
             // not prevent the physical world geometry from being published.
 
@@ -239,6 +246,9 @@ namespace Game.WorldAuthoring.Editor
                 sharedWorld = sharedWorld,
                 movementTriangles = supportTriangles,
                 collisionTriangles = collisionTriangles,
+                safeMovementTriangles = safeMovementTriangles,
+                safeMovementRadius = safeMovementTriangles.Length != 0 ? 0.35f : 0f,
+                safeMovementHeight = safeMovementTriangles.Length != 0 ? 1.80f : 0f,
                 dynamicBlockers = blockers,
                 traversalLinks = Array.Empty<ServerTraversalLink>(),
                 // Separate layer files are composed by the standalone loader.
@@ -892,6 +902,76 @@ namespace Game.WorldAuthoring.Editor
             return nav.vertices != null && nav.indices != null && nav.indices.Length >= 3;
         }
 
+        private static ServerCollisionTriangle[] TryBuildCertifiedSafeMovementTriangles(
+            Scene scene, ServerMap map)
+        {
+            // NavMesh.CalculateTriangulation returns all currently loaded Unity navmeshes.
+            // Do not accidentally treat another loaded scene's navmesh as this map's
+            // certificate. A non-empty baseline cannot be isolated safely by this API.
+            NavMeshTriangulation baseline = NavMesh.CalculateTriangulation();
+            if (baseline.vertices != null && baseline.indices != null && baseline.indices.Length >= 3)
+                return Array.Empty<ServerCollisionTriangle>();
+
+            NavMeshData data = null;
+            NavMeshDataInstance instance = default;
+            try
+            {
+                if (!TryBuildTemporaryWalkSurface(scene, map, out data, out instance))
+                    return Array.Empty<ServerCollisionTriangle>();
+
+                NavMeshTriangulation nav = NavMesh.CalculateTriangulation();
+                if (nav.vertices == null || nav.indices == null || nav.indices.Length < 3)
+                    return Array.Empty<ServerCollisionTriangle>();
+
+                var result = new List<ServerCollisionTriangle>(nav.indices.Length / 3);
+                for (int i = 0; i + 2 < nav.indices.Length; i += 3)
+                {
+                    Vector3 a = nav.vertices[nav.indices[i]];
+                    Vector3 b = nav.vertices[nav.indices[i + 1]];
+                    Vector3 c = nav.vertices[nav.indices[i + 2]];
+                    Vector3 normal = Vector3.Cross(b - a, c - a);
+                    if (normal.sqrMagnitude <= 0.0000001f)
+                        continue;
+                    if (normal.y < 0f)
+                    {
+                        Vector3 temp = b;
+                        b = c;
+                        c = temp;
+                        normal = -normal;
+                    }
+                    normal.Normalize();
+                    if (normal.y < Mathf.Cos(50f * Mathf.Deg2Rad))
+                        continue;
+
+                    result.Add(new ServerCollisionTriangle
+                    {
+                        surfaceId = 0,
+                        ax = a.x, ay = a.y, az = a.z,
+                        bx = b.x, by = b.y, bz = b.z,
+                        cx = c.x, cy = c.y, cz = c.z,
+                        normalX = normal.x, normalY = normal.y, normalZ = normal.z,
+                        flags = ServerSurfaceFlags.Walkable | ServerSurfaceFlags.Ground,
+                    });
+                }
+
+                return result.ToArray();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    $"[Server World Bake] Could not build isolated safe-movement data for '{map.MapId}'; " +
+                    $"server collision remains fully enabled. {ex.Message}");
+                return Array.Empty<ServerCollisionTriangle>();
+            }
+            finally
+            {
+                if (instance.valid)
+                    instance.Remove();
+                if (data != null)
+                    Object.DestroyImmediate(data);
+            }
+        }
+
         private static bool TryBuildTemporaryWalkSurface(
             Scene scene,
             ServerMap map,
@@ -905,9 +985,9 @@ namespace Game.WorldAuthoring.Editor
             {
                 if (NavMesh.GetSettingsCount() <= 0)
                 {
-                    Debug.LogError(
-                        "[Server World Bake] Unity has no NavMesh agent settings. " +
-                        "Create at least one Navigation Agent Type in Project Settings, then bake again.");
+                    Debug.LogWarning(
+                        "[Server World Bake] No Unity NavMesh agent settings; safe-movement acceleration is omitted " +
+                        "and the server will retain full collision checks.");
                     return false;
                 }
 
@@ -935,7 +1015,7 @@ namespace Game.WorldAuthoring.Editor
                         shape = NavMeshBuildSourceShape.Mesh,
                         sourceObject = mesh,
                         transform = renderer.localToWorldMatrix,
-                        area = ResolveWalkArea(renderer.transform),
+                        area = ResolveSafeMovementArea(renderer.transform),
                     });
                     Encapsulate(ref bounds, ref hasBounds, renderer.bounds);
                 }
@@ -955,7 +1035,7 @@ namespace Game.WorldAuthoring.Editor
                         shape = NavMeshBuildSourceShape.Terrain,
                         sourceObject = terrain.terrainData,
                         transform = Matrix4x4.TRS(terrain.transform.position, Quaternion.identity, Vector3.one),
-                        area = ResolveWalkArea(terrain.transform),
+                        area = ResolveSafeMovementArea(terrain.transform),
                     });
 
                     Vector3 size = terrain.terrainData.size;
@@ -981,7 +1061,7 @@ namespace Game.WorldAuthoring.Editor
                         collider.GetComponent<Terrain>() != null)
                         continue;
 
-                    int area = ResolveWalkArea(collider.transform);
+                    int area = ResolveSafeMovementArea(collider.transform);
                     NavMeshBuildSource source;
 
                     if (collider is BoxCollider box)
@@ -1018,10 +1098,9 @@ namespace Game.WorldAuthoring.Editor
 
                 if (sources.Count == 0 || !hasBounds)
                 {
-                    Debug.LogError(
-                        $"[Server World Bake] Map '{map.MapId}' has no usable walk-bake geometry. " +
-                        "The automatic bake accepts active MeshRenderers, Terrain, BoxColliders, and MeshColliders " +
-                        "on the ServerMap collision layers. ServerBakeIgnore objects are excluded.");
+                    Debug.LogWarning(
+                        $"[Server World Bake] Map '{map.MapId}' has no usable geometry for safe-movement acceleration; " +
+                        "the server will retain full collision checks.");
                     return false;
                 }
 
@@ -1030,17 +1109,17 @@ namespace Game.WorldAuthoring.Editor
 
                 NavMeshBuildSettings settings = NavMesh.GetSettingsByIndex(0);
 
-                // Do not inherit an arbitrary project's first NavMesh agent dimensions.
-                // The exported walk surface must match the standalone server's standard
-                // humanoid motor or the bake can be eroded far more than server movement
-                // expects around ramps, curbs, walls, and narrow passages.
-                settings.agentRadius = 0.35f;
-                settings.agentHeight = 1.80f;
+                // The safety certificate is deliberately more conservative than the
+                // standard server capsule: extra radius and headroom absorb voxelization
+                // and source-to-server representation error. That means it can only skip
+                // collision in generously clear regions; everything else uses the full
+                // authoritative solver.
+                settings.agentRadius = 0.50f;
+                settings.agentHeight = 2.00f;
                 settings.agentClimb = 0.40f;
                 settings.agentSlope = 50f;
 
-                // Finer than Unity's usual radius/3 rule so curb/ramp joins retain enough
-                // detail for server grounding without turning this into pathfinding data.
+                // Keep the safety mesh conservative and stable around obstacle edges.
                 settings.overrideVoxelSize = true;
                 settings.voxelSize = 0.0875f;
 
@@ -1061,9 +1140,9 @@ namespace Game.WorldAuthoring.Editor
 
                 if (data == null)
                 {
-                    Debug.LogError(
-                        $"[Server World Bake] Automatic walk-surface bake produced no NavMeshData for '{map.MapId}'. " +
-                        "Check that the scene contains floor/street geometry large enough for the default NavMesh agent.");
+                    Debug.LogWarning(
+                        $"[Server World Bake] Safe-movement acceleration produced no NavMeshData for '{map.MapId}'; " +
+                        "the server will retain full collision checks.");
                     return false;
                 }
 
@@ -1078,10 +1157,9 @@ namespace Game.WorldAuthoring.Editor
                     data = null;
                     instance = default;
 
-                    Debug.LogError(
-                        $"[Server World Bake] Automatic walk-surface bake for '{map.MapId}' contained no walkable triangles. " +
-                        "Common causes are geometry smaller than the current NavMesh agent radius, excessive slope, " +
-                        "or the scene objects being excluded by ServerMap collision layers.");
+                    Debug.LogWarning(
+                        $"[Server World Bake] Safe-movement acceleration for '{map.MapId}' produced no walkable triangles; " +
+                        "the server will retain full collision checks.");
                     return false;
                 }
 
@@ -1099,7 +1177,9 @@ namespace Game.WorldAuthoring.Editor
                     Object.DestroyImmediate(data);
                 data = null;
                 instance = default;
-                Debug.LogError($"[Server World Bake] Automatic walk-surface bake failed: {ex.Message}");
+                Debug.LogWarning(
+                    $"[Server World Bake] Safe-movement acceleration bake failed; " +
+                    $"the server will retain full collision checks. {ex.Message}");
                 return false;
             }
         }
@@ -1115,10 +1195,11 @@ namespace Game.WorldAuthoring.Editor
             if (component.GetComponentInParent<ServerBakeIgnore>() != null)
                 return false;
 
-            // Fixed and dynamic interactables are represented independently by collision /
-            // blocker data. Excluding their visual meshes from the walk bake prevents the top
-            // of benches, tables, beds, etc. from accidentally becoming valid standing ground.
-            if (component.GetComponentInParent<WorldInteractable>() != null)
+            // Mutable interactables are checked through the live dynamic-blocker grid.
+            // Static interactables remain in the safety bake as Not Walkable geometry so
+            // their colliders cannot be mistaken for open floor.
+            WorldInteractable interactable = component.GetComponentInParent<WorldInteractable>();
+            if (interactable != null && interactable.dynamicBlocker)
                 return false;
 
             return true;
@@ -1146,6 +1227,19 @@ namespace Game.WorldAuthoring.Editor
             }
 
             return 0;
+        }
+
+        private static int ResolveSafeMovementArea(Transform transform)
+        {
+            WorldInteractable interactable =
+                transform != null ? transform.GetComponentInParent<WorldInteractable>() : null;
+            if (interactable != null)
+            {
+                int notWalkable = NavMesh.GetAreaFromName("Not Walkable");
+                return notWalkable >= 0 ? notWalkable : 1;
+            }
+
+            return ResolveWalkArea(transform);
         }
 
         private static void Encapsulate(ref Bounds bounds, ref bool initialized, Bounds next)
