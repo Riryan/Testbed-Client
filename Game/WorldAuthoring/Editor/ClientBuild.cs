@@ -10,23 +10,24 @@ using UnityEngine.SceneManagement;
 
 namespace Game.WorldAuthoring.Editor
 {
+    /// <summary>
+    /// Canonical Build Client / Server World Bake editor. Map, routes, and spawns use
+    /// their existing layer files. The targeted spawn rebuild leaves the map and the
+    /// route topology alone; full bake is retained for physical-world modifications.
+    /// </summary>
     public sealed class ClientBuild : EditorWindow
     {
         private const string OutputPref = "MMO.ClientBuild.Output";
         private string outputPath;
-        // Unity-authored NavMesh rebuilding is not required for server/client world bake.
         private const bool rebuildNavMesh = false;
         private bool showSpawnsRoutes;
         private bool showPopulationRouteAdvanced;
         private Vector2 scroll;
-
-        // Read the existing .routes.json only when it changes, not on every OnGUI event.
-        // This is a view of saved data, not a second graph or a bake-time cache.
         private string savedGraphPath;
         private DateTime savedGraphWriteUtc;
         private long savedGraphBytes = -1;
         private string savedGraphStatus;
-        private int savedNodes, savedEdges, savedManual, savedPortals, savedSpawns;
+        private int savedNodes, savedEdges, savedManual, savedPortals, savedSpawns, savedEnabledNpcActors;
         private string publicationStatus;
         private bool publicationSuccess;
 
@@ -45,40 +46,33 @@ namespace Game.WorldAuthoring.Editor
         {
             scroll = EditorGUILayout.BeginScrollView(scroll);
             DrawCurrentScene();
-
             EditorGUILayout.Space(10);
             EditorGUILayout.LabelField("Server World Bake", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "World bakes keep the existing saved Population graph. They do not AUTO CONNECT routes. " +
-                "Use Spawns / Routes only when you are authoring connections. " +
-                "Unsaved graph-editor changes are NOT saved automatically; press SAVE first.",
-                MessageType.None);
+                "World geometry, shared Routes, and Spawns have separate published files. " +
+                "SAVE preserves scene and route edits. BAKE SPAWNS ONLY updates spawn anchors " +
+                "and their existing route IDs without rebuilding geometry or NavMesh. " +
+                "Use AUTO CONNECT if a route marker, portal entry, or route topology changed.",
+                MessageType.Info);
             EditorGUILayout.Space(8);
-            bool priorExpanded = showSpawnsRoutes;
+
+            bool wasExpanded = showSpawnsRoutes;
             showSpawnsRoutes = EditorGUILayout.Foldout(showSpawnsRoutes, "Spawns / Routes", true);
             if (showSpawnsRoutes)
             {
-                // Opening the foldout loads the SAVED graph summary, never regenerates it.
-                if (!priorExpanded) RefreshSavedGraph(true);
+                if (!wasExpanded) RefreshSavedGraph(true);
                 DrawSavedGraph();
-                if (!string.IsNullOrWhiteSpace(publicationStatus))
-                    EditorGUILayout.HelpBox(publicationStatus,
-                        publicationSuccess ? MessageType.None : MessageType.Error);
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("AUTO CONNECT", GUILayout.Height(34)))
-                        AutoConnect();
+                    if (GUILayout.Button("AUTO CONNECT", GUILayout.Height(34))) AutoConnect();
                     if (GUILayout.Button("EDIT", GUILayout.Height(34)))
                         PopulationBakedGraphEditor.Open(SceneManager.GetActiveScene());
-                    if (GUILayout.Button("SAVE", GUILayout.Height(34)))
-                        SaveRoutes();
+                    if (GUILayout.Button("SAVE", GUILayout.Height(34))) SaveRoutes();
                 }
                 EditorGUILayout.LabelField(
-                    "AUTO CONNECT is only for new or changed route authoring. " +
-                    "EDIT loads the saved graph; SAVE persists editor changes. " +
-                    "Existing routes are not rebuilt by normal World Bake.",
+                    "AUTO CONNECT rebuilds route connections and then reconciles spawns. " +
+                    "EDIT handles manual route changes. SAVE writes the scene and open route edits.",
                     EditorStyles.wordWrappedMiniLabel);
-
                 EditorGUILayout.Space(4);
                 DrawPopulationSpawnSummary();
                 EditorGUILayout.Space(4);
@@ -95,8 +89,7 @@ namespace Game.WorldAuthoring.Editor
                         {
                             if (PopulationRouteGraphBuilder.BuildPreview(
                                 SceneManager.GetActiveScene(), out int edges, out int rejected))
-                                ShowNotification(new GUIContent(
-                                    $"Graph: {edges} edges, {rejected} rejected"));
+                                ShowNotification(new GUIContent($"Graph: {edges} edges, {rejected} rejected"));
                         }
                         if (GUILayout.Button("Clear Graph Preview"))
                         {
@@ -119,20 +112,30 @@ namespace Game.WorldAuthoring.Editor
                 }
             }
 
+            // Final bake actions remain AFTER spawn and route authoring.
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Final World Bake", EditorStyles.boldLabel);
+            if (!string.IsNullOrWhiteSpace(publicationStatus))
+                EditorGUILayout.HelpBox(publicationStatus,
+                    publicationSuccess ? MessageType.Info : MessageType.Error);
+            if (GUILayout.Button("Bake Spawns Only (Fast)", GUILayout.Height(34)))
+                BakeSpawnsOnly();
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Bake Current Scene", GUILayout.Height(32))) BakeCurrent();
+                if (GUILayout.Button("Bake Current Scene (Full Map)", GUILayout.Height(32))) BakeCurrent();
                 if (GUILayout.Button("Bake Enabled Client Scenes", GUILayout.Height(32))) BakeEnabled();
             }
+            EditorGUILayout.LabelField(
+                "Spawn-only: no NavMesh, collision export, or shared-world rebuild. " +
+                "Full map bake: geometry, collision/NavMesh, routes preserved, then spawns reconciled. " +
+                "Restart GameServer to activate published changes.",
+                EditorStyles.wordWrappedMiniLabel);
 
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Client", EditorStyles.boldLabel);
             outputPath = EditorGUILayout.TextField("Output", outputPath);
             EditorPrefs.SetString(OutputPref, outputPath ?? string.Empty);
-            if (GUILayout.Button("Build Client Only", GUILayout.Height(36)))
-                BuildClientOnly();
+            if (GUILayout.Button("Build Client Only", GUILayout.Height(36))) BuildClientOnly();
             if (GUILayout.Button("Bake Server Maps + Build Client", GUILayout.Height(30)))
                 BakeAndBuild();
             EditorGUILayout.EndScrollView();
@@ -149,15 +152,14 @@ namespace Game.WorldAuthoring.Editor
             if (!force && string.Equals(path, savedGraphPath, StringComparison.Ordinal) &&
                 savedGraphWriteUtc == writeUtc && savedGraphBytes == bytes)
                 return;
-
             savedGraphPath = path;
             savedGraphWriteUtc = writeUtc;
             savedGraphBytes = bytes;
-            savedNodes = savedEdges = savedManual = savedPortals = savedSpawns = 0;
+            savedNodes = savedEdges = savedManual = savedPortals = savedSpawns = savedEnabledNpcActors = 0;
             savedGraphStatus = null;
             if (!exists)
             {
-                savedGraphStatus = "No saved graph for this map. Run AUTO CONNECT once to create it.";
+                savedGraphStatus = "No saved graph for this map. Run AUTO CONNECT once.";
                 return;
             }
             try
@@ -166,25 +168,25 @@ namespace Game.WorldAuthoring.Editor
                     File.ReadAllText(path));
                 if (layer == null || layer.formatVersion != 1 ||
                     layer.populationNodes == null || layer.populationEdges == null)
-                    throw new InvalidDataException("Invalid saved route-layer format or missing arrays.");
+                    throw new InvalidDataException("Invalid saved route layer.");
                 savedNodes = layer.populationNodes.Length;
                 savedEdges = layer.populationEdges.Length;
                 savedPortals = layer.populationPortals?.Length ?? 0;
                 savedManual = layer.editorEdits?.manualEdges?.Length ?? 0;
-                string spawnsPath = path.Substring(0,
-                    path.Length - ".routes.json".Length) + ".spawns.json";
-                if (File.Exists(spawnsPath))
+                string spawnPath = path.Substring(0, path.Length - ".routes.json".Length) +
+                    ".spawns.json";
+                if (File.Exists(spawnPath))
                 {
-                    // We only need a count here; no second persistent copy of spawns.
-                    var spawns = JsonUtility.FromJson<SpawnSummary>(File.ReadAllText(spawnsPath));
+                    var spawns = JsonUtility.FromJson<SpawnSummary>(File.ReadAllText(spawnPath));
                     savedSpawns = spawns?.spawnAnchors?.Length ?? 0;
+                    savedEnabledNpcActors = spawns?.spawnAnchors?.Count(x => x != null && x.enabled &&
+                        (x.kind == Game.Shared.World.ServerSpawnKind.Population ||
+                         x.kind == Game.Shared.World.ServerSpawnKind.Npc ||
+                         x.kind == Game.Shared.World.ServerSpawnKind.Monster)) ?? 0;
                 }
                 savedGraphStatus = "Current saved graph loaded";
             }
-            catch (Exception ex)
-            {
-                savedGraphStatus = "Saved graph could not be loaded: " + ex.Message;
-            }
+            catch (Exception ex) { savedGraphStatus = "Saved graph could not be loaded: " + ex.Message; }
         }
 
         [Serializable]
@@ -203,60 +205,62 @@ namespace Game.WorldAuthoring.Editor
             }
             EditorGUILayout.LabelField(savedGraphStatus, EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                $"Nodes: {savedNodes:n0}    Connections: {savedEdges:n0}    " +
-                $"Manual: {savedManual:n0}");
-            EditorGUILayout.LabelField($"Portals: {savedPortals:n0}    Spawn anchors: {savedSpawns:n0}");
+                $"Nodes: {savedNodes:n0}    Connections: {savedEdges:n0}    Manual: {savedManual:n0}");
+            EditorGUILayout.LabelField($"Portals: {savedPortals:n0}    Spawn anchors: {savedSpawns:n0}    " +
+                $"Enabled NPCs: {savedEnabledNpcActors:n0}");
             EditorGUILayout.LabelField("Server output folder:", ServerWorldBake.ServerMapsFolder,
                 EditorStyles.wordWrappedMiniLabel);
-            EditorGUILayout.LabelField("GameServer reads layers on STARTUP, not when you press SAVE.",
+            EditorGUILayout.LabelField("The GameServer reads these files at startup.",
                 EditorStyles.wordWrappedMiniLabel);
         }
 
-        private void AutoConnect()
+        private static bool ConfirmSavedScene()
         {
-            if (!EditorUtility.DisplayDialog("AUTO CONNECT Routes",
-                "This explicitly regenerates Population routes from scene authoring. " +
-                "The existing world bake stays unchanged until validation passes. " +
-                "If a saved connection, portal, or spawn would disappear, publication is refused. " +
-                "Only run this when adding or changing routes. SAVE any open graph edits first; " +
-                "AUTO CONNECT reads the last saved graph from disk.",
-                "AUTO CONNECT", "Cancel"))
-                return;
-            Scene active = SceneManager.GetActiveScene();
-            // Never implicitly save/prune the open graph. AUTO CONNECT uses disk edits.
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            if (!ServerWorldBake.TryBakeCurrentScene(rebuildNavMesh, true,
-                    out _, autoConnectRoutes: true))
-            {
-                ShowNotification(new GUIContent("AUTO CONNECT refused or failed — check Console"));
-                return;
-            }
-            PopulationRouteGraphBuilder.ClearPreview(active);
-            PopulationBakedGraphEditor.RefreshOpenEditorsAfterBake(active);
-            RefreshSavedGraph(true);
-            ShowNotification(new GUIContent("AUTO CONNECT completed; saved graph loaded"));
+            return EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
         }
 
-        // The same map data is consumed by ServerMapDataLoader at GameServer startup.
-        // Do not claim the server was updated merely because editor files were written.
         private void SetPublicationStatus(string message, bool succeeded)
         {
             publicationStatus = message;
             publicationSuccess = succeeded;
             if (succeeded) Debug.Log("[World Bake Publish] " + message);
             else Debug.LogError("[World Bake Publish] " + message);
-            ShowNotification(new GUIContent(succeeded ? "Verified — see Inspector" : "Failed — see Inspector / Console"));
+            ShowNotification(new GUIContent(succeeded ? "Bake verified" : "Bake failed — check Console"));
             Repaint();
         }
 
         private void SaveRoutes()
         {
             Scene scene = SceneManager.GetActiveScene();
-            bool saved = PopulationBakedGraphEditor.SaveOpenGraph(scene, out string status);
+            if (!scene.IsValid() || !scene.isLoaded || string.IsNullOrEmpty(scene.path))
+            {
+                SetPublicationStatus("SAVE requires a saved, loaded scene.", false);
+                return;
+            }
+            // Save button must save SCENE changes, including disabled ServerSpawns
+            // and PopulationPortals, not only the route graph editor document.
+            if (scene.isDirty && !EditorSceneManager.SaveScene(scene))
+            {
+                SetPublicationStatus("Failed to save Unity scene; route edits not published.", false);
+                return;
+            }
+            // The existing graph SAVE API intentionally fails if EDIT isn't open.
+            // A scene-only SAVE must still work without opening an unrelated editor.
+            bool graphEditorOpen = Resources.FindObjectsOfTypeAll<PopulationBakedGraphEditor>().Length != 0;
+            bool saved = true;
+            string status = "Unity scene saved; no route graph editor was open.";
+            if (graphEditorOpen)
+                saved = PopulationBakedGraphEditor.SaveOpenGraph(scene, out status);
             RefreshSavedGraph(true);
             if (!saved)
             {
                 SetPublicationStatus(status + " Previous saved graph remains in place.", false);
+                return;
+            }
+            // Graph SAVE may synchronize scene route markers. Persist them as well.
+            if (scene.isDirty && !EditorSceneManager.SaveScene(scene))
+            {
+                SetPublicationStatus("Scene SAVE failed after graph synchronization.", false);
                 return;
             }
             if (!TryReadRouteLayer(scene, out PopulationBakedGraphEditor.Layer disk, out string problem))
@@ -264,9 +268,9 @@ namespace Game.WorldAuthoring.Editor
                 SetPublicationStatus("SAVE verification failed: " + problem, false);
                 return;
             }
-            SetPublicationStatus($"SAVE VERIFIED on disk: {disk.populationNodes.Length} nodes / " +
-                $"{disk.populationEdges.Length} connections. Now BAKE, then restart GameServer. " +
-                "Map folder: " + ServerWorldBake.ServerMapsFolder, true);
+            SetPublicationStatus($"SCENE + ROUTES SAVED: {disk.populationNodes.Length} nodes / " +
+                $"{disk.populationEdges.Length} connections. BAKE SPAWNS ONLY for spawn changes; " +
+                "use FULL MAP bake for geometry changes. Restart GameServer after publishing.", true);
         }
 
         private static bool TryReadRouteLayer(Scene scene,
@@ -289,11 +293,7 @@ namespace Game.WorldAuthoring.Editor
                     throw new InvalidDataException("Saved route layer is missing required graph arrays.");
                 return true;
             }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-                return false;
-            }
+            catch (Exception ex) { error = ex.Message; return false; }
         }
 
         [Serializable]
@@ -305,21 +305,116 @@ namespace Game.WorldAuthoring.Editor
             public PopulationBakedGraphEdits edits;
         }
 
-        private static string GraphContent(PopulationBakedGraphEditor.Layer l) =>
+        private static string GraphContent(PopulationBakedGraphEditor.Layer layer) =>
             JsonUtility.ToJson(new GraphPayload
             {
-                nodes = l.populationNodes,
-                edges = l.populationEdges,
-                portals = l.populationPortals,
-                edits = l.editorEdits,
+                nodes = layer.populationNodes,
+                edges = layer.populationEdges,
+                portals = layer.populationPortals,
+                edits = layer.editorEdits,
             });
+
+        private bool PreflightCurrent(out Scene scene)
+        {
+            scene = SceneManager.GetActiveScene();
+            if (PopulationBakedGraphEditor.HasUnsavedOpenGraph(scene, out string dirtyReason))
+            {
+                SetPublicationStatus("BAKE BLOCKED: " + dirtyReason + ". Click SAVE first.", false);
+                return false;
+            }
+            if (!ConfirmSavedScene()) return false;
+            return true;
+        }
+
+        private static bool TryPreflightFullPublication(Scene scene, out string detail)
+        {
+            detail = string.Empty;
+            string routePath = PopulationBakedGraphEditor.RoutePath(scene);
+            if (string.IsNullOrWhiteSpace(routePath) ||
+                !routePath.EndsWith(".routes.json", StringComparison.OrdinalIgnoreCase))
+            {
+                detail = "No valid route-layer output path.";
+                return false;
+            }
+            string stem = routePath.Substring(0, routePath.Length - ".routes.json".Length);
+            // Probe all THREE existing publication targets before running expensive
+            // map/NavMesh/shared-world generation. This catches the persistent
+            // Windows lock that previously prevented File.Replace and rollback.
+            foreach (string target in new[]
+            {
+                stem + ".servermap.json", stem + ".routes.json", stem + ".spawns.json"
+            })
+            {
+                if (!File.Exists(target)) continue;
+                try
+                {
+                    using FileStream exclusive = new FileStream(
+                        target, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    detail = $"Cannot safely publish locked file '{target}': {ex.Message}. " +
+                        "Stop the process holding the file before baking.";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private void BakeSpawnsOnly()
+        {
+            if (!PreflightCurrent(out Scene scene)) return;
+            if (!ServerWorldSpawnLayerBake.TryBake(scene,
+                    out int total, out int actors, out string detail))
+            {
+                SetPublicationStatus("SPAWN BAKE FAILED: " + detail, false);
+                return;
+            }
+            RefreshSavedGraph(true);
+            SetPublicationStatus($"SPAWNS VERIFIED: {total} anchors, {actors} enabled NPCs. " +
+                "Map collision, NavMesh, and shared route nodes were not rebuilt. " +
+                "Restart GameServer and confirm SPAWNING COMPLETE.", true);
+        }
+
+        private void AutoConnect()
+        {
+            if (!EditorUtility.DisplayDialog("AUTO CONNECT Routes",
+                "Rebuild/add route authoring from the scene, preserve saved manual graph edits, " +
+                "and then reconcile the spawn layer to the current enabled spawners and portals. " +
+                "Obsolete saved spawn identities are removed after successful validation. " +
+                "Click SAVE first if you have unsaved graph edits.",
+                "AUTO CONNECT", "Cancel")) return;
+            if (!PreflightCurrent(out Scene scene)) return;
+            if (!TryPreflightFullPublication(scene, out string lockProblem))
+            {
+                SetPublicationStatus("AUTO CONNECT BLOCKED: " + lockProblem, false);
+                return;
+            }
+            if (!ServerWorldBake.TryBakeCurrentScene(rebuildNavMesh, true,
+                    out _, autoConnectRoutes: true))
+            {
+                SetPublicationStatus("AUTO CONNECT failed; see Console. Published files may be unchanged.", false);
+                return;
+            }
+            if (!ServerWorldSpawnLayerBake.TryBake(scene,
+                    out int total, out int actors, out string detail))
+            {
+                SetPublicationStatus("Routes baked but spawns were not reconciled: " + detail, false);
+                return;
+            }
+            PopulationRouteGraphBuilder.ClearPreview(scene);
+            PopulationBakedGraphEditor.RefreshOpenEditorsAfterBake(scene);
+            RefreshSavedGraph(true);
+            SetPublicationStatus($"AUTO CONNECT VERIFIED: {total} anchors, {actors} NPCs. " +
+                "Restart GameServer to load new routes/spawns.", true);
+        }
 
         private void BakeCurrent()
         {
-            Scene scene = SceneManager.GetActiveScene();
-            if (PopulationBakedGraphEditor.HasUnsavedOpenGraph(scene, out string dirtyReason))
+            if (!PreflightCurrent(out Scene scene)) return;
+            if (!TryPreflightFullPublication(scene, out string lockProblem))
             {
-                SetPublicationStatus("BAKE BLOCKED: " + dirtyReason, false);
+                SetPublicationStatus("FULL BAKE BLOCKED: " + lockProblem, false);
                 return;
             }
             if (!TryReadRouteLayer(scene, out PopulationBakedGraphEditor.Layer before, out string error))
@@ -327,47 +422,77 @@ namespace Game.WorldAuthoring.Editor
                 SetPublicationStatus("BAKE BLOCKED: " + error, false);
                 return;
             }
-            string preservedGraph = GraphContent(before);
-            // Never invoke AUTO CONNECT or implicitly save/prune routes here.
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            if (!ServerWorldBake.TryBakeCurrentScene(rebuildNavMesh, true, out ServerWorldBake.Result result))
+            string preservedRoutes = GraphContent(before);
+            if (!ServerWorldBake.TryBakeCurrentScene(rebuildNavMesh, true,
+                    out ServerWorldBake.Result mapResult))
             {
-                SetPublicationStatus("BAKE FAILED for '" + scene.name +
-                    "'. Original world files should remain preserved; check Console.", false);
+                SetPublicationStatus("FULL BAKE FAILED for '" + scene.name +
+                    "'. Check Console and retained backups before restarting GameServer.", false);
                 return;
             }
             if (!TryReadRouteLayer(scene, out PopulationBakedGraphEditor.Layer after, out error) ||
-                !string.Equals(preservedGraph, GraphContent(after), StringComparison.Ordinal))
+                !string.Equals(preservedRoutes, GraphContent(after), StringComparison.Ordinal))
             {
-                SetPublicationStatus("BAKE VERIFICATION FAILED: Routes changed unexpectedly or are unreadable. " +
-                    "Do not start the GameServer with these files. " + error, false);
+                SetPublicationStatus("BAKE VERIFICATION FAILED: Shared routes unexpectedly changed. " +
+                    "Do not restart GameServer until layers are recovered. " + error, false);
+                return;
+            }
+            if (!ServerWorldSpawnLayerBake.TryBake(scene,
+                    out int total, out int actors, out string detail))
+            {
+                SetPublicationStatus("MAP BAKE completed but SPAWN reconciliation failed: " + detail +
+                    ". Do not assume the intended NPC count is published.", false);
                 return;
             }
             PopulationBakedGraphEditor.RefreshOpenEditorsAfterBake(scene);
             RefreshSavedGraph(true);
-            SetPublicationStatus($"BAKE VERIFIED: {after.populationNodes.Length} nodes / " +
-                $"{after.populationEdges.Length} connections / {result.Spawns} baked spawn anchors. " +
-                $"Output: {result.OutputPath}. RESTART GameServer and confirm its 'World layers' startup count. " +
-                "SAVE/BAKE does NOT hot-reload running server processes.", true);
+            SetPublicationStatus($"FULL BAKE VERIFIED: {after.populationNodes.Length} nodes / " +
+                $"{after.populationEdges.Length} connections / {total} spawn anchors / {actors} NPCs. " +
+                $"Map: {mapResult.OutputPath}. Restart GameServer.", true);
         }
 
         private void BakeEnabled()
         {
-            Scene active = SceneManager.GetActiveScene();
-            if (PopulationBakedGraphEditor.HasUnsavedOpenGraph(active, out string dirtyReason))
+            if (!PreflightCurrent(out _)) return;
+            if (!ServerWorldBake.BakeEnabledClientScenes(rebuildNavMesh,
+                    out List<ServerWorldBake.Result> results))
             {
-                SetPublicationStatus("BAKE BLOCKED: " + dirtyReason, false);
+                SetPublicationStatus("BAKE ENABLED SCENES failed; check Console.", false);
                 return;
             }
-            if (!ServerWorldBake.BakeEnabledClientScenes(rebuildNavMesh,
-                out List<ServerWorldBake.Result> results))
+            if (!ReconcileEnabledSceneSpawns(out string detail))
             {
-                SetPublicationStatus("BAKE ENABLED SCENES failed — check Console.", false);
+                SetPublicationStatus("Map bakes completed but spawn reconciliation failed: " + detail, false);
                 return;
             }
             RefreshSavedGraph(true);
-            SetPublicationStatus($"BAKE completed for {results.Count} enabled map(s). " +
-                "RESTART GameServer after confirming the correct MapDataDirectory and startup 'World layers' counts.", true);
+            SetPublicationStatus($"BAKE VERIFIED for {results.Count} enabled scenes. " +
+                "Spawn layers reconciled. Restart GameServer.", true);
+        }
+
+        private static bool ReconcileEnabledSceneSpawns(out string detail)
+        {
+            detail = string.Empty;
+            SceneSetup[] setup = EditorSceneManager.GetSceneManagerSetup();
+            try
+            {
+                foreach (EditorBuildSettingsScene entry in EditorBuildSettings.scenes)
+                {
+                    if (!entry.enabled || string.IsNullOrWhiteSpace(entry.path)) continue;
+                    Scene scene = EditorSceneManager.OpenScene(entry.path, OpenSceneMode.Single);
+                    if (ServerWorldBake.FindMapInActiveScene() == null) continue;
+                    if (!ServerWorldSpawnLayerBake.TryBake(scene,
+                            out _, out _, out detail)) return false;
+                }
+                return true;
+            }
+            catch (Exception ex) { detail = ex.Message; return false; }
+            finally
+            {
+                try { EditorSceneManager.RestoreSceneManagerSetup(setup); }
+                catch (Exception ex)
+                { Debug.LogError("[World Bake] Could not restore original scene setup: " + ex); }
+            }
         }
 
         private static void DrawPopulationSpawnSummary()
@@ -389,8 +514,7 @@ namespace Game.WorldAuthoring.Editor
             if (GUILayout.Button("Refresh Population Counts"))
                 PopulationSpawnAuthoringSummary.RefreshNow();
             if (summary.TotalActors == 0)
-                EditorGUILayout.HelpBox("No active Population spawns in the current scene.",
-                    MessageType.Info);
+                EditorGUILayout.HelpBox("No active Population spawns in the current scene.", MessageType.Info);
         }
 
         private static void DrawCurrentScene()
@@ -408,7 +532,7 @@ namespace Game.WorldAuthoring.Editor
                 EditorGUILayout.LabelField("Combat", map.WorldRules.combatAllowed ? "Allowed" : "Disabled");
                 return;
             }
-            EditorGUILayout.HelpBox("This scene has no ServerMap. It will be skipped by the world bake.",
+            EditorGUILayout.HelpBox("This scene has no ServerMap. It will be skipped by world bake.",
                 MessageType.Warning);
             if (GUILayout.Button("Add Server Map To Scene"))
             {
@@ -422,21 +546,20 @@ namespace Game.WorldAuthoring.Editor
 
         private void BuildClientOnly()
         {
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            if (!ConfirmSavedScene()) return;
             BuildClientPlayer(null);
         }
 
         private void BakeAndBuild()
         {
-            if (PopulationBakedGraphEditor.HasUnsavedOpenGraph(
-                    SceneManager.GetActiveScene(), out string dirtyReason))
+            if (!PreflightCurrent(out _)) return;
+            if (!ServerWorldBake.BakeEnabledClientScenes(rebuildNavMesh,
+                    out List<ServerWorldBake.Result> results)) return;
+            if (!ReconcileEnabledSceneSpawns(out string detail))
             {
-                SetPublicationStatus("BAKE + BUILD BLOCKED: " + dirtyReason, false);
+                SetPublicationStatus("BAKE + BUILD stopped: spawn reconciliation failed: " + detail, false);
                 return;
             }
-            // Preserve the existing on-disk graph without an implicit graph Save.
-            if (!ServerWorldBake.BakeEnabledClientScenes(rebuildNavMesh,
-                out List<ServerWorldBake.Result> results)) return;
             BuildClientPlayer(results.Count);
         }
 

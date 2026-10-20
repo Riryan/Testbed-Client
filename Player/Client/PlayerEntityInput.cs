@@ -10,10 +10,8 @@ namespace Player.Client
 {
     /// <summary>
     /// Thin local PlayerEntity movement serializer.
-    ///
-    /// PlayerEntityLocomotionCameraController owns the local MMO locomotion/camera
-    /// control contract. This component only serializes that intent into the existing
-    /// compact MovementCommand. The standalone GameServer remains authoritative.
+    /// PlayerEntityLocomotionCameraController owns locomotion and camera input;
+    /// this component sends compact intent. The GameServer remains authoritative.
     /// </summary>
     public sealed class PlayerEntityInput : LiteNetLibBehaviour
     {
@@ -29,7 +27,7 @@ namespace Player.Client
         public float unchangedRefreshSeconds = 0.20f;
 
         [Header("Client-Safe World Prediction")]
-        [Tooltip("Use the baked shared-world support/collision package to suppress movement intent that the legitimate client already knows cannot advance.")]
+        [Tooltip("Suppress invalid grounded movement locally using the existing baked client-safe world package.")]
         public bool useSharedWorldPrediction = true;
 
         private PlayerEntityNetwork _network;
@@ -52,10 +50,6 @@ namespace Player.Client
         public uint SuppressedUnchangedCommands => suppressedUnchangedCommands;
         public uint SuppressedBlockedCommands => suppressedBlockedCommands;
 
-        /// <summary>
-        /// Latest local facing intent. Used by presentation/camera consumers only;
-        /// accepted facing remains authoritative on the standalone GameServer.
-        /// </summary>
         public float CurrentFacingYaw => _locomotionCamera != null
             ? _locomotionCamera.CurrentFacingYaw
             : transform.eulerAngles.y;
@@ -73,7 +67,6 @@ namespace Player.Client
             sentMovementCommands = 0;
             suppressedUnchangedCommands = 0;
             suppressedBlockedCommands = 0;
-
             if (_logicUpdater != null)
                 _logicUpdater.OnTick += OnClientTick;
         }
@@ -86,8 +79,6 @@ namespace Player.Client
             if (!enableKeyboardInput || _network == null || !IsOwnerClient || _gameManager == null)
                 return;
 
-            // Interaction auto-approach owns locomotion/facing temporarily. It deliberately
-            // suppresses combat clicks without introducing a separate input or network path.
             if (_interactionApproach != null && _interactionApproach.IsActive)
                 return;
 
@@ -96,8 +87,6 @@ namespace Player.Client
             if (_locomotionCamera == null || !_locomotionCamera.CombatCameraActive)
                 return;
 
-            // Only intentional local UI capture suppresses combat. Combat no longer depends on
-            // ClientUIRoot/PlayerUiInputController being alive or correctly wired.
             if (LocalClientInputGate.IsGameplayInputBlocked)
                 return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
@@ -126,10 +115,8 @@ namespace Player.Client
         {
             if (_logicUpdater != null)
                 _logicUpdater.OnTick -= OnClientTick;
-
             if (_interactionApproach != null)
                 _interactionApproach.Cancel(0, notify: false);
-
             _logicUpdater = null;
             _network = null;
             _gameManager = null;
@@ -158,12 +145,10 @@ namespace Player.Client
             bool approachOwnsIntent = false;
             if (_interactionApproach != null)
             {
-                approachOwnsIntent =
-                    _interactionApproach.TryOverrideMovementIntent(
-                        out Vector2 approachMovement,
-                        out float approachFacingYaw,
-                        out byte approachFlags);
-
+                approachOwnsIntent = _interactionApproach.TryOverrideMovementIntent(
+                    out Vector2 approachMovement,
+                    out float approachFacingYaw,
+                    out byte approachFlags);
                 if (approachOwnsIntent)
                 {
                     movement = approachMovement;
@@ -172,9 +157,6 @@ namespace Player.Client
                 }
             }
 
-            // Precision firearm intent rides the already-scheduled movement stream so full-auto
-            // needs no per-round request. Melee/unarmed deliberately carry no aim/pitch state here:
-            // their authoritative swing uses server-owned player facing + reach/arc instead.
             bool precisionRangedMode = false;
             bool knownEmpty = false;
             if (_gameManager != null)
@@ -185,27 +167,21 @@ namespace Player.Client
                 knownEmpty = precisionRangedMode && ownerState.loadedRounds <= 0;
             }
 
-            // Auto-approach is an interaction movement intent, not combat-ready intent.
-            bool combatReady =
-                !approachOwnsIntent &&
-                _locomotionCamera != null &&
-                _locomotionCamera.CombatCameraActive;
-
+            bool combatReady = !approachOwnsIntent &&
+                               _locomotionCamera != null &&
+                               _locomotionCamera.CombatCameraActive;
             if (combatReady)
                 combatState |= PlayerCombatInputFlags.AimHeld;
 
-            if (precisionRangedMode &&
-                combatReady &&
+            if (precisionRangedMode && combatReady &&
                 !LocalClientInputGate.IsGameplayInputBlocked)
             {
                 float precisionYaw = facingYaw;
                 if (!_locomotionCamera.TryGetPrecisionAim(out precisionYaw, out aimPitchDegrees))
                     aimPitchDegrees = _locomotionCamera.CurrentAimPitchDegrees;
 
-                bool pointerBlocked =
-                    EventSystem.current != null &&
-                    EventSystem.current.IsPointerOverGameObject();
-
+                bool pointerBlocked = EventSystem.current != null &&
+                                      EventSystem.current.IsPointerOverGameObject();
                 if (!pointerBlocked && !knownEmpty && Input.GetMouseButton(0))
                 {
                     combatState |= PlayerCombatInputFlags.FireHeld;
@@ -213,10 +189,10 @@ namespace Player.Client
                 }
             }
 
-            // A legitimate client already has the immutable client-safe world bake. Use it
-            // to avoid asking the server to advance into a static wall or beyond a true
-            // support-surface edge. The server still independently simulates every accepted
-            // command; this is bandwidth/prediction hygiene, never authority.
+            // Legitimate clients suppress intent against known baked obstructions.
+            // Compare against a FULL server simulation tick (50 ms at 20 Hz), not
+            // one render frame (~16 ms): otherwise the server may reach the wall
+            // before the client notices it. This introduces NO new wire messages.
             bool jumpRequested = (flags & (byte)PlayerEntityFlags.Jumping) != 0;
             if (useSharedWorldPrediction && !jumpRequested && movement.sqrMagnitude > 0.0001f &&
                 PlayerEntityClient.TryGetOwner(out PlayerEntityClient owner) &&
@@ -227,8 +203,15 @@ namespace Player.Client
                     : PlayerGameplaySettingsRuntime.MoveSpeed;
                 float magnitude = Mathf.Clamp01(movement.magnitude);
                 Vector2 direction = magnitude > 0.0001f ? movement / magnitude : Vector2.zero;
-                float previewSeconds = Mathf.Max(1f / 60f, Mathf.Min(0.08f, Time.unscaledDeltaTime));
-                Vector3 desiredDelta = new Vector3(direction.x, 0f, direction.y) * speed * magnitude * previewSeconds;
+
+                // Include one full server step and bounded client/server phase skew.
+                // This only affects the voluntary CLIENT stop; the authoritative
+                // server still validates every accepted input independently.
+                float previewSeconds = Mathf.Clamp(
+                    0.05f + Mathf.Min(0.025f, Time.unscaledDeltaTime),
+                    0.05f, 0.075f);
+                Vector3 desiredDelta = new Vector3(direction.x, 0f, direction.y) *
+                                       speed * magnitude * previewSeconds;
 
                 if (SharedWorldClient.TryResolveGroundedMove(
                         owner.PresentationPosition,
@@ -250,8 +233,7 @@ namespace Player.Client
 
             bool fireHeld = (combatState & PlayerCombatInputFlags.FireHeld) != 0;
             byte combatInput = PlayerCombatInputEncoding.Encode(
-                combatState,
-                fireHeld ? aimPitchDegrees : 0f);
+                combatState, fireHeld ? aimPitchDegrees : 0f);
             var command = new MovementCommand
             {
                 sequence = 0,
@@ -285,21 +267,14 @@ namespace Player.Client
             if (!_hasLastSent)
                 return true;
 
-            // Start/stop, directional key changes, sprint transitions and jump edges are
-            // latency-sensitive and bypass the cadence limiter.
+            // A zero input generated by local collision suppression is an immediate
+            // STOP transition. It bypasses continuous-input cadence throttling.
             if (candidate.inputX != _lastSent.inputX ||
                 candidate.inputZ != _lastSent.inputZ ||
                 candidate.flags != _lastSent.flags ||
                 candidate.combatFlags != _lastSent.combatFlags)
-            {
                 return true;
-            }
 
-            // A truly idle client goes silent after sending the stop/neutral transition.
-            // Held movement or combat state still needs a bounded lease refresh because the
-            // standalone server intentionally expires stale input after a short timeout.
-            // Sprint-without-movement and a held jump bit are not authority-significant once
-            // their edge/neutral transition has been observed, so they do not keep the wire awake.
             PlayerCombatInputFlags combatState =
                 PlayerCombatInputEncoding.DecodeFlags(candidate.combatFlags);
             bool requiresLeaseRefresh =
@@ -311,18 +286,11 @@ namespace Player.Client
             if (requiresLeaseRefresh && now - _lastSentAt >= refresh)
                 return true;
 
-            // Use one transmitted yaw step as a hysteresis band around the last sent
-            // orientation. This prevents boundary chatter from tiny camera jitter while
-            // still matching the actual 8-bit precision visible to remote clients.
             float lastYaw = PlayerEntityQuantization.DequantizeYaw(_lastSent.yaw);
             float yawDelta = Mathf.Abs(Mathf.DeltaAngle(lastYaw, facingYaw));
             if (yawDelta < PlayerEntityQuantization.YawStepDegrees)
                 return false;
 
-            // Holstered TPS camera yaw is presentation state and must not wake the movement
-            // stream while the player is idle. Once movement/input changes, the current yaw
-            // piggybacks the already-required MovementCommand and remains independently
-            // server-validated. Weapon-ready combat continues using the normal combat cadence.
             bool holsteredTpsIdle =
                 _locomotionCamera != null &&
                 _locomotionCamera.TpsCameraPresentationActive &&

@@ -104,8 +104,8 @@ namespace Player.Client
                 if (length <= 0.000001f)
                     return true;
 
-                // Match the authoritative horizontal motor's bounded substeps and
-                // its X/Z soft-slide decision rather than evaluating one full delta.
+                // Match the authoritative motor's bounded forward substeps.
+                // Never invent X-only or Z-only movement when an intended move is blocked.
                 float safeRadius = Mathf.Max(0.05f, radius);
                 float stepUp = Mathf.Max(0.01f, maximumStepUp);
                 float snapDown = Mathf.Max(0.01f, maximumSnapDown);
@@ -132,16 +132,10 @@ namespace Player.Client
                         continue;
                     }
 
-                    bool canX = TryGroundedCandidate(current, sx, 0f, safeRadius, stepUp,
-                        snapDown, out Vector3 xOnly);
-                    bool canZ = TryGroundedCandidate(current, 0f, sz, safeRadius, stepUp,
-                        snapDown, out Vector3 zOnly);
-                    if (canX && (!canZ || Mathf.Abs(sx) >= Mathf.Abs(sz)))
-                        current = xOnly;
-                    else if (canZ)
-                        current = zOnly;
-                    else
-                        blocked = true;
+                    // A genuine client rejects this direction before submitting it.
+                    // The calling PlayerEntityInput already suppresses blocked intents.
+                    blocked = true;
+                    break;
                 }
 
                 resolved = current;

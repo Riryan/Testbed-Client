@@ -694,7 +694,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &51859498
 Transform:
   m_ObjectHideFlags: 0
@@ -748,7 +748,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -13007,78 +13007,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 247346702}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &105500357
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 1739089756}
-    m_Modifications:
-    - target: {fileID: 189882, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_Name
-      value: SM_Env_Tree_01
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 64368485001322116, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_Enabled
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 64551004312226942, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-      propertyPath: m_Enabled
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 64551004312226942, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-    - {fileID: 64368485001322116, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
---- !u!4 &105500358 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 419742, guid: ee6af68a3d2c1864ebc6cfc3be82d851, type: 3}
-  m_PrefabInstance: {fileID: 105500357}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &113205966
 GameObject:
   m_ObjectHideFlags: 0
@@ -13188,7 +13116,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &133750814
 Transform:
   m_ObjectHideFlags: 0
@@ -13241,7 +13169,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -13263,7 +13191,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &138626338
 Transform:
   m_ObjectHideFlags: 0
@@ -13316,7 +13244,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -13548,7 +13476,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &196695839
 Transform:
   m_ObjectHideFlags: 0
@@ -13602,7 +13530,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -14289,6 +14217,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 47.97161
@@ -14339,7 +14271,7 @@ PrefabInstance:
       objectReference: {fileID: 613417322}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -14503,7 +14435,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &246003033
 Transform:
   m_ObjectHideFlags: 0
@@ -14556,7 +14488,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -14609,7 +14541,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &247346702
 Transform:
   m_ObjectHideFlags: 0
@@ -14662,7 +14594,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -15546,6 +15478,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (21)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 73.34
@@ -15592,7 +15528,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -15655,6 +15591,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (22)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 77.07
@@ -15705,7 +15645,7 @@ PrefabInstance:
       objectReference: {fileID: 1702314612}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -16202,7 +16142,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &663489999
 Transform:
   m_ObjectHideFlags: 0
@@ -16256,7 +16196,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -17063,6 +17003,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (20)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 63.22
@@ -17109,7 +17053,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -17260,6 +17204,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (19)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 43.06
@@ -17310,7 +17258,7 @@ PrefabInstance:
       objectReference: {fileID: 1565849022}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -17443,7 +17391,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1059828917
 Transform:
   m_ObjectHideFlags: 0
@@ -17497,7 +17445,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -17593,7 +17541,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1069234943
 Transform:
   m_ObjectHideFlags: 0
@@ -17646,7 +17594,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -17859,6 +17807,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (12)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 22.59
@@ -17909,7 +17861,7 @@ PrefabInstance:
       objectReference: {fileID: 1698269978}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -18103,7 +18055,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1218206175
 Transform:
   m_ObjectHideFlags: 0
@@ -18156,7 +18108,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -18639,7 +18591,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1418006491
 Transform:
   m_ObjectHideFlags: 0
@@ -18692,7 +18644,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -18714,7 +18666,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1434396873
 Transform:
   m_ObjectHideFlags: 0
@@ -18770,7 +18722,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -19048,6 +19000,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (23)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 73.28
@@ -19098,7 +19054,7 @@ PrefabInstance:
       objectReference: {fileID: 55595414}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -19339,7 +19295,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1556717742
 Transform:
   m_ObjectHideFlags: 0
@@ -19393,7 +19349,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -19875,7 +19831,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1699124639
 Transform:
   m_ObjectHideFlags: 0
@@ -19929,7 +19885,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -19962,7 +19918,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1702611166
 Transform:
   m_ObjectHideFlags: 0
@@ -20015,7 +19971,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -20250,210 +20206,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LiteNetLibManager::LiteNetLibManager.LiteNetLibSpawnPoint
   radius: 1.5
---- !u!1 &1729384609
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1729384615}
-  - component: {fileID: 1729384614}
-  - component: {fileID: 1729384613}
-  - component: {fileID: 1729384612}
-  - component: {fileID: 1729384611}
-  - component: {fileID: 1729384610}
-  - component: {fileID: 1729384616}
-  m_Layer: 0
-  m_Name: Storeage
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1729384610
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4ea4d173a51ba2e438d569c692d7cd3f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.WorldInteractable
-  bakeId: 015a01ef72a24b0cafdeb32dd38763c3
-  definitionId: storage
-  label: storage
-  kind: 5
-  gameplayProfileId: 
-  lootTableId: 
-  craftingStationId: 
-  factionDefinitionId: 
-  surveillanceCamera: 0
-  surveillanceRadius: 12
-  surveillanceEvidence: 1
-  persistentState: 0
-  enabledByDefault: 1
-  interactions:
-  - definitionId: open_storage
-    categoryId: 1
-    actionId: 301
-    displayLabel: Open
-    maximumUseDistance: 3.25
-    maximumFacingAngle: 180
-    exclusiveOccupancy: 0
-    looping: 0
-    fixedDurationSeconds: 0
-    lockMovement: 0
-    lockRotation: 0
-    cancelOnDamage: 1
-    cancelOnMovement: 1
-    cancelOnTargetUnavailable: 1
-    consentMode: 0
-    contentLevel: 0
-    feature: 10
-    participantRoles: []
-  slots: []
-  dynamicBlocker: 0
-  blockerKind: 1
-  blockerAnchor: {fileID: 0}
-  blockerSize: {x: 1, y: 2, z: 0.2}
-  blockerEnabledByDefault: 1
---- !u!114 &1729384611
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c076a6d6f8d5912449d6504976fb918c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.WorldObject
-  stableId: 7896223957685568725
-  definitionId: storage
---- !u!23 &1729384612
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 1
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_MaskInteraction: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1729384613
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!33 &1729384614
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!4 &1729384615
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -115.20386, y: 0.5, z: -161.43982}
-  m_LocalScale: {x: 1.6, y: 0.9, z: 0.8}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1729384616
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729384609}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c139235e735c4d7a18d21fa6473c30aa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.Client::Game.Client.UI.Interactions.ClientInteractionTargetMarker
-  targetKind: 4
-  primaryId: 7896223957685568725
-  networkObjectId: 0
-  generation: 0
-  displayName: storage
-  publicInteractions:
-  - categoryId: 1
-    actionId: 301
-    label: Open
-    maximumUseDistance: 3.25
-    consentMode: 0
-    contentLevel: 0
-    sortOrder: 0
 --- !u!1 &1735474362
 GameObject:
   m_ObjectHideFlags: 0
@@ -20595,7 +20347,7 @@ Transform:
   m_GameObject: {fileID: 1735474362}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.765417, y: 0, z: 9.746412}
+  m_LocalPosition: {x: -76.9, y: 0, z: -67.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -20633,211 +20385,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5614011507290657173, guid: 92c65475ff800934b9ca8109ecc04fe1, type: 3}
   m_PrefabInstance: {fileID: 79333789}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1739089750
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1739089756}
-  - component: {fileID: 1739089755}
-  - component: {fileID: 1739089754}
-  - component: {fileID: 1739089753}
-  - component: {fileID: 1739089752}
-  - component: {fileID: 1739089751}
-  - component: {fileID: 1739089757}
-  m_Layer: 0
-  m_Name: Harvest Test Lootbox
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1739089751
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4ea4d173a51ba2e438d569c692d7cd3f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.WorldInteractable
-  bakeId: d49fb60b50d64087ae0cbcde0c212b84
-  definitionId: harvest_test_lootbox
-  label: Harvest Test Lootbox
-  kind: 4
-  gameplayProfileId: recovery_salvage
-  lootTableId: 
-  craftingStationId: 
-  factionDefinitionId: 
-  surveillanceCamera: 0
-  surveillanceRadius: 12
-  surveillanceEvidence: 1
-  persistentState: 0
-  enabledByDefault: 1
-  interactions:
-  - definitionId: harvest
-    categoryId: 1
-    actionId: 105
-    displayLabel: Harvest
-    maximumUseDistance: 4
-    maximumFacingAngle: 180
-    exclusiveOccupancy: 1
-    looping: 0
-    fixedDurationSeconds: 2
-    lockMovement: 0
-    lockRotation: 0
-    cancelOnDamage: 1
-    cancelOnMovement: 1
-    cancelOnTargetUnavailable: 1
-    consentMode: 0
-    contentLevel: 0
-    feature: 9
-    participantRoles: []
-  slots: []
-  dynamicBlocker: 0
-  blockerKind: 1
-  blockerAnchor: {fileID: 0}
-  blockerSize: {x: 1, y: 2, z: 0.2}
-  blockerEnabledByDefault: 1
---- !u!114 &1739089752
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c076a6d6f8d5912449d6504976fb918c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.WorldAuthoring::Game.WorldAuthoring.WorldObject
-  stableId: 7599887209634291427
-  definitionId: harvest_test_lootbox
---- !u!23 &1739089753
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  m_Enabled: 0
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 1
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_MaskInteraction: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1739089754
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 3.8571427, z: 1}
-  m_Center: {x: 0, y: 1.4285715, z: 0}
---- !u!33 &1739089755
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!4 &1739089756
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -25.969229, y: 0, z: -4.38}
-  m_LocalScale: {x: 1.35, y: 0.7, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 105500358}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1739089757
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739089750}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c139235e735c4d7a18d21fa6473c30aa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.Client::Game.Client.UI.Interactions.ClientInteractionTargetMarker
-  targetKind: 4
-  primaryId: 7599887209634291427
-  networkObjectId: 0
-  generation: 0
-  displayName: Harvest Test Lootbox
-  publicInteractions:
-  - categoryId: 1
-    actionId: 105
-    label: Harvest
-    maximumUseDistance: 3.25
-    consentMode: 0
-    contentLevel: 0
-    sortOrder: 0
 --- !u!1 &1752033567
 GameObject:
   m_ObjectHideFlags: 0
@@ -21342,7 +20889,7 @@ PrefabInstance:
       objectReference: {fileID: 1638172417}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -21526,7 +21073,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1907064440
 Transform:
   m_ObjectHideFlags: 0
@@ -21581,7 +21128,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -21816,87 +21363,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 440902521036447839, guid: e716929103c983743a99eccb1ed7faf8, type: 3}
   m_PrefabInstance: {fileID: 2015602800}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &2028738797
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 100000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_Name
-      value: CanonicalPopulationHumanoidTest
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -29.672607
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.00000006370743
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 2.3705106
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 11400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: kind
-      value: 11
-      objectReference: {fileID: 0}
-    - target: {fileID: 11400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: label
-      value: Population Humanoid
-      objectReference: {fileID: 0}
-    - target: {fileID: 11400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: actorKind
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 11400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: archetypeId
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 11400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: tags.Array.size
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 11400000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
-      propertyPath: enabledForServer
-      value: 1
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 3d66ac0eb1474a7983e6f1b378a3abf2, type: 3}
 --- !u!1 &2035163722
 GameObject:
   m_ObjectHideFlags: 0
@@ -22202,7 +21668,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2102496904
 Transform:
   m_ObjectHideFlags: 0
@@ -22256,7 +21722,7 @@ MonoBehaviour:
   minimumSpawnInterval: 1
   maximumSpawnInterval: 2
   spawnBurstLimit: 1
-  maximumActiveInWorld: 2
+  maximumActiveInWorld: 1
   maximumActiveNearby: 2
   activeNearbyRadius: 18
   exitClearanceRadius: 0.45
@@ -22336,6 +21802,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 56.27884
@@ -22386,7 +21856,7 @@ PrefabInstance:
       objectReference: {fileID: 808209384}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -22457,6 +21927,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Population Spawner
       objectReference: {fileID: 0}
+    - target: {fileID: 224993399316136961, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2474163351747212584, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.116
@@ -22503,7 +21977,7 @@ PrefabInstance:
       objectReference: {fileID: 79333792}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumActiveInWorld
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5222540039605771964, guid: 825877b87ef50394b9b374a40f46676e, type: 3}
       propertyPath: maximumSpawnInterval
@@ -22532,9 +22006,6 @@ SceneRoots:
   - {fileID: 871448348}
   - {fileID: 208499487}
   - {fileID: 1715969672}
-  - {fileID: 2028738797}
-  - {fileID: 1739089756}
-  - {fileID: 1729384615}
   - {fileID: 1735474367}
   - {fileID: 423894250}
   - {fileID: 79333789}
