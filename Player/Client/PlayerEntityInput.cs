@@ -27,7 +27,7 @@ namespace Player.Client
         public float unchangedRefreshSeconds = 0.20f;
 
         [Header("Client-Safe World Prediction")]
-        [Tooltip("Suppress invalid grounded movement locally using the existing baked client-safe world package.")]
+        [Tooltip("Legacy inspector option retained for prefab compatibility. Authoritative-safe local movement rejection now always runs; it cannot be disabled.")]
         public bool useSharedWorldPrediction = true;
 
         private PlayerEntityNetwork _network;
@@ -40,6 +40,7 @@ namespace Player.Client
         private MovementCommand _lastSent;
         private double _lastSentAt;
         private double _lastContinuousSentAt;
+        private bool _blockedMovementHeld;
 
         [Header("Runtime Wire Telemetry")]
         [SerializeField] private uint sentMovementCommands;
@@ -67,6 +68,7 @@ namespace Player.Client
             sentMovementCommands = 0;
             suppressedUnchangedCommands = 0;
             suppressedBlockedCommands = 0;
+            _blockedMovementHeld = false;
             if (_logicUpdater != null)
                 _logicUpdater.OnTick += OnClientTick;
         }
@@ -123,6 +125,7 @@ namespace Player.Client
             _locomotionCamera = null;
             _interactionApproach = null;
             _hasLastSent = false;
+            _blockedMovementHeld = false;
         }
 
         private void OnClientTick(LogicUpdater updater)
@@ -189,43 +192,58 @@ namespace Player.Client
                 }
             }
 
-            // Legitimate clients suppress intent against known baked obstructions.
-            // Compare against a FULL server simulation tick (50 ms at 20 Hz), not
-            // one render frame (~16 ms): otherwise the server may reach the wall
-            // before the client notices it. This introduces NO new wire messages.
+            // All legitimate movement must be checked against the client-safe world.
+            // Loading/missing data is NOT permission to move: send an existing neutral
+            // MovementCommand until the bake is ready. Never skip this gate because of
+            // the legacy prediction inspector toggle.
+            bool hasOwner = PlayerEntityClient.TryGetOwner(out PlayerEntityClient owner);
+            bool bakedWorldReady = SharedWorldClient.IsLoaded;
+            bool requestedMovement = movement.sqrMagnitude > 0.0001f;
             bool jumpRequested = (flags & (byte)PlayerEntityFlags.Jumping) != 0;
-            if (useSharedWorldPrediction && !jumpRequested && movement.sqrMagnitude > 0.0001f &&
-                PlayerEntityClient.TryGetOwner(out PlayerEntityClient owner) &&
-                owner.LatestAuthoritativeGrounded)
+            bool blockedByClient = false;
+
+            if (!bakedWorldReady)
+            {
+                // The query also kicks off the existing asynchronous bake load.
+                // Passing zero delta avoids any speculative movement while loading.
+                SharedWorldClient.TryResolveGroundedMove(
+                    hasOwner ? owner.PresentationPosition : transform.position,
+                    Vector3.zero, 0.35f, 0.40f, 0.50f, out _, out _);
+            }
+
+            if (!bakedWorldReady || !hasOwner)
+            {
+                // World entry, scene transition, missing bake or owner not ready.
+                // Do not submit horizontal movement OR jump until locally validated.
+                blockedByClient = requestedMovement || jumpRequested;
+                movement = Vector2.zero;
+                flags = (byte)(flags & ~(byte)PlayerEntityFlags.Jumping);
+            }
+            else if (requestedMovement && !jumpRequested && owner.LatestAuthoritativeGrounded)
             {
                 float speed = (flags & (byte)PlayerEntityFlags.Sprinting) != 0
                     ? PlayerGameplaySettingsRuntime.SprintSpeed
                     : PlayerGameplaySettingsRuntime.MoveSpeed;
                 float magnitude = Mathf.Clamp01(movement.magnitude);
                 Vector2 direction = magnitude > 0.0001f ? movement / magnitude : Vector2.zero;
-
-                // Include one full server step and bounded client/server phase skew.
-                // This only affects the voluntary CLIENT stop; the authoritative
-                // server still validates every accepted input independently.
-                float previewSeconds = Mathf.Clamp(
-                    0.05f + Mathf.Min(0.025f, Time.unscaledDeltaTime),
-                    0.05f, 0.075f);
+                // Full 20Hz server step plus modest input/arrival phase skew.
+                const float PreviewSeconds = 0.075f;
                 Vector3 desiredDelta = new Vector3(direction.x, 0f, direction.y) *
-                                       speed * magnitude * previewSeconds;
+                                       speed * magnitude * PreviewSeconds;
 
-                if (SharedWorldClient.TryResolveGroundedMove(
-                        owner.PresentationPosition,
-                        desiredDelta,
-                        0.35f,
-                        0.40f,
-                        0.50f,
-                        out _,
-                        out bool blocked) && blocked)
+                if (!SharedWorldClient.TryResolveGroundedMove(
+                        owner.PresentationPosition, desiredDelta,
+                        0.35f, 0.40f, 0.50f,
+                        out _, out bool blocked) || blocked)
                 {
                     movement = Vector2.zero;
-                    suppressedBlockedCommands++;
+                    blockedByClient = true;
                 }
             }
+
+            if (blockedByClient)
+                suppressedBlockedCommands++;
+            _blockedMovementHeld = blockedByClient;
 
             _gameManager?.UpdateLocalAutomaticFirePrediction(
                 (combatState & PlayerCombatInputFlags.FireHeld) != 0,
@@ -283,7 +301,11 @@ namespace Player.Client
                 (combatState & PlayerCombatInputFlags.FireHeld) != 0;
 
             double refresh = Math.Max(0.10, unchangedRefreshSeconds);
-            if (requiresLeaseRefresh && now - _lastSentAt >= refresh)
+            // A neutral STOP can be lost on sequenced UDP. While the physical input
+            // remains blocked, resend the existing neutral intent at the established
+            // refresh cadence until it is no longer held. Never retransmit invalid motion.
+            if ((requiresLeaseRefresh || _blockedMovementHeld) &&
+                now - _lastSentAt >= refresh)
                 return true;
 
             float lastYaw = PlayerEntityQuantization.DequantizeYaw(_lastSent.yaw);

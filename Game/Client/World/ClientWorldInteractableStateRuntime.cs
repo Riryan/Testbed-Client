@@ -4,6 +4,7 @@ using Game.WorldAuthoring;
 using Player.Client;
 using Player.Networking;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Game.Client.World
 {
@@ -14,7 +15,8 @@ namespace Game.Client.World
     public sealed class ClientWorldInteractableStateRuntime : MonoBehaviour
     {
         private static ClientWorldInteractableStateRuntime _instance;
-        private static readonly Dictionary<long, WorldInteractableStateMessage> States = new Dictionary<long, WorldInteractableStateMessage>();
+        private static readonly Dictionary<long, WorldInteractableStateMessage> States =
+            new Dictionary<long, WorldInteractableStateMessage>();
         private PlayerEntityGameManager _manager;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -29,6 +31,28 @@ namespace Game.Client.World
             DontDestroyOnLoad(go);
             _instance = go.AddComponent<ClientWorldInteractableStateRuntime>();
 #endif
+        }
+
+        private void OnEnable()
+        {
+#if !UNITY_SERVER
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+            SceneManager.activeSceneChanged += OnActiveSceneChanged;
+#endif
+        }
+
+        private void OnDisable()
+        {
+#if !UNITY_SERVER
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+#endif
+        }
+
+        private static void OnActiveSceneChanged(Scene previous, Scene current)
+        {
+            // Interactable stable IDs and revisions are scoped to the active world.
+            // A former map's higher revision must not reject the new map's initial state.
+            States.Clear();
         }
 
         private void Update()
@@ -69,11 +93,16 @@ namespace Game.Client.World
 
         private static void OnStateReceived(WorldInteractableStateMessage state)
         {
-            if (state.stableId <= 0)
+            if (state.stableId <= 0 || state.revision < 0)
                 return;
 
-            if (!States.TryGetValue(state.stableId, out WorldInteractableStateMessage current) || state.revision >= current.revision)
-                States[state.stableId] = state;
+            // Check BEFORE changing any consumer. Previously old revisions were barred
+            // from the cache but still applied to blockers and door visuals.
+            if (States.TryGetValue(state.stableId, out WorldInteractableStateMessage current) &&
+                state.revision <= current.revision)
+                return;
+
+            States[state.stableId] = state;
 
             if (state.dynamicBlockerId > 0)
                 SharedWorldClient.TrySetDynamicBlockerEnabled(
