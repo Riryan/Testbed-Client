@@ -123,6 +123,14 @@ namespace Player.Client
 
         /// <summary>Current rendered/predicted root position for owner-side input prediction.</summary>
         public Vector3 PresentationPosition => _visual != null ? _visual.position : transform.position;
+        /// <summary>
+        /// Position produced by local owner prediction before render interpolation or
+        /// smoothing. MovementCommand reports this value to the server.
+        /// </summary>
+        public Vector3 ReportedMovementPosition => IsOwnerClient && _ownerPredictionInitialized
+            ? _ownerPredictionPosition
+            : PresentationPosition;
+        public uint OwnerMovementBlockEpisodes => ownerMovementBlockEpisodes;
 
         /// <summary>Latest server-confirmed grounded state. Used only to decide whether client-side static-world suppression is safe.</summary>
         public bool LatestAuthoritativeGrounded =>
@@ -356,10 +364,18 @@ namespace Player.Client
         private float _lastPresentationError;
         private Vector3 _localPredictedVelocity;
         private float _localPredictedSpeed;
+        private float _localPredictedVerticalSpeed;
         private byte _localPredictedFlags;
+        private bool _localPredictedGrounded = true;
         private bool _localPredictionActive;
         private Vector3 _ownerPredictionPosition;
         private bool _ownerPredictionInitialized;
+        private bool _ownerPredictionGrounded = true;
+        private bool _ownerPredictionJumpHeld;
+        [SerializeField] private uint ownerMovementBlockEpisodes;
+        private bool _ownerMovementBlockedLastFrame;
+        private float _ownerPredictionVerticalVelocity;
+        private uint _ownerPredictionLastServerTick;
         private double _ownerPredictionLastTime;
         private Vector3 _renderedWorldVelocity;
         private readonly RaycastHit[] _ownerGroundProbeHits = new RaycastHit[12];
@@ -1204,6 +1220,11 @@ namespace Player.Client
             _renderedWorldVelocity = Vector3.zero;
             _ownerPredictionPosition = p;
             _ownerPredictionInitialized = IsOwnerClient;
+            _ownerPredictionGrounded =
+                (((PlayerEntityFlags)snapshot.flags) & PlayerEntityFlags.Grounded) != 0;
+            _ownerPredictionVerticalVelocity = snapshot.VerticalSpeed;
+            _ownerPredictionJumpHeld = false;
+            _ownerPredictionLastServerTick = snapshot.serverTick;
             _ownerPredictionLastTime = Time.realtimeSinceStartupAsDouble;
             _lastPresentationError = 0f;
             _forcePresentationSnap = false;
@@ -1374,6 +1395,15 @@ namespace Player.Client
                 : _renderedWorldVelocity;
             worldVelocity.y = 0f;
 
+            if (!(_localPredictionActive && IsOwnerClient))
+            {
+                PlayerEntityFlags movementFlags = (PlayerEntityFlags)snapshot.flags;
+                float distanceMultiplier = (movementFlags & PlayerEntityFlags.Sprinting) != 0
+                    ? PlayerMovementDefaults.SprintDistanceMultiplier
+                    : PlayerMovementDefaults.WalkDistanceMultiplier;
+                worldVelocity /= distanceMultiplier;
+            }
+
             Vector3 localPlanarVelocity =
                 Quaternion.Inverse(_visual.rotation) * worldVelocity;
 
@@ -1389,11 +1419,10 @@ namespace Player.Client
                 // classic "animation stops, body slides" artifact.
                 if (!IsOwnerClient)
                 {
-                    presentationSnapshot.moveSpeed =
-                        PlayerEntityQuantization.QuantizeUnsignedSpeed(renderedPlanarSpeed);
-
                     PlayerEntityFlags remoteFlags =
                         (PlayerEntityFlags)presentationSnapshot.flags;
+                    presentationSnapshot.moveSpeed =
+                        PlayerEntityQuantization.QuantizeUnsignedSpeed(renderedPlanarSpeed);
                     bool remoteGrounded =
                         (remoteFlags & PlayerEntityFlags.Grounded) != 0;
                     if (remoteGrounded)
@@ -1411,7 +1440,10 @@ namespace Player.Client
                     PlayerEntityFlags presentationFlags =
                         (PlayerEntityFlags)presentationSnapshot.flags;
                     presentationFlags &=
-                        ~(PlayerEntityFlags.Sprinting | PlayerEntityFlags.Running);
+                        ~(PlayerEntityFlags.Sprinting | PlayerEntityFlags.Running |
+                          PlayerEntityFlags.Grounded);
+                    if (_localPredictedGrounded)
+                        presentationFlags |= PlayerEntityFlags.Grounded;
 
                     if ((_localPredictedFlags & (byte)PlayerEntityFlags.Sprinting) != 0 &&
                         _localPredictedSpeed > 0.05f)
@@ -1421,13 +1453,15 @@ namespace Player.Client
                     }
 
                     presentationSnapshot.flags = (byte)presentationFlags;
+                    presentationSnapshot.verticalSpeed =
+                        PlayerEntityQuantization.QuantizeSignedSpeed(_localPredictedVerticalSpeed);
 
-                    if ((presentationFlags & PlayerEntityFlags.Grounded) != 0)
-                    {
+                    if (!_localPredictedGrounded)
+                        presentationSnapshot.moveState = (byte)PlayerEntityMoveState.Airborne;
+                    else
                         presentationSnapshot.moveState = _localPredictedSpeed > 0.05f
                             ? (byte)PlayerEntityMoveState.Moving
                             : (byte)PlayerEntityMoveState.Idle;
-                    }
                 }
             }
 
@@ -1505,7 +1539,9 @@ namespace Player.Client
             _localPredictionActive = false;
             _localPredictedVelocity = Vector3.zero;
             _localPredictedSpeed = 0f;
+            _localPredictedVerticalSpeed = 0f;
             _localPredictedFlags = 0;
+            _localPredictedGrounded = true;
 
             if (!IsOwnerClient ||
                 !localPrediction ||
@@ -1531,12 +1567,21 @@ namespace Player.Client
                 return false;
             }
 
-            bool grounded =
+            bool authoritativeGrounded =
                 (((PlayerEntityFlags)snapshot.flags) & PlayerEntityFlags.Grounded) != 0;
 
-            float speed = (inputFlags & (byte)PlayerEntityFlags.Sprinting) != 0
+            bool jumpHeld = (inputFlags & (byte)PlayerEntityFlags.Jumping) != 0;
+            bool jumpPressed = jumpHeld && !_ownerPredictionJumpHeld;
+            _ownerPredictionJumpHeld = jumpHeld;
+
+            bool sprinting = (inputFlags & (byte)PlayerEntityFlags.Sprinting) != 0;
+            float animationSpeed = sprinting
                 ? PlayerGameplaySettingsRuntime.SprintSpeed
                 : PlayerGameplaySettingsRuntime.MoveSpeed;
+            float distanceMultiplier = sprinting
+                ? PlayerMovementDefaults.SprintDistanceMultiplier
+                : PlayerMovementDefaults.WalkDistanceMultiplier;
+            float speed = animationSpeed * distanceMultiplier;
 
             float magnitude = Mathf.Clamp01(worldInput.magnitude);
             Vector2 direction = magnitude > 0.0001f
@@ -1555,129 +1600,158 @@ namespace Player.Client
                 0.05,
                 rawFrameSeconds > 0.0 ? rawFrameSeconds : Math.Max(0.0, Time.unscaledDeltaTime));
 
-            bool teleport =
-                (((PlayerEntityFlags)snapshot.flags) & PlayerEntityFlags.Teleport) != 0;
-            if (!_ownerPredictionInitialized || teleport)
+            // OnSnapshotChanged/SnapPresentation already applies Teleport exactly once
+            // when the correction sample arrives. The latest buffered snapshot retains
+            // its flags for several rendered frames, so treating Teleport as a per-frame
+            // reset here pins local prediction to the same accepted position until the
+            // next network sample and makes movement appear to crawl.
+            if (!_ownerPredictionInitialized)
             {
                 _ownerPredictionPosition = _visual != null
                     ? _visual.position
                     : snapshot.Position;
-                if (teleport || Vector3.Distance(_ownerPredictionPosition, snapshot.Position) > 2f)
+                if (Vector3.Distance(_ownerPredictionPosition, snapshot.Position) > 2f)
                     _ownerPredictionPosition = snapshot.Position;
+                _ownerPredictionGrounded = authoritativeGrounded;
+                _ownerPredictionVerticalVelocity = snapshot.VerticalSpeed;
+                _ownerPredictionLastServerTick = snapshot.serverTick;
                 _ownerPredictionInitialized = true;
+            }
+
+            // Reconcile airborne state only when a new authoritative sample is close
+            // enough to describe the local vertical phase. A delayed grounded sample
+            // must not cancel the jump that was just predicted on this client.
+            if (snapshot.serverTick != _ownerPredictionLastServerTick)
+            {
+                _ownerPredictionLastServerTick = snapshot.serverTick;
+                float verticalSampleError = Mathf.Abs(
+                    snapshot.Position.y - _ownerPredictionPosition.y);
+                if (authoritativeGrounded && verticalSampleError <= 0.20f)
+                {
+                    _ownerPredictionGrounded = true;
+                    _ownerPredictionVerticalVelocity = 0f;
+                }
+                else if (!authoritativeGrounded)
+                {
+                    _ownerPredictionGrounded = false;
+                    _ownerPredictionVerticalVelocity = snapshot.VerticalSpeed;
+                }
             }
 
             _ownerPredictionLastTime = now;
 
             float verticalVelocity = 0f;
-            if (grounded)
+            if (_ownerPredictionGrounded && jumpPressed)
             {
-                Vector3 horizontalDelta = planarVelocity * frameSeconds;
-                if (horizontalDelta.sqrMagnitude > 0.0000001f)
+                _ownerPredictionGrounded = false;
+                _ownerPredictionVerticalVelocity = PlayerMovementDefaults.JumpSpeed;
+            }
+
+            Vector3 horizontalDelta = planarVelocity * frameSeconds;
+            if (horizontalDelta.sqrMagnitude > 0.0000001f)
+            {
+                if (SharedWorldClient.TryResolveGroundedMove(
+                        _ownerPredictionPosition,
+                        horizontalDelta,
+                        0.35f,
+                        0.40f,
+                        0.50f,
+                        out Vector3 sharedResolved,
+                        out bool blocked))
                 {
-                    if (SharedWorldClient.TryResolveGroundedMove(
-                            _ownerPredictionPosition,
-                            horizontalDelta,
-                            0.35f,
-                            0.40f,
-                            0.50f,
-                            out Vector3 sharedResolved,
-                            out _))
-                    {
-                        if (frameSeconds > 0.0001f)
-                            verticalVelocity =
-                                (sharedResolved.y - _ownerPredictionPosition.y) / frameSeconds;
-                        _ownerPredictionPosition = sharedResolved;
-                    }
-                    else
-                    {
-                        _ownerPredictionPosition += horizontalDelta;
-                    }
+                    if (blocked && !_ownerMovementBlockedLastFrame)
+                        ownerMovementBlockEpisodes++;
+                    _ownerMovementBlockedLastFrame = blocked;
+                    _ownerPredictionPosition.x = sharedResolved.x;
+                    _ownerPredictionPosition.z = sharedResolved.z;
+                    if (_ownerPredictionGrounded)
+                        _ownerPredictionPosition.y = sharedResolved.y;
                 }
-
-                // Project the newest authoritative sample to approximately "now" and
-                // fold corrections into the predictor while moving. When the local input
-                // has just stopped but the newest packet still describes motion, hold the
-                // rendered root still instead of dragging the body/camera toward a stale
-                // pre-stop snapshot. Large idle disagreement still snaps for safety.
-                double age = Math.Max(0.0, now - latest.arrivalTime);
-                float projectedSeconds = (float)Math.Min(
-                    Math.Max(0.02f, localPredictionMaxSeconds),
-                    age);
-
-                Vector3 authoritativeNow = snapshot.Position;
-                if (!IsAuthoritativelyStopped(snapshot) && _count > 1)
+                else
                 {
-                    Vector3 authoritativeVelocity = EstimateVelocity(_count - 1, tickSeconds);
-                    authoritativeNow += authoritativeVelocity * projectedSeconds;
-                }
-
-                Vector3 predictionError = authoritativeNow - _ownerPredictionPosition;
-                predictionError.y = 0f;
-
-                if (magnitude > 0.0001f)
-                {
-                    float correctionResponse = 0.10f;
-                    float correctionAlpha = 1f - Mathf.Exp(-frameSeconds / correctionResponse);
-                    Vector3 correction = predictionError * correctionAlpha;
-                    correction = Vector3.ClampMagnitude(
-                        correction,
-                        Mathf.Max(0.02f, PlayerGameplaySettingsRuntime.MoveSpeed * frameSeconds * 0.35f));
-                    _ownerPredictionPosition += correction;
-                }
-                else if (IsAuthoritativelyStopped(snapshot) &&
-                         predictionError.sqrMagnitude > 1.0f)
-                {
-                    // A one-metre idle disagreement is not normal prediction lead. Snap
-                    // instead of hiding a genuine correction indefinitely.
-                    _ownerPredictionPosition = snapshot.Position;
-                }
-
-                // Horizontal owner prediction is driven from the shared bake, but the local
-                // scene already contains the exact visible collider that the player must stand
-                // on. Resolve Y independently every rendered frame using one non-allocating
-                // downward probe, constrained to the latest server-confirmed feet height.
-                // This fixes owner-only visual sinking on raised meshes/platforms without
-                // changing authority or adding any wire traffic. If scene physics cannot
-                // resolve the support, fall back to the same precise baked support surface.
-                float beforeGroundResolveY = _ownerPredictionPosition.y;
-                if (TryResolveOwnerGroundPresentation(
-                        snapshot.Position.y,
-                        out float ownerGroundY))
-                {
-                    _ownerPredictionPosition.y = ownerGroundY;
-                    if (frameSeconds > 0.0001f)
-                        verticalVelocity =
-                            (_ownerPredictionPosition.y - beforeGroundResolveY) / frameSeconds;
+                    _ownerMovementBlockedLastFrame = false;
+                    _ownerPredictionPosition.x += horizontalDelta.x;
+                    _ownerPredictionPosition.z += horizontalDelta.z;
                 }
             }
             else
             {
-                // Airborne motion is still reconstructed from the authoritative sample.
-                // Jump prediction can be promoted to the same integrated model later once
-                // the shared-world dynamic blocker path is complete.
-                double age = Math.Max(0.0, now - latest.arrivalTime);
-                double lead = Math.Max(0f, localPredictionLeadTicks) * tickSeconds;
-                float predictionSeconds = (float)Math.Min(
-                    Math.Max(0.02f, localPredictionMaxSeconds),
-                    age + lead);
+                _ownerMovementBlockedLastFrame = false;
+            }
 
-                _ownerPredictionPosition = snapshot.Position +
-                    planarVelocity * predictionSeconds;
-                verticalVelocity = snapshot.VerticalSpeed -
-                    PlayerGameplaySettingsRuntime.Gravity * predictionSeconds;
+            if (_ownerPredictionGrounded)
+            {
+                if (horizontalDelta.sqrMagnitude <= 0.0000001f &&
+                    TryResolveOwnerGroundPresentation(snapshot.Position.y, out float ownerGroundY))
+                {
+                    _ownerPredictionPosition.y = ownerGroundY;
+                }
+                _ownerPredictionVerticalVelocity = 0f;
+            }
+            else
+            {
+                float previousVerticalVelocity = _ownerPredictionVerticalVelocity;
+                _ownerPredictionVerticalVelocity -=
+                    PlayerGameplaySettingsRuntime.Gravity * frameSeconds;
                 _ownerPredictionPosition.y +=
-                    snapshot.VerticalSpeed * predictionSeconds -
-                    0.5f * PlayerGameplaySettingsRuntime.Gravity *
-                    predictionSeconds * predictionSeconds;
+                    (previousVerticalVelocity + _ownerPredictionVerticalVelocity) *
+                    0.5f * frameSeconds;
+
+                if (SharedWorldClient.TryFindSupportHeight(
+                        _ownerPredictionPosition.x,
+                        _ownerPredictionPosition.z,
+                        _ownerPredictionPosition.y,
+                        0.15f,
+                        2.0f,
+                        out float supportY) &&
+                    _ownerPredictionVerticalVelocity <= 0f &&
+                    _ownerPredictionPosition.y <= supportY + 0.03f)
+                {
+                    _ownerPredictionPosition.y = supportY;
+                    _ownerPredictionVerticalVelocity = 0f;
+                    _ownerPredictionGrounded = true;
+                }
+                verticalVelocity = _ownerPredictionVerticalVelocity;
+            }
+
+            // Project the newest authoritative sample to approximately "now" and fold
+            // horizontal corrections into the predictor while moving. Preserve the
+            // client-integrated vertical arc so a delayed snapshot cannot flatten a jump.
+            double age = Math.Max(0.0, now - latest.arrivalTime);
+            float projectedSeconds = (float)Math.Min(
+                Math.Max(0.02f, localPredictionMaxSeconds), age);
+            Vector3 authoritativeNow = snapshot.Position;
+            if (!IsAuthoritativelyStopped(snapshot) && _count > 1)
+            {
+                Vector3 authoritativeVelocity = EstimateVelocity(_count - 1, tickSeconds);
+                authoritativeNow += authoritativeVelocity * projectedSeconds;
+            }
+            Vector3 predictionError = authoritativeNow - _ownerPredictionPosition;
+            predictionError.y = 0f;
+            if (magnitude > 0.0001f)
+            {
+                float correctionResponse = 0.10f;
+                float correctionAlpha = 1f - Mathf.Exp(-frameSeconds / correctionResponse);
+                Vector3 correction = predictionError * correctionAlpha;
+                correction = Vector3.ClampMagnitude(
+                    correction,
+                    Mathf.Max(0.02f, speed * frameSeconds * 0.35f));
+                _ownerPredictionPosition += correction;
+            }
+            else if (IsAuthoritativelyStopped(snapshot) && predictionError.sqrMagnitude > 1.0f)
+            {
+                _ownerPredictionPosition.x = snapshot.Position.x;
+                _ownerPredictionPosition.z = snapshot.Position.z;
             }
 
             _localPredictedVelocity = new Vector3(
-                planarVelocity.x,
+                direction.x * animationSpeed * magnitude,
                 verticalVelocity,
-                planarVelocity.z);
-            _localPredictedSpeed = planarVelocity.magnitude;
+                direction.y * animationSpeed * magnitude);
+            _localPredictedSpeed = animationSpeed * magnitude;
+            _localPredictedVerticalSpeed = verticalVelocity;
             _localPredictedFlags = inputFlags;
+            _localPredictedGrounded = _ownerPredictionGrounded;
             _localPredictionActive = true;
 
             position = _ownerPredictionPosition;
@@ -2185,3 +2259,4 @@ namespace Player.Client
         }
     }
 }
+

@@ -9,9 +9,9 @@ using UnityEngine.EventSystems;
 namespace Player.Client
 {
     /// <summary>
-    /// Thin local PlayerEntity movement serializer.
-    /// PlayerEntityLocomotionCameraController owns locomotion and camera input;
-    /// this component sends compact intent. The GameServer remains authoritative.
+    /// Owner movement serializer. Sends the current locally resolved visual feet
+    /// position in the existing RPC, matching the standalone GameServer contract.
+    /// The server independently checks reported movement for legality.
     /// </summary>
     public sealed class PlayerEntityInput : LiteNetLibBehaviour
     {
@@ -22,12 +22,12 @@ namespace Player.Client
         [Range(0.02f, 0.20f)]
         public float continuousUpdateIntervalSeconds = 0.05f;
 
-        [Tooltip("Safety refresh for an unchanged held input state. This protects against a lost sequenced UDP command without resending every simulation tick.")]
+        [Tooltip("Safety refresh for an unchanged held input state.")]
         [Range(0.10f, 0.50f)]
         public float unchangedRefreshSeconds = 0.20f;
 
         [Header("Client-Safe World Prediction")]
-        [Tooltip("Legacy inspector option retained for prefab compatibility. Authoritative-safe local movement rejection now always runs; it cannot be disabled.")]
+        [Tooltip("Legacy prefab field. Local movement legality checks remain enabled.")]
         public bool useSharedWorldPrediction = true;
 
         private PlayerEntityNetwork _network;
@@ -69,6 +69,7 @@ namespace Player.Client
             suppressedUnchangedCommands = 0;
             suppressedBlockedCommands = 0;
             _blockedMovementHeld = false;
+            _hasLastSent = false;
             if (_logicUpdater != null)
                 _logicUpdater.OnTick += OnClientTick;
         }
@@ -166,7 +167,7 @@ namespace Player.Client
             {
                 PlayerCombatOwnerStateMessage ownerState = _gameManager.LatestCombatOwnerState;
                 precisionRangedMode = ownerState.revision > 0 &&
-                                      ownerState.Mode == Game.Shared.Abilities.BasicAttackMode.Firearm;
+                                      ownerState.Mode == BasicAttackMode.Firearm;
                 knownEmpty = precisionRangedMode && ownerState.loadedRounds <= 0;
             }
 
@@ -192,10 +193,6 @@ namespace Player.Client
                 }
             }
 
-            // All legitimate movement must be checked against the client-safe world.
-            // Loading/missing data is NOT permission to move: send an existing neutral
-            // MovementCommand until the bake is ready. Never skip this gate because of
-            // the legacy prediction inspector toggle.
             bool hasOwner = PlayerEntityClient.TryGetOwner(out PlayerEntityClient owner);
             bool bakedWorldReady = SharedWorldClient.IsLoaded;
             bool requestedMovement = movement.sqrMagnitude > 0.0001f;
@@ -204,8 +201,6 @@ namespace Player.Client
 
             if (!bakedWorldReady)
             {
-                // The query also kicks off the existing asynchronous bake load.
-                // Passing zero delta avoids any speculative movement while loading.
                 SharedWorldClient.TryResolveGroundedMove(
                     hasOwner ? owner.PresentationPosition : transform.position,
                     Vector3.zero, 0.35f, 0.40f, 0.50f, out _, out _);
@@ -213,33 +208,16 @@ namespace Player.Client
 
             if (!bakedWorldReady || !hasOwner)
             {
-                // World entry, scene transition, missing bake or owner not ready.
-                // Do not submit horizontal movement OR jump until locally validated.
                 blockedByClient = requestedMovement || jumpRequested;
                 movement = Vector2.zero;
                 flags = (byte)(flags & ~(byte)PlayerEntityFlags.Jumping);
             }
-            else if (requestedMovement && !jumpRequested && owner.LatestAuthoritativeGrounded)
-            {
-                float speed = (flags & (byte)PlayerEntityFlags.Sprinting) != 0
-                    ? PlayerGameplaySettingsRuntime.SprintSpeed
-                    : PlayerGameplaySettingsRuntime.MoveSpeed;
-                float magnitude = Mathf.Clamp01(movement.magnitude);
-                Vector2 direction = magnitude > 0.0001f ? movement / magnitude : Vector2.zero;
-                // Full 20Hz server step plus modest input/arrival phase skew.
-                const float PreviewSeconds = 0.075f;
-                Vector3 desiredDelta = new Vector3(direction.x, 0f, direction.y) *
-                                       speed * magnitude * PreviewSeconds;
-
-                if (!SharedWorldClient.TryResolveGroundedMove(
-                        owner.PresentationPosition, desiredDelta,
-                        0.35f, 0.40f, 0.50f,
-                        out _, out bool blocked) || blocked)
-                {
-                    movement = Vector2.zero;
-                    blockedByClient = true;
-                }
-            }
+            // The canonical owner movement predictor already resolves grounded collision.
+            // Do not run a second 75ms look-ahead against the visually interpolated
+            // feet pose here: it can start partly inside an obstacle and reject
+            // even a valid direction AWAY from the obstacle. This component only
+            // serializes the resulting client position and intent. The GameServer
+            // independently validates each submitted position against baked world.
 
             if (blockedByClient)
                 suppressedBlockedCommands++;
@@ -252,6 +230,13 @@ namespace Player.Client
             bool fireHeld = (combatState & PlayerCombatInputFlags.FireHeld) != 0;
             byte combatInput = PlayerCombatInputEncoding.Encode(
                 combatState, fireHeld ? aimPitchDegrees : 0f);
+
+            // Serialize the current owner client-resolved feet pose. Do not
+            // independently advance a second motor in the input serializer.
+            Vector3 feetPosition = hasOwner ? owner.PresentationPosition : transform.position;
+            if (!PlayerEntityQuantization.IsFinite(feetPosition))
+                return;
+
             var command = new MovementCommand
             {
                 sequence = 0,
@@ -260,6 +245,9 @@ namespace Player.Client
                 yaw = PlayerEntityQuantization.QuantizeYaw(facingYaw),
                 flags = flags,
                 combatFlags = combatInput,
+                positionX = PlayerEntityQuantization.QuantizePosition(feetPosition.x),
+                positionY = PlayerEntityQuantization.QuantizePosition(feetPosition.y),
+                positionZ = PlayerEntityQuantization.QuantizePosition(feetPosition.z),
             };
 
             double now = Time.realtimeSinceStartupAsDouble;
@@ -285,8 +273,9 @@ namespace Player.Client
             if (!_hasLastSent)
                 return true;
 
-            // A zero input generated by local collision suppression is an immediate
-            // STOP transition. It bypasses continuous-input cadence throttling.
+            // Changed position is movement data, not merely a different visual pose.
+            // Avoid broadcasting tiny quantized changes while idle, but never
+            // suppress actual locally integrated motion when direction is held.
             if (candidate.inputX != _lastSent.inputX ||
                 candidate.inputZ != _lastSent.inputZ ||
                 candidate.flags != _lastSent.flags ||
@@ -296,16 +285,21 @@ namespace Player.Client
             PlayerCombatInputFlags combatState =
                 PlayerCombatInputEncoding.DecodeFlags(candidate.combatFlags);
             bool requiresLeaseRefresh =
-                candidate.inputX != 0 ||
-                candidate.inputZ != 0 ||
+                candidate.inputX != 0 || candidate.inputZ != 0 ||
                 (combatState & PlayerCombatInputFlags.FireHeld) != 0;
 
             double refresh = Math.Max(0.10, unchangedRefreshSeconds);
-            // A neutral STOP can be lost on sequenced UDP. While the physical input
-            // remains blocked, resend the existing neutral intent at the established
-            // refresh cadence until it is no longer held. Never retransmit invalid motion.
             if ((requiresLeaseRefresh || _blockedMovementHeld) &&
                 now - _lastSentAt >= refresh)
+                return true;
+
+            // Position corrections or gravity movement must be transmitted even
+            // without a horizontal input; cap these at the existing wire cadence.
+            bool positionChanged = candidate.positionX != _lastSent.positionX ||
+                                   candidate.positionY != _lastSent.positionY ||
+                                   candidate.positionZ != _lastSent.positionZ;
+            if (positionChanged && now - _lastContinuousSentAt >=
+                Math.Max(0.02, continuousUpdateIntervalSeconds))
                 return true;
 
             float lastYaw = PlayerEntityQuantization.DequantizeYaw(_lastSent.yaw);
@@ -317,13 +311,13 @@ namespace Player.Client
                 _locomotionCamera != null &&
                 _locomotionCamera.TpsCameraPresentationActive &&
                 !_locomotionCamera.CombatCameraActive &&
-                candidate.inputX == 0 &&
-                candidate.inputZ == 0 &&
+                candidate.inputX == 0 && candidate.inputZ == 0 &&
                 combatState == PlayerCombatInputFlags.None;
             if (holsteredTpsIdle)
                 return false;
 
-            return now - _lastContinuousSentAt >= Math.Max(0.02, continuousUpdateIntervalSeconds);
+            return now - _lastContinuousSentAt >=
+                Math.Max(0.02, continuousUpdateIntervalSeconds);
         }
 
         public void SetEnabled(bool value) => enableKeyboardInput = value;

@@ -13,6 +13,9 @@ namespace Player.Shared
         public byte yaw;
         public byte flags;
         public byte combatFlags;
+        public int positionX;
+        public int positionY;
+        public int positionZ;
 
         public Vector2 Input => new Vector2(PlayerEntityQuantization.DequantizeInput(inputX), PlayerEntityQuantization.DequantizeInput(inputZ));
 
@@ -24,6 +27,9 @@ namespace Player.Shared
             writer.Put(yaw);
             writer.Put(flags);
             writer.Put(combatFlags);
+            writer.PutPackedInt(positionX);
+            writer.PutPackedInt(positionY);
+            writer.PutPackedInt(positionZ);
         }
 
         public void Deserialize(NetDataReader reader)
@@ -34,11 +40,17 @@ namespace Player.Shared
             yaw = reader.GetByte();
             flags = reader.GetByte();
             combatFlags = reader.GetByte();
+            positionX = reader.GetPackedInt();
+            positionY = reader.GetPackedInt();
+            positionZ = reader.GetPackedInt();
         }
 
-        public bool Equals(MovementCommand other) => sequence == other.sequence && inputX == other.inputX && inputZ == other.inputZ && yaw == other.yaw && flags == other.flags && combatFlags == other.combatFlags;
+        public bool Equals(MovementCommand other) =>
+            sequence == other.sequence && inputX == other.inputX && inputZ == other.inputZ &&
+            yaw == other.yaw && flags == other.flags && combatFlags == other.combatFlags &&
+            positionX == other.positionX && positionY == other.positionY && positionZ == other.positionZ;
         public override bool Equals(object obj) => obj is MovementCommand other && Equals(other);
-        public override int GetHashCode() => unchecked((int)sequence * 397 ^ inputX ^ (inputZ << 8) ^ (yaw << 16) ^ flags ^ (combatFlags << 24));
+        public override int GetHashCode() => unchecked((int)sequence * 397 ^ inputX ^ (inputZ << 8) ^ (yaw << 16) ^ flags ^ (combatFlags << 24) ^ positionX ^ positionY ^ positionZ);
     }
 
     [Serializable]
@@ -111,6 +123,4 @@ namespace Player.Shared
         public override bool Equals(object obj) => obj is PlayerEntitySnapshot other && Equals(other);
         public override int GetHashCode() => unchecked((int)entityId * 397 ^ generation ^ (int)serverTick);
     }
-
-
 }
